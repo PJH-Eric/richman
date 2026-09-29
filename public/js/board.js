@@ -384,6 +384,7 @@
       const v = B.shown;
       if (!v) return;
       B.view = v;
+      if (B.pick && !(v.phase === 'roll' && meIndex(v) === v.turn)) B.pick = null;   /* 選道具到一半換人／換階段就取消 */
       B.sent = false;      /* 先解鎖再畫，不然按鈕會被畫成灰的、再也沒人重畫 */
       clearTimeout(B.sentT);
       v.seats.forEach((s, i) => { B.pos[i] = s.pos; });
@@ -685,6 +686,7 @@
     /** 點 3D 棋盤上的格子：機票選目的地時＝飛過去，否則看格子說明 */
     B.tileClick = function (i) {
       const v = B.shown;
+      if ((B.pick === 'fly' || B.pick === 'bomb') && v && (B.busy || B.sent)) return;   /* 動畫中點格子：先忽略，不要跳出說明擋住畫面 */
       if ((B.pick === 'fly' || B.pick === 'bomb') && v && !B.busy && !B.sent) {
         const me = meIndex(v), kind = B.pick;
         const err = me >= 0 && me === v.turn ? R.canUseItem(v, me, kind, i) : '現在不能用';
@@ -744,7 +746,7 @@
       sumEl.innerHTML = '';
     };
     /* 給測試用 */
-    B._debug = { get busy() { return B.busy; }, get queue() { return B.queue.length; }, get shown() { return B.shown; }, get pos() { return B.pos; } };
+    B._debug = { get sent() { return B.sent; }, get pick() { return B.pick; }, get pumping() { return B.pumping; }, get busy() { return B.busy; }, get queue() { return B.queue.length; }, get shown() { return B.shown; }, get pos() { return B.pos; } };
     Object.defineProperty(B, 'mySeat', { get() { return B.shown ? meIndex(B.shown) : -1; } });
     return B;
   }

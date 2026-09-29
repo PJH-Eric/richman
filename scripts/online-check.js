@@ -296,6 +296,41 @@ function hubTest() {
     if (g8.round > 10) break;
   }
   ok(g8.round > 10 || g8.phase === 'over', '8 人一起打得下去（' + g8.round + ' 回合）');
+
+  /* 線上使用道具：item / tile / target 欄位要能通過伺服器過濾 */
+  {
+    const p1 = hub.identify('itemtest001', '道具測試', 'otter');
+    const ri = hub.createRoom(p1, { max: 3, pace: 'fast', roundLimit: 20 }).room;
+    hub.addAI(p1, 'normal'); hub.addAI(p1, 'normal');
+    ok(hub.startGame(p1).ok, '道具測試開局');
+    const gs = ri.game.state;
+    const mine = () => gs.seats.findIndex(x => x.id === p1.id);
+    const fresh = (item) => {
+      gs.turn = mine(); gs.phase = 'roll'; gs.pending = null; gs.again = false; gs.doubles = 0;
+      const me = gs.seats[gs.turn]; me.items = [item]; me.cash = 3000; me.pos = 3; me.jail = false;
+      gs.seats.forEach((x, k) => { if (k !== gs.turn) { x.pos = 14 + k; x.cash = 1500; x.jail = false; x.god = null; x.items = []; } });
+      gs.props[8].owner = -1;
+      return me;
+    };
+    let me = fresh('fly');
+    let r = hub.gameAct(p1, { type: 'useItem', item: 'fly', tile: 8 });
+    ok(r && r.ok !== false && me.pos === 8 && gs.phase === 'buy', '線上：飛機飛到指定格，接著進入買地（階段 ' + gs.phase + '）');
+    hub.gameAct(p1, { type: 'decline' });
+    ok(Rules.options(gs, p1.id).endTurn || gs.turn !== mine(), '線上：飛機用完後可以結束回合');
+    me = fresh('dice');
+    r = hub.gameAct(p1, { type: 'useItem', item: 'dice', n: 3 });
+    ok(me.pos !== 3 && !me.items.includes('dice'), '線上：遙控骰欄位 n 有送到並生效');
+    me = fresh('steal'); const vic = gs.seats.findIndex((x, k) => k !== gs.turn), c0 = me.cash, v0 = gs.seats[vic].cash;
+    r = hub.gameAct(p1, { type: 'useItem', item: 'steal', target: vic });
+    ok(me.cash > c0 && gs.seats[vic].cash < v0, '線上：偷錢 target 有送到並生效');
+    me = fresh('swap'); const o2 = gs.seats.findIndex((x, k) => k !== gs.turn); const op = gs.seats[o2].pos;
+    hub.gameAct(p1, { type: 'useItem', item: 'swap', target: o2 });
+    ok(me.pos === op || gs.seats[o2].pos === 3, '線上：換位 target 有送到並生效');
+    me = fresh('bomb'); gs.props[16].owner = o2; gs.props[16].houses = 2;
+    hub.gameAct(p1, { type: 'useItem', item: 'bomb', tile: 16 });
+    ok(gs.props[16].houses < 2 || !me.items.includes('bomb'), '線上：炸彈 tile 有送到並生效');
+    hub.leave(p1);
+  }
 }
 
 async function closeTest() {
