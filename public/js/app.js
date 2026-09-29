@@ -138,7 +138,7 @@
     });
     window.addEventListener('resize', () => gameLayout());
     renderStats();
-    if (root.Online.hasInvite) root.Online.enterLobby();
+    if (root.Online.hasInvite || root.Online.wasOnline()) root.Online.enterLobby();
     else show('home');
   }
 

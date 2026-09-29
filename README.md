@@ -60,6 +60,8 @@ npm run test:online    # 啟動真的伺服器，用 WebSocket 測房間、邀�
 npm run test:scroll    # Playwright：各尺寸各畫面的捲動檢查（頁面比視窗高就必須能捲）
 npm run test:flow      # 流程卡死模糊測試：400 局隨機操作，任何時刻輪到的人都要有路可走
 npm run test:stall     # Playwright 實機亂按：檢查有沒有按鈕灰掉、動畫卡住、電腦不動
+npm run test:fuzz      # 深度規則模糊測試：所有道具／財神／蓋房詢問隨機打 300 局，檢查不變條件與「選單列出的動作一定能執行」
+npm run test:online-items # 兩個真人瀏覽器連線對打、輪流用道具，並測對局中重新整理
 npm run test:items     # Playwright 實機：每種道具在各種落點使用後，都要能繼續擲骰／買地／結束回合
 npm run test:browser   # Playwright：5 種視窗尺寸、設定彈窗、3D 棋盤、道具、單機一整局、線上流程
 ```

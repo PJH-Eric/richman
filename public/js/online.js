@@ -76,6 +76,7 @@
 
   function enterLobby() {
     S.active = true;
+    try { sessionStorage.setItem('richman-online', '1'); } catch (e) { /* 忽略 */ }
     const st = root.App.store;
     if (!st.nickname) { st.nickname = root.UI.randomName(); root.Store.save(st); }
     $('#lobby-name').value = st.nickname;
@@ -387,6 +388,7 @@
 
   function exit() {
     S.active = false;
+    try { sessionStorage.removeItem('richman-online'); } catch (e) { /* 忽略 */ }
     if (S.room) root.Net.send({ type: 'leave' });
     endTable();
     root.Net.close();
@@ -396,6 +398,7 @@
   }
 
   root.Online = {
+    wasOnline() { try { return sessionStorage.getItem('richman-online') === '1'; } catch (e) { return false; } },
     init, enterLobby, leaveRoom, exit, copyInvite,
     get room() { return S.room; },
     get active() { return S.active; },
