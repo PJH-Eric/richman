@@ -42,7 +42,7 @@ Windows 可以直接按兩下 `啟動遊戲.bat`。只玩單機的話，伺服�
 | --- | --- | --- |
 | `PORT` | 伺服器埠號 | `3100` |
 | `GAME_SERVER_URL` | 前端要連的遊戲伺服器（僅在前端與伺服器分開部署時使用，建置時注入） | 同源 |
-| `ALLOW_ORIGIN` | 允許連線的前端來源（正式環境請填前端網址，例如 `https://<帳號>.github.io`） | `*` |
+| `GAME_ALLOWED_ORIGIN` | 允許連線的前端來源（正式環境請填前端網址，例如 `https://<帳號>.github.io`） | `*` |
 
 前端只從 `public/js/config.js` 這一個模組讀取伺服器位置，程式其他地方沒有寫死網址。
 
@@ -62,7 +62,7 @@ npm run test:browser   # Playwright：5 種視窗尺寸、設定彈窗、3D 棋�
 
 1. **伺服器**：Render 免費 Web Service（`render.yaml`）。Build 留空、Start 為 `node server.js`、健康檢查 `/health`。免費方案會休眠，第一位玩家進來要等 30～60 秒喚醒；房間只存在記憶體，服務重啟後未打完的對局不會恢復
 2. **前端**（選用）：GitHub Pages（`.github/workflows/pages.yml`）。在 repo 的 Variables 設定 `GAME_SERVER_URL` 為伺服器網址，工作流程會在建置時執行 `node scripts/inject-server-url.js` 注入；正式建置不接受 `localhost`
-3. 伺服器 `ALLOW_ORIGIN` 請填前端網址；正式環境使用 HTTPS／WSS
+3. 伺服器 `GAME_ALLOWED_ORIGIN` 請填前端網址；正式環境使用 HTTPS／WSS
 4. 想省事也可以只部署伺服器，它本身就會提供 `public/` 靜態檔案（同源，不必設 `GAME_SERVER_URL`）
 
 ## 目錄
@@ -80,6 +80,7 @@ tests/  scripts/     測試與部署輔助
 - 沒有交易、拍賣（以強制收購取代）；40 格為接近經典版的台灣版配置
 - 美術為程式繪製的向量圖與 3D 幾何，音效／音樂為程式合成，皆為暫用，可換成正式資產
 - 邀請連結有房間範圍、有效期限，房主可撤銷；房間滿員時可選擇以觀戰身分加入
+- 房間以實體玩家為準：沒有任何真人玩家（只剩電腦或觀戰者）時自動關閉，邀請連結失效，觀戰者會被送回大廳
 - 不支援沒有 WebGL 的瀏覽器；不做帳號與永久排行榜，戰績只記在本機
 
 ## 授權

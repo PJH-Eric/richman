@@ -19,7 +19,7 @@ const { createHub } = require('./lib/rooms.js');
 
 const PORT = Number(process.env.PORT) || 3100;
 const ROOT = path.join(__dirname, 'public');
-const ALLOW_ORIGIN = process.env.ALLOW_ORIGIN || '*';
+const ALLOW_ORIGIN = process.env.GAME_ALLOWED_ORIGIN || process.env.ALLOW_ORIGIN || '*';
 const GAME_ID = 'richman';
 const TICK_MS = 30;
 
@@ -36,7 +36,18 @@ function json(res, code, data) {
 
 function createServer(opt) {
   opt = opt || {};
-  const hub = createHub({ now: opt.now });
+  const hub = createHub({
+    now: opt.now,
+    /* 房間沒有實體玩家就關閉：通知還在裡面的人（例如觀戰者）回大廳 */
+    onClosed(room, ids) {
+      for (const pid of ids) {
+        send(pid, { type: 'closed', text: '房間已經沒有玩家，自動關閉了' });
+        send(pid, { type: 'room', room: null });
+        lobby.add(pid);
+      }
+      lobbyDirty = true;
+    }
+  });
   /** personId → socket */
   const sockets = new Map();
   /** 在大廳看列表的連線（還沒進房） */

@@ -159,7 +159,8 @@ async function liveTest() {
   ok(host.room.game.events.some(e => e.t === 'roll'), '事件裡有擲骰紀錄（畫面用來播動畫）');
   const sum = host.room.game.dice[0] + host.room.game.dice[1];
   const seatNow = host.room.game.seats[game.turn];
-  ok(seatNow.pos === sum % 40 || host.room.game.turn !== game.turn || seatNow.jail, '棋子依骰子走到對的格子（' + sum + ' 步）');
+  const mv = host.room.game.events.filter(e => e.t === 'move' && e.seat === game.turn)[0];
+  ok(seatNow.pos === sum % 40 || (mv && mv.to === sum % 40) || host.room.game.turn !== game.turn || seatNow.jail, '棋子依骰子走到對的格子（' + sum + ' 步）');
   const buying = host.room.game.phase === 'buy';
   if (buying) {
     cur.act('buy');
@@ -275,9 +276,38 @@ function hubTest() {
   hub.leave(c);
 }
 
+async function closeTest() {
+  console.log('\n[實體玩家歸零 → 房間自動關閉]');
+  const app = createServer();
+  app.start();
+  await new Promise(r => app.server.listen(0, r));
+  const port = app.server.address().port;
+  const host = await client(port, 'key-close-host1', '房主', 'otter');
+  const spec = await client(port, 'key-close-spec1', '觀戰者', 'cat');
+  host.send({ type: 'create', max: 3, pace: 'fast' });
+  await host.wait(c => c.room);
+  const rid = host.room.id, tok = host.room.invite.token;
+  host.send({ type: 'addAI', diff: 'normal' });
+  spec.send({ type: 'join', invite: tok, as: 'spectator' });
+  await spec.wait(c => c.room && c.room.id === rid);
+  ok(spec.room.you.role === 'spectator', '觀戰者進房');
+  host.send({ type: 'leave' });
+  ok(await spec.wait(c => c.msgs.some(m => m.type === 'closed')), '只剩 AI 與觀戰者 → 房間關閉並通知觀戰者');
+  ok(await spec.wait(c => c.room === null), '觀戰者被送回大廳');
+  const list = await (await fetch('http://127.0.0.1:' + port + '/api/rooms')).json();
+  ok(!list.rooms.some(r => r.id === rid), '大廳列表已移除該房間');
+  const c2 = await client(port, 'key-close-late01', '晚到', 'bunny');
+  c2.send({ type: 'inviteInfo', invite: tok });
+  const inf = await c2.wait(c => c.msgs.find(m => m.type === 'inviteInfo'));
+  ok(inf && !inf.ok, '邀請連結跟著失效');
+  host.ws.close(); spec.ws.close(); c2.ws.close();
+  app.stop(); app.server.close();
+}
+
 (async () => {
   console.log('\n寶島大富翁 線上測試');
   try { await liveTest(); } catch (e) { fail++; console.log('  ✘ 連線測試出錯：' + (e && e.stack)); }
+  try { await closeTest(); } catch (e) { fail++; console.log('  ✘ 關房測試出錯：' + (e && e.stack)); }
   try { hubTest(); } catch (e) { fail++; console.log('  ✘ hub 測試出錯：' + (e && e.stack)); }
   console.log('\n' + (fail ? '✘ ' : '✔ ') + '通過 ' + pass + ' 項，失敗 ' + fail + ' 項\n');
   process.exit(fail ? 1 : 0);

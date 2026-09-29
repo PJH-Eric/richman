@@ -35,6 +35,7 @@
     root.Net.on('inviteInfo', m => { S.inviteInfo = m; renderRooms(); });
     root.Net.on('error', m => toast(m.text, 'bad'));
     root.Net.on('notice', m => toast(m.text));
+    root.Net.on('closed', m => toast(m.text));
     root.Net.on('kicked', m => { toast(m.text, 'bad'); });
     root.Net.on('replaced', () => toast('你在別的分頁開了同一個身分，這個分頁先斷線', 'bad'));
 

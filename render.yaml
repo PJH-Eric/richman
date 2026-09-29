@@ -13,5 +13,5 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: ALLOW_ORIGIN
+      - key: GAME_ALLOWED_ORIGIN
         sync: false           # 正式環境請填前端網址，例如 https://<帳號>.github.io
