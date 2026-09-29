@@ -1,0 +1,21 @@
+{
+  "name": "richman",
+  "version": "0.1.0",
+  "description": "寶島大富翁 - 可愛台灣風景的 3D 大富翁（單機四段電腦、線上 2～4 人房間、觀戰、邀請連結、道具；伺服器零依賴）",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/verify.js",
+    "test:online": "node scripts/online-check.js",
+    "test:browser": "node scripts/browser-check.js",
+    "verify": "node tests/verify.js && node scripts/online-check.js && node scripts/browser-check.js",
+    "inject": "node scripts/inject-server-url.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {},
+  "license": "MIT",
+  "private": true
+}
