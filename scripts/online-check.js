@@ -251,6 +251,14 @@ function hubTest() {
   ok(hub.settings(c, { roundLimit: 40 }).ok && r2.roundLimit === 40, '房主改成 40 回合');
   ok(!hub.settings(c, { roundLimit: 7 }).ok || r2.roundLimit === 40, '不在選項裡的回合上限不生效');
   ok(hub.roomView(r2, d.id).roundLimit === 40 && hub.listRooms()[0].roundLimit === 40, '玩家與大廳都看得到回合上限');
+  /* 地圖由房主決定 */
+  ok(r2.map === 'taiwan40' && hub.roomView(r2, d.id).map === 'taiwan40', '沒指定時地圖預設是寶島一圈');
+  ok(!hub.settings(d, { map: 'world48' }).ok, '只有房主能換地圖');
+  ok(hub.settings(c, { map: 'world48' }).ok && r2.map === 'world48', '房主把地圖換成世界旅行');
+  ok(hub.settings(c, { map: 'nope' }).ok && r2.map === 'world48', '不存在的地圖代號不生效');
+  ok(hub.roomView(r2, d.id).map === 'world48' && hub.listRooms().some(x => x.map === 'world48'), '玩家與大廳都看得到地圖');
+  ok(hub.createRoom(hub.identify('mapmapmap1', '地圖房主', 'cat'), { map: 'sea40' }).room.map === 'sea40', '建房時可以指定地圖');
+  ok(hub.createRoom(hub.identify('mapmapmap2', '亂填房主', 'cat'), { map: '../x' }).room.map === 'taiwan40', '建房時亂填地圖會退回預設');
 
   /* 真人中途離開 → 電腦代打，不影響其他人 */
   hub.addAI(c, 'normal');
@@ -258,6 +266,7 @@ function hubTest() {
   ok(hub.startGame(c).ok, '2 真人＋1 電腦開局');
   hub.leave(d);
   ok(r2.game.state.seats.find(s => s.id === d.id).ai === 'normal', '對局中離開 → 位子交給電腦代打');
+  ok(r2.game.state.map === 'world48' && r2.game.state.tiles.length === 48, '對局用的是房主選的地圖（世界旅行 48 格）');
   const gs = r2.game.state;
   guard = 0;
   c.online = true;
@@ -267,7 +276,7 @@ function hubTest() {
     if (cur.id === c.id && !cur.auto) {
       const opt = Rules.options(gs, c.id);
       /* 真人 c 很認真：擲骰、買地、結束回合 */
-      const r = opt.roll ? 'roll' : opt.buy ? 'buy' : opt.endTurn ? 'endTurn' : opt.settle ? 'settle' : opt.bankrupt ? 'bankrupt' : null;
+      const r = opt.roll ? 'roll' : opt.buy ? 'buy' : opt.decline ? 'decline' : opt.endTurn ? 'endTurn' : opt.settle ? 'settle' : opt.bankrupt ? 'bankrupt' : null;
       if (r) hub.gameAct(c, { type: r });
     }
     if (gs.round > 8) break;
@@ -290,7 +299,7 @@ function hubTest() {
     now += 60; hub.tick(now);
     if (g8.seats[g8.turn].id === h1.id) {
       const o = Rules.options(g8, h1.id);
-      const t = o.roll ? 'roll' : o.buy ? 'buy' : g8.phase === 'buy' || g8.phase === 'build' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : g8.phase === 'debt' ? 'bankrupt' : null;
+      const t = o.roll ? 'roll' : o.buy ? 'buy' : g8.phase === 'buy' || g8.phase === 'build' || g8.phase === 'shop' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : g8.phase === 'debt' ? 'bankrupt' : null;
       if (t) hub.gameAct(h1, { type: t });
     }
     if (g8.round > 10) break;

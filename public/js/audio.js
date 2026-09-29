@@ -103,13 +103,27 @@
     join(t) { tone(660, t, 0.08, 'sine', 0.12); tone(880, t + 0.08, 0.12, 'sine', 0.12); },
     leave(t) { tone(880, t, 0.08, 'sine', 0.1); tone(587, t + 0.08, 0.14, 'sine', 0.1); },
     error(t) { tone(200, t, 0.09, 'square', 0.1); tone(160, t + 0.1, 0.14, 'square', 0.1); },
-    tick(t) { tone(1400, t, 0.03, 'square', 0.06); }
+    tick(t) { tone(1400, t, 0.03, 'square', 0.06); },
+    /* 拋骰：手中搖晃的喀啦聲 + 揮出去的風聲 */
+    dice_throw(t) {
+      for (let i = 0; i < 5; i++) { noise(t + i * 0.045, 0.04, 0.3, 2200); tone(520 + (i % 2) * 140, t + i * 0.045, 0.03, 'triangle', 0.035); }
+      noise(t + 0.2, 0.28, 0.16, 500);
+    },
+    /* 骰子撞到桌面：木頭悶響 + 一點清脆的喀；k 為力道（越後面越輕） */
+    dice_hit(t, k) {
+      k = k == null ? 1 : k;
+      noise(t, 0.05, 0.5 * k, 1800);
+      tone(190 - (1 - k) * 40, t, 0.09, 'sine', 0.22 * k, null, 90);
+      tone(880 + Math.random() * 260, t, 0.025, 'square', 0.04 * k);
+    },
+    /* 停穩的最後一下 */
+    dice_settle(t) { tone(660, t, 0.06, 'sine', 0.05); tone(990, t + 0.05, 0.08, 'sine', 0.04); }
   };
 
-  function sfx(name) {
+  function sfx(name, k) {
     if (!ctx || !settings.sfx) return;
     const fn = SFX[name];
-    if (fn) fn(ctx.currentTime + 0.005);
+    if (fn) fn(ctx.currentTime + 0.005, k);
   }
 
   /* 烏克麗麗風的輕快迴圈（C–Am–F–G），每拍一格 */

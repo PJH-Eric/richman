@@ -136,6 +136,20 @@
     return null;
   }
 
+  /** 道具商店：幼幼班不買；其他難度留一筆保命錢，挑對自己有用的買（帶 2 個以上就不再買） */
+  function decideShop(state, si, level, rng, opt) {
+    const s = state.seats[si];
+    const leave = { type: 'decline' };
+    if (level === 'kid' || !opt.shop || s.items.length >= 2) return leave;
+    const keep = reserveFor(level, state, si) + 100;
+    const can = (opt.shop || []).filter(x => x.can && s.cash - x.cost >= keep);
+    if (!can.length || (level === 'easy' && rng.chance(0.5))) return leave;
+    const pref = { guard: 3, free: 3, cat: 3, taxfree: 2, fly: 2, steal: 2, bomb: 2, dice: 1, swap: 1 };
+    can.sort((a, b) => (pref[b.item] || 0) - (pref[a.item] || 0) || rng.next() - 0.5);
+    const pick = level === 'hard' ? can[0] : can[Math.floor(rng.next() * Math.min(3, can.length))];
+    return { type: 'shopBuy', item: pick.item };
+  }
+
   /** 走到自己的地：要不要加蓋房子（面板詢問的那一步） */
   function decideBuild(state, si, level, rng, opt) {
     const s = state.seats[si];
@@ -220,7 +234,7 @@
   function decideItem(state, si, level, rng, opt) {
     const s = state.seats[si];
     if (level === 'kid' || !s.items.length) return null;
-    const BOARD = 40;
+    const BOARD = T.length;
     /* 攻擊型道具：偷錢、炸房、換位（簡單難度偶爾才用，困難更精打細算） */
     if (opt.steal && s.items.includes('steal')) {
       const c = R.itemTargets(state, si, 'steal').filter(i => state.seats[i].cash >= (level === 'hard' ? 250 : 350)).sort((a, b) => state.seats[b].cash - state.seats[a].cash)[0];
@@ -263,12 +277,14 @@
   /** 這個座位現在要做什麼；回傳 Rules.act 的 action */
   function decide(state, si, level, rng) {
     level = R.DIFFICULTY_LIST.includes(level) ? level : 'normal';
+    if (state.map) R.useMap(state.map);
     T = state.tiles || R.TILES;
     const s = state.seats[si];
     const opt = R.options(state, s.id);
     switch (state.phase) {
       case 'buy': return decideBuy(state, si, level, rng, opt);
       case 'build': return decideBuild(state, si, level, rng, opt);
+      case 'shop': return decideShop(state, si, level, rng, opt);
       case 'debt': return decideDebt(state, si, level, rng, opt);
       case 'manage': return decideManage(state, si, level, rng, opt) || { type: 'endTurn' };
       case 'roll': {
@@ -285,7 +301,7 @@
   function createDriver(seed) {
     const rng = RNG.create(String(seed) + '-drv');
     let lastKey = null, dueAt = 0, issuedKey = null;
-    const SAFE = { roll: { type: 'roll' }, buy: { type: 'decline' }, manage: { type: 'endTurn' }, debt: { type: 'bankrupt' } };
+    const SAFE = { roll: { type: 'roll' }, buy: { type: 'decline' }, manage: { type: 'endTurn' }, shop: { type: 'decline' }, build: { type: 'decline' }, debt: { type: 'bankrupt' } };
     return {
       /** @returns {{id, action}[]}（一次最多一個動作） */
       actions(state, now) {

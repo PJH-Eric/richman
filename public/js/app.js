@@ -119,6 +119,13 @@
       root.Store.save(store);
       renderSoloSetup();
     });
+    $('#solo-map').addEventListener('click', e => {
+      const b = e.target.closest('[data-map]');
+      if (!b) return;
+      store.map = b.dataset.map;
+      root.Store.save(store);
+      renderSoloSetup();
+    });
     $('#solo-start').onclick = startSolo;
 
     /* 對局畫面：左欄抽屜、聊天彈層 */
@@ -204,6 +211,8 @@
       '<li><span class="ai-no">電腦 ' + (i + 1) + '</span><div class="seg small" role="radiogroup" aria-label="電腦 ' + (i + 1) + ' 的難度">' +
       DIFF_ORDER.map(k => '<button type="button" role="radio" data-ai="' + i + '" data-diff="' + k + '" aria-checked="' + (k === d) + '">' + names[k].name + '</button>').join('') +
       '</div></li>').join('');
+    if (!root.Rules.MAPS.has(store.map)) store.map = root.Rules.MAPS.DEFAULT;
+    $('#solo-map').innerHTML = root.UI.mapCards(store.map, '');
     $('#solo-ai-n').textContent = store.aiCount;
     $('#solo-ai [data-step="-1"]').disabled = store.aiCount <= 1;
     $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 7;
@@ -220,7 +229,7 @@
     $('#result').hidden = true;
     show('game');
     gameLayout(false);
-    root.Solo.start({ name: nm, char: store.char, aiCount: store.aiCount, aiDiffs: aiDiffs().slice(0, store.aiCount), roundLimit: store.roundLimit });
+    root.Solo.start({ name: nm, char: store.char, aiCount: store.aiCount, aiDiffs: aiDiffs().slice(0, store.aiCount), roundLimit: store.roundLimit, map: store.map });
     if (!store.seenHelp) {
       store.seenHelp = true;
       root.Store.save(store);
@@ -306,14 +315,14 @@
     const step = (pic, h, p) => '<li><div class="help-pic">' + pic + '</div><div><h3>' + h + '</h3><p>' + p + '</p></div></li>';
     $('#help-body').innerHTML =
       '<ol class="help-steps">' +
-      step(Art.dieSvg(4) + Art.dieSvg(3), '1. 擲骰子走路', '輪到你就按「擲骰子」，棋子照點數在 40 格的棋盤上順時針走。擲出兩顆一樣的（雙骰）可以再擲一次；連續三次雙骰會被送進監獄。') +
+      step(Art.dieSvg(4) + Art.dieSvg(3), '1. 擲骰子走路', '輪到你就按「擲骰子」，棋子照點數在棋盤上順時針走（開局前可以選地圖：40／48／56 格，有台灣、世界旅行、遊樂園、海底、太空）。擲出兩顆一樣的（雙骰）可以再擲一次；連續三次雙骰會被送進監獄。') +
       step(G('gem'), '2. 買地', '停在沒有主人的地上，可以花錢買下來。買不起或不想買就按「不買」。別人停在你的地上，要付你過路費。') +
       step(Art.houseSvg() + Art.hotelSvg(), '3. 走到自己的地才能蓋房', '走到自己的地時，面板會問你要不要加蓋房子（花的錢是那塊地的房價）。每塊地單獨最多升到 2 級；同色整組都是你的，才能繼續升到 4 棟、旅店，租金最高。整組都是你的，空地租金也加倍。')+
       step(G('chance'), '4. 機會與命運', '停在「機會」或「命運」會抽一張卡，可能領獎金、被罰錢、被送去別的地方。') +
       step(G('jail'), '5. 監獄', '被抓進監獄後，可以擲出雙骰、繳 50 元或用出獄許可證離開；3 回合後一定要繳錢出獄。路過監獄只是探監，不會被關。') +
       step(G('coin'), '6. 錢不夠就抵押', '要付錢卻不夠時，可以到「我的地產」賣房子、抵押地產換現金。實在湊不出來就破產，淘汰出局。') +
       step(G('god_fortune'), '7. 命運之神', '抽到好的機會／命運可能被福神（別人付你的過路費加倍）或財神（每回合領 120 元）附身；壞運氣會遇到窮神（你付雙倍過路費）或衰神（每回合被扣 80 元）。神明會陪你 4 個自己的回合。') +
-      step(G('i_dice'), '8. 道具與攻擊', '停在溫泉休息站或抽到道具卡會獲得道具（最多帶 3 個），面板上的「道具庫」可以看全部道具與說明。擲骰前可以用：遙控骰（選走 1～6 步）、機票（飛到任何一格）、偷錢卡（偷對手 20% 現金）、換位卡（和對手換位置）、炸彈（炸掉對手一間房）。免租券、免稅券、招財貓、護身符（擋下攻擊）會在對的時候自動生效。') +
+      step(G('i_dice'), '8. 道具與攻擊', '停在休息站、抽到道具卡會獲得道具；在有「道具商店」格的地圖，停在商店還能花錢買（最多帶 3 個），面板上的「道具庫」可以看全部道具與說明。擲骰前可以用：遙控骰（選走 1～6 步）、機票（飛到任何一格）、偷錢卡（偷對手 20% 現金）、換位卡（和對手換位置）、炸彈（炸掉對手一間房）。免租券、免稅券、招財貓、護身符（擋下攻擊）會在對的時候自動生效。') +
       '</ol>' +
       '<div class="help-tips"><h3>怎麼贏</h3><ul>' +
       '<li>其他人都破產，剩下的最後一個人獲勝。</li>' +

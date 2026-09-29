@@ -26,7 +26,7 @@ const CASES = [ ['fly', 8, '空地（買地）'], ['fly', 16, '對手的地（�
   async function toMyRoll() {
     for (let i = 0; i < 600 && !(await mineRoll()); i++) {
       const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
-      const sel = ph === 'buy' || ph === 'build' ? '[data-a="decline"]' : ph === 'manage' ? '[data-a="endTurn"]' : ph === 'debt' ? '[data-a="bankrupt"]' : null;
+      const sel = ph === 'buy' || ph === 'build' || ph === 'shop' ? '[data-a="decline"]' : ph === 'manage' ? '[data-a="endTurn"]' : ph === 'debt' ? '[data-a="bankrupt"]' : null;
       if (sel) await page.click('.mc ' + sel, { timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(250);
     }

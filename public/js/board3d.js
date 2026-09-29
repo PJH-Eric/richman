@@ -12,9 +12,10 @@
   const R = root.Rules;
   const T = R.TILES;
   const COLORS = R.PLAYER_COLORS;
-  const CW = 1.55, TOTAL = CW * 2 + 9;
+  const CW = 1.55;
   const TILE_H = 0.3;
   const FONT = '"jf-openhuninn","Arial Rounded MT Bold","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+  const BASE_TOTAL = CW * 2 + 9;      /* 40 格棋盤的邊長；其他格數的棋盤拿它當比例尺 */
 
   let threeP = null;
   function loadThree() {
@@ -22,23 +23,30 @@
     return threeP;
   }
 
-  /* 第 c 條欄／列（1～11）中心在世界座標的位置；棋盤中心是 (0,0) */
-  function axis(c) {
-    let acc = 0;
-    for (let k = 1; k < c; k++) acc += k === 1 || k === 11 ? CW : 1;
-    return acc + (c === 1 || c === 11 ? CW : 1) / 2 - TOTAL / 2;
+  /** 依格數排出方形棋盤：每邊 n/4 格（含一個角），四個角較大。回傳世界座標與每格的方向。 */
+  function layoutFor(n) {
+    const per = n / 4, M = per + 1;
+    const total = CW * 2 + (per - 1);
+    const isEnd = c => c === 1 || c === M;
+    const axis = c => {
+      let acc = 0;
+      for (let k = 1; k < c; k++) acc += isEnd(k) ? CW : 1;
+      return acc + (isEnd(c) ? CW : 1) / 2 - total / 2;
+    };
+    const gridPos = i => {
+      if (i === 0) return { row: M, col: M, side: 'c', rot: 0 };
+      if (i < per) return { row: M, col: M - i, side: 'b', rot: 0 };
+      if (i === per) return { row: M, col: 1, side: 'c', rot: -Math.PI / 2 };
+      if (i < 2 * per) return { row: M - (i - per), col: 1, side: 'l', rot: -Math.PI / 2 };
+      if (i === 2 * per) return { row: 1, col: 1, side: 'c', rot: Math.PI };
+      if (i < 3 * per) return { row: 1, col: 1 + (i - 2 * per), side: 't', rot: Math.PI };
+      if (i === 3 * per) return { row: 1, col: M, side: 'c', rot: Math.PI / 2 };
+      return { row: 1 + (i - 3 * per), col: M, side: 'r', rot: Math.PI / 2 };
+    };
+    const pos = [];
+    for (let i = 0; i < n; i++) { const g = gridPos(i); pos.push({ x: axis(g.col), z: axis(g.row) }); }
+    return { n, total, gridPos, pos };
   }
-  function gridPos(i) {
-    if (i === 0) return { row: 11, col: 11, side: 'c', rot: 0 };
-    if (i < 10) return { row: 11, col: 11 - i, side: 'b', rot: 0 };
-    if (i === 10) return { row: 11, col: 1, side: 'c', rot: -Math.PI / 2 };
-    if (i < 20) return { row: 11 - (i - 10), col: 1, side: 'l', rot: -Math.PI / 2 };
-    if (i === 20) return { row: 1, col: 1, side: 'c', rot: Math.PI };
-    if (i < 30) return { row: 1, col: 1 + (i - 20), side: 't', rot: Math.PI };
-    if (i === 30) return { row: 1, col: 11, side: 'c', rot: Math.PI / 2 };
-    return { row: 1 + (i - 30), col: 11, side: 'r', rot: Math.PI / 2 };
-  }
-  const TILE_POS = T.map((t, i) => { const g = gridPos(i); return { x: axis(g.col), z: axis(g.row) }; });
 
   function svgImage(svg, px) {
     return new Promise(res => {
@@ -62,6 +70,11 @@
   async function create(container, opt) {
     const THREE = await loadThree();
     opt = opt || {};
+    const mapDef = R.MAPS.get(opt.map);
+    const theme = mapDef.theme;
+    const LAY = layoutFor(R.TILES.length), TOTAL = LAY.total, TP = LAY.pos, gridPos = LAY.gridPos;
+    const SC = TOTAL / BASE_TOTAL;      /* 棋盤比 40 格大幾倍（場景裝飾跟著放大） */
+    const FZ = 0.62 / SC;               /* 跟隨鏡頭的縮放：棋盤再大，畫面上看到的範圍都差不多 */
     const canvas = document.createElement('canvas');
     canvas.className = 'b3d';
     canvas.setAttribute('role', 'img');
@@ -75,7 +88,7 @@
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#BFE9F5');
+    scene.background = new THREE.Color(theme.bg);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 200);
     scene.add(new THREE.HemisphereLight(0xffffff, 0xE3BC7E, 1.35));
     const sun = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -86,11 +99,11 @@
     const std = (color, extra) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.75, metalness: 0 }, extra || {}));
 
     /* ---------- 場景：沙灘、海、棋盤底座、中央標題、椰子樹 ---------- */
-    const sea = new THREE.Mesh(new THREE.CircleGeometry(60, 48), std('#5CC6D8', { roughness: 0.4 }));
+    const sea = new THREE.Mesh(new THREE.CircleGeometry(60 * SC, 48), std(theme.sea, { roughness: 0.4 }));
     sea.rotation.x = -Math.PI / 2; sea.position.y = -0.6; scene.add(sea);
-    const sand = new THREE.Mesh(new THREE.CylinderGeometry(11.6, 12.4, 0.5, 48), std('#F0D29C'));
+    const sand = new THREE.Mesh(new THREE.CylinderGeometry(11.6 * SC, 12.4 * SC, 0.5, 48), std(theme.sand));
     sand.position.y = -0.32; scene.add(sand);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(TOTAL + 0.5, TILE_H - 0.02, TOTAL + 0.5), std('#B9824D'));
+    const base = new THREE.Mesh(new THREE.BoxGeometry(TOTAL + 0.5, TILE_H - 0.02, TOTAL + 0.5), std(theme.base));
     base.position.y = (TILE_H - 0.02) / 2; scene.add(base);
 
     const cc = document.createElement('canvas'); cc.width = cc.height = 512;
@@ -102,26 +115,46 @@
       g.fillStyle = '#3CB7C8';
       for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(20, 400 + k * 22); for (let x = 20; x <= 492; x += 24) g.quadraticCurveTo(x + 6, 388 + k * 22, x + 12, 400 + k * 22); g.lineTo(492, 512); g.lineTo(20, 512); g.closePath(); g.globalAlpha = 0.16; g.fill(); }
       g.globalAlpha = 1;
-      g.fillStyle = '#B9824D'; g.font = '900 78px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('寶島', 256, 150); g.fillText('大富翁', 256, 250);
+      g.fillStyle = theme.titleColor; g.font = '900 78px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(theme.title[0], 256, 150); g.fillText(theme.title[1], 256, 250);
     })();
     const ctex = new THREE.CanvasTexture(cc); ctex.colorSpace = THREE.SRGBColorSpace;
     const inlay = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL - CW * 2, TOTAL - CW * 2), new THREE.MeshStandardMaterial({ map: ctex, roughness: 0.9 }));
     inlay.rotation.x = -Math.PI / 2; inlay.position.y = TILE_H - 0.01; scene.add(inlay);
 
-    for (let k = 0; k < 9; k++) {           /* 椰子樹 */
-      const a = k / 9 * Math.PI * 2 + 0.3, rr = 9.6 + (k % 3) * 0.5;
-      const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.6, 8), std('#8B5A2B')); trunk.position.y = 0.8; tree.add(trunk);
-      for (let l = 0; l < 5; l++) {
-        const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.3, 4), std('#3DAE6B'));
-        leaf.position.set(Math.cos(l * 1.26) * 0.5, 1.7, Math.sin(l * 1.26) * 0.5);
-        leaf.rotation.z = Math.cos(l * 1.26) * -1.2; leaf.rotation.x = Math.sin(l * 1.26) * 1.2;
-        tree.add(leaf);
+    /* 場景裝飾：椰子樹／氣球／泡泡／星星／地球圖釘，沿棋盤外圍擺一圈 */
+    const DECO_N = Math.round(9 * SC);
+    for (let k = 0; k < DECO_N; k++) {
+      const a = k / DECO_N * Math.PI * 2 + 0.3, rr = (9.6 + (k % 3) * 0.5) * SC;
+      const item = new THREE.Group();
+      if (theme.deco === 'palm') {
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.6, 8), std('#8B5A2B')); trunk.position.y = 0.8; item.add(trunk);
+        for (let l = 0; l < 5; l++) {
+          const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.3, 4), std('#3DAE6B'));
+          leaf.position.set(Math.cos(l * 1.26) * 0.5, 1.7, Math.sin(l * 1.26) * 0.5);
+          leaf.rotation.z = Math.cos(l * 1.26) * -1.2; leaf.rotation.x = Math.sin(l * 1.26) * 1.2;
+          item.add(leaf);
+        }
+      } else if (theme.deco === 'balloon') {
+        const cols = ['#FF6B8A', '#FFD447', '#5CC6F2', '#8FE388', '#B58CFF'];
+        const str = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 6), std('#FFFFFF')); str.position.y = 0.7; item.add(str);
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), std(cols[k % 5], { roughness: 0.3 })); ball.position.y = 1.8; ball.scale.y = 1.2; item.add(ball);
+      } else if (theme.deco === 'bubble') {
+        for (let l = 0; l < 3; l++) {
+          const bub = new THREE.Mesh(new THREE.SphereGeometry(0.22 + l * 0.12, 14, 10), std('#FFFFFF', { transparent: true, opacity: 0.55, roughness: 0.1 }));
+          bub.position.set(l * 0.3 - 0.3, 0.5 + l * 0.7, (l % 2) * 0.3); item.add(bub);
+        }
+        const rock = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.9, 5), std(k % 2 ? '#FF8FB1' : '#FFB86B')); rock.position.y = 0.2; item.add(rock);
+      } else if (theme.deco === 'star') {
+        const st = new THREE.Mesh(new THREE.OctahedronGeometry(0.42), std('#FFE066', { emissive: new THREE.Color('#B89A20'), roughness: 0.4 })); st.position.y = 1.2 + (k % 3) * 0.5; item.add(st);
+      } else {
+        const pinCol = ['#EA5A55', '#4DBF7A', '#FFD447', '#5CC6F2'][k % 4];
+        const pin = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.9, 12), std(pinCol)); pin.rotation.x = Math.PI; pin.position.y = 0.5; item.add(pin);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), std(pinCol)); head.position.y = 1.15; item.add(head);
       }
-      tree.position.set(Math.cos(a) * rr, -0.1, Math.sin(a) * rr);
-      tree.scale.setScalar(0.9 + (k % 4) * 0.12);
-      scene.add(tree);
+      item.position.set(Math.cos(a) * rr, -0.1, Math.sin(a) * rr);
+      item.scale.setScalar((0.9 + (k % 4) * 0.12) * Math.max(1, SC * 0.9) * (theme.deco === 'palm' ? 1 : 0.62));
+      scene.add(item);
     }
 
     /* ---------- 40 個格子（文字一律朝向預設視角，看得懂；擁有者用顏色＋形狀＋旗子標出來） ---------- */
@@ -174,7 +207,7 @@
       const tex = new THREE.CanvasTexture(cv);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 16;
-      const bg = side === 'c' ? '#FFE9B8' : t.type === 'chance' ? '#FFF1C9' : t.type === 'chest' ? '#E1F5E8' : t.type === 'tax' ? '#FBE0DA' : t.type === 'station' ? '#E9F1FB' : t.type === 'utility' ? '#F3F0E4' : '#FFFBEF';
+      const bg = side === 'c' ? '#FFE9B8' : t.type === 'chance' ? '#FFF1C9' : t.type === 'chest' ? '#E1F5E8' : t.type === 'tax' ? '#FBE0DA' : t.type === 'station' ? '#E9F1FB' : t.type === 'utility' ? '#F3F0E4' : t.type === 'shop' ? '#FFE6F1' : '#FFFBEF';
       const glyphName = t.glyph || (t.type === 'go' ? 'go' : t.type);
       let curImg = null;
       function paint(img) {
@@ -227,7 +260,7 @@
       cached('g:' + glyphName, () => svgImage(root.Art.glyph(glyphName), 256)).then(img => { if (img) paint(img); });
 
       const grp = new THREE.Group();
-      grp.position.set(TILE_POS[i].x, 0, TILE_POS[i].z);
+      grp.position.set(TP[i].x, 0, TP[i].z);
       const sideMat = std('#BFA678');
       const topMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 });
       const body = new THREE.Mesh(new THREE.BoxGeometry(ww * 0.97, TILE_H, wd * 0.97), [sideMat, sideMat, topMat, sideMat, sideMat, sideMat]);
@@ -320,7 +353,7 @@
       if (tile >= 0) {
         tileObjs[tile].topMat.emissive.setHex(0x6A5510); tileObjs[tile].grp.position.y = 0.08;
         paintLabel(tile);
-        label.position.set(TILE_POS[tile].x, 3.0, TILE_POS[tile].z);
+        label.position.set(TP[tile].x, 3.0, TP[tile].z);
         label.visible = false; /* 頭頂只放玩家名稱，不放地點 */
       } else label.visible = false;
     }
@@ -398,7 +431,7 @@
         nsp.scale.set(1.9, 0.475, 1); nsp.position.y = i % 8 === 2 ? 2.35 : 2.27; nsp.renderOrder = 9;
         grp.add(nsp);
         scene.add(grp);
-        const start = TILE_POS[s.pos || 0];
+        const start = TP[s.pos || 0];
         grp.position.set(start.x, TILE_H, start.z);
         toks[i] = { grp, char: s.char, name: s.name, from: grp.position.clone(), to: grp.position.clone(), t0: 0, dur: 1, arc: 0 };
       });
@@ -406,7 +439,7 @@
     function setTok(i, tile, ox, oz, o) {
       const t = toks[i];
       if (!t) return;
-      const p = TILE_POS[tile];
+      const p = TP[tile];
       const to = new THREE.Vector3(p.x + (ox || 0) * 1, TILE_H, p.z + (oz || 0) * 1);
       if (t.to.distanceTo(to) < 0.001) return;
       dirty = true;
@@ -457,18 +490,79 @@
       const e = UP[v] || UP[1];
       return { x: e[0], y: yaw, z: e[2] };
     }
-    function rollBegin(isSingle) {
+    /* 拋擲：從棋子手邊高處丟出 → 拋物線落下 → 三次遞減彈跳並滑到定位 → 剛好停在骰面上。
+       回傳每次撞擊的時間（毫秒，相對於開始），讓音效對得上落地瞬間 */
+    const BOUNCE = [[0.27, 1.0], [0.19, 0.45], [0.14, 0.16]];
+    const FLY = 0.40;
+    function rollBegin(isSingle, values, durMs) {
       dirty = true;
       single = !!isSingle;
       anchorDice();
       rolling = true; rollStart = performance.now();
-      dice.forEach((d, k) => { d.mesh.visible = !(single && k === 1); d.spin.set(6 + Math.random() * 6, 5 + Math.random() * 6, 4 + Math.random() * 6); d.settle = 0; d.target = null; });
+      const D = Math.max(300, durMs || 950);
+      const t = toks[activeSeat];
+      const px = t ? t.grp.position.x : 0, pz = t ? t.grp.position.z : 0;
+      const len = Math.hypot(px, pz) || 1;
+      const dx = -px / len, dz = -pz / len;
+      const hits = [];
+      dice.forEach((d, k) => {
+        d.mesh.visible = !(single && k === 1);
+        d.settle = 0; d.target = null;
+        const v = values && values[k];
+        const goal = faceRot(v || 1 + Math.floor(Math.random() * 6), (Math.random() - 0.5) * 1.2);
+        const side = (k ? 1 : -1) * (single ? 0 : 1);
+        const delay = k ? 0.07 : 0;
+        const K = () => (2 + Math.floor(Math.random() * 2)) * (Math.random() < 0.5 ? -1 : 1);
+        d.plan = {
+          t0: rollStart, D, delay,
+          sx: px - dz * side * 0.5, sz: pz + dx * side * 0.5,
+          lx: d.x - dx * 1.0, lz: d.z - dz * 1.0,
+          goal, K: { x: K(), y: K(), z: K() }
+        };
+        if (!(single && k === 1)) {
+          let acc = FLY;
+          hits.push((delay + (1 - delay) * acc) * D);
+          BOUNCE.forEach(([w]) => { acc += w; hits.push((delay + (1 - delay) * acc) * D); });
+        }
+      });
+      return hits.sort((a, b) => a - b);
+    }
+    /* 依進度 p（0..1）擺放一顆骰子 */
+    function stepDie(d, now) {
+      const pl = d.plan, T2 = Math.PI * 2, base = TILE_H + 0.43;
+      const p = Math.max(0, Math.min(1, ((now - pl.t0) / pl.D - pl.delay) / (1 - pl.delay)));
+      let x, y, z;
+      if (p < FLY) {
+        const u = p / FLY;
+        x = pl.sx + (pl.lx - pl.sx) * u; z = pl.sz + (pl.lz - pl.sz) * u;
+        y = base + 2.3 * (1 - u) * (1 - u) + 0.7 * Math.sin(Math.PI * u) * (1 - u * 0.3);
+      } else {
+        let q = p - FLY, i = 0;
+        while (i < BOUNCE.length - 1 && q > BOUNCE[i][0]) { q -= BOUNCE[i][0]; i++; }
+        const v = Math.min(1, q / BOUNCE[i][0]);
+        y = base + BOUNCE[i][1] * 4 * v * (1 - v);
+        const m = (p - FLY) / (1 - FLY), e = 1 - (1 - m) * (1 - m);
+        x = pl.lx + (d.x - pl.lx) * e; z = pl.lz + (d.z - pl.lz) * e;
+      }
+      d.mesh.position.set(x, y, z);
+      const f = Math.pow(1 - p, 1.6);
+      ['x', 'y', 'z'].forEach(ax => { d.mesh.rotation[ax] = pl.goal[ax] + pl.K[ax] * T2 * f; });
+      /* 尚未出手的那顆先藏在手邊 */
+      d.mesh.visible = !(single && d.mesh === dice[1].mesh) && (now - pl.t0) / pl.D >= pl.delay;
     }
     function rollEnd(d0, d1) {
       dirty = true;
       rolling = false; shownDice = d0 + ',' + d1;
       single = !d1; anchorDice();
-      [d0, d1].forEach((v, k) => { dice[k].settle = performance.now(); dice[k].mesh.visible = !!v; if (v) dice[k].target = faceRot(v, (Math.random() - 0.5) * 1.2); });
+      [d0, d1].forEach((v, k) => {
+        const d = dice[k];
+        d.mesh.visible = !!v;
+        if (!v) { d.plan = null; return; }
+        if (d.plan) {
+          const r = d.plan.goal; d.plan = null;
+          d.mesh.rotation.set(r.x, r.y, r.z); d.mesh.position.set(d.x, TILE_H + 0.43, d.z); d.target = null;
+        } else { d.settle = performance.now(); d.target = faceRot(v, (Math.random() - 0.5) * 1.2); }
+      });
     }
     let shownDice = '';
     function showDice(dv) {
@@ -485,8 +579,8 @@
     }
 
     /* ---------- 相機：拖曳轉動、滾輪／雙指縮放 ---------- */
-    let follow = true, zoomGoal = 0.62;
-    const cam = { az: 0, el: 1.02, zoom: 0.62, fit: 20, target: new THREE.Vector3(0, 0, 0.4) };
+    let follow = true, zoomGoal = FZ;
+    const cam = { az: 0, el: 1.02, zoom: FZ, fit: 20, target: new THREE.Vector3(0, 0, 0.4) };
     let w = 1, h = 1;
     function resize() {
       w = Math.max(1, canvas.clientWidth); h = Math.max(1, canvas.clientHeight);
@@ -494,7 +588,7 @@
       camera.aspect = w / h;
       const half = camera.fov * Math.PI / 360;
       const hHalf = Math.atan(Math.tan(half) * camera.aspect);
-      cam.fit = 8.3 / Math.tan(Math.min(half * 1.05, hHalf));
+      cam.fit = 8.3 * SC / Math.tan(Math.min(half * 1.05, hHalf));
       camera.updateProjectionMatrix();
       dirty = true;
       placeBtns();
@@ -545,7 +639,7 @@
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('wheel', e => { e.preventDefault(); dirty = true; zoomGoal = Math.min(1.6, Math.max(0.32, zoomGoal * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
-    canvas.addEventListener('dblclick', () => { dirty = true; cam.az = 0; cam.el = 1.02; zoomGoal = follow ? 0.62 : 1; });
+    canvas.addEventListener('dblclick', () => { dirty = true; cam.az = 0; cam.el = 1.02; zoomGoal = follow ? FZ : 1; });
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
     function pick(e) {
       const r = canvas.getBoundingClientRect();
@@ -555,7 +649,7 @@
       if (hit && opt.onTile) opt.onTile(hit.object.userData.tile);
     }
     function setView(az) { cam.az = az; }
-    function setFollow(on) { follow = !!on; zoomGoal = follow ? 0.62 : 1; dirty = true; syncBtns(); }
+    function setFollow(on) { follow = !!on; zoomGoal = follow ? FZ : 1; dirty = true; syncBtns(); }
 
     /* 畫面左上角的視角按鈕：跟著棋子／看全圖／轉正 */
     const btns = document.createElement('div');
@@ -592,10 +686,8 @@
         /* 同一格多顆時，稍微前後擺動，看得出誰是誰 */
       });
       dice.forEach((d, k) => {
-        if (rolling && d.mesh.visible) {
-          const tt = (now - rollStart) / 1000;
-          d.mesh.rotation.x += d.spin.x * 0.016; d.mesh.rotation.y += d.spin.y * 0.016; d.mesh.rotation.z += d.spin.z * 0.016;
-          d.mesh.position.set(d.x + Math.sin(tt * 4 + k) * 0.35, TILE_H + 0.43 + Math.abs(Math.sin(tt * 9 + k)) * 1.1, d.z + Math.cos(tt * 5 + k) * 0.3);
+        if (rolling && d.plan) {
+          stepDie(d, now);
         } else if (d.target) {
           const s = Math.min(1, (now - d.settle) / 260);
           ['x', 'y', 'z'].forEach(ax => {
@@ -637,7 +729,7 @@
       get rolling() { return rolling; },
       /** 格子在畫面上的位置（給飄字用），單位 px，相對於棋盤容器左上角 */
       project(tile, ox, oz, y) {
-        const p = TILE_POS[tile];
+        const p = TP[tile];
         const v = new THREE.Vector3(p.x + (ox || 0), y == null ? TILE_H + 0.8 : y, p.z + (oz || 0)).project(camera);
         return { x: (v.x * 0.5 + 0.5) * w + canvas.offsetLeft, y: (-v.y * 0.5 + 0.5) * h + canvas.offsetTop };
       },
@@ -668,5 +760,5 @@
     };
   }
 
-  root.Board3D = { create, TILE_POS, gridPos };
+  root.Board3D = { create, layoutFor };
 })(typeof self !== 'undefined' ? self : this);

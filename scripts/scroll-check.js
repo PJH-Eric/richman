@@ -39,6 +39,11 @@ async function scrollProblems(page) {
       const pageBar = [...document.querySelectorAll('.cs-track')].some(t => t.style.display === 'block' && t.getBoundingClientRect().right >= innerWidth - 2);
       if (!pageBar && !document.body.classList.contains('in-game') && !document.querySelector('.modal:not([hidden])')) out.push('頁面可以捲，但看不到自製卷軸');
     }
+    /* 彈窗整張卡片一定要在視窗內（太高就要在卡片裡面捲），不能被切掉 */
+    document.querySelectorAll('.modal:not([hidden]) .modal-card').forEach(c => {
+      const r = c.getBoundingClientRect();
+      if (r.width > 0 && (r.bottom > innerHeight + 2 || r.top < -2)) out.push('彈窗超出視窗（上 ' + Math.round(r.top) + '／下 ' + Math.round(r.bottom) + '，視窗高 ' + innerHeight + '）');
+    });
     const skip = el => el.closest('canvas, svg, .b3d, .cam-btns') || el.matches('html, body');
     for (const el of document.querySelectorAll('body *')) {
       if (skip(el) || !vis(el)) continue;
@@ -100,8 +105,7 @@ async function scrollProblems(page) {
     if (await page.isVisible('#side-open')) { await page.click('#side-open'); await page.waitForTimeout(400); await check('對局：資訊抽屜'); await page.click('#side-close'); await page.waitForTimeout(400); }
     await page.evaluate(() => { const g = Solo._debug; g.state.seats.find(s => s.id === 'me').items = ['dice', 'fly', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
     if (await page.isVisible('#menu-modal')) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
-    const mg = await page.$('.mc [data-a="manage"]');
-    if (mg) { await mg.click(); await page.waitForSelector('#manage-modal', { state: 'visible' }); await check('我的地產視窗'); await page.keyboard.press('Escape'); }
+    if (await page.isVisible('.mc .mc-props')) { await page.click('.mc .mc-props'); await page.waitForSelector('#manage-modal', { state: 'visible' }); await check('我的地產視窗'); await page.keyboard.press('Escape'); }
     await page.evaluate(() => Solo.fastForward(1200000, true));
     await page.waitForSelector('#result:not([hidden])', { timeout: 30000 }).catch(() => {});
     if (await page.isVisible('#result')) { await check('結算畫面（8 人）'); await page.keyboard.press('Escape').catch(()=>{}); await page.click('#res-home'); await page.waitForSelector('#screen-home:not([hidden])'); await check('結算後回到首頁（不能還鎖著捲動）'); }

@@ -11,6 +11,7 @@
     "test:browser": "node scripts/browser-check.js",
     "test:scroll": "node scripts/scroll-check.js",
     "test:flow": "node scripts/flow-fuzz.js",
+    "test:maps": "node scripts/map-check.js",
     "test:items": "node scripts/item-flow-check.js",
     "test:online-items": "node scripts/online-item-check.js",
     "test:fuzz": "node scripts/deep-fuzz.js",

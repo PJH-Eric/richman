@@ -22,14 +22,14 @@
     const seed = root.RNG.newSeed();
     /* 動作節奏跟著最簡單的電腦：有幼幼班電腦在，小朋友也跟得上 */
     const easiest = R.DIFFICULTY_LIST.find(k => diffs.includes(k)) || 'normal';
-    const state = R.create(players, { seed, pace: R.DIFFICULTIES[easiest].pace, now: 0, roundLimit: cfg.roundLimit, turnMs: 0 });
+    const state = R.create(players, { seed, pace: R.DIFFICULTIES[easiest].pace, now: 0, roundLimit: cfg.roundLimit, turnMs: 0, map: cfg.map });
     const driver = root.AI.createDriver(seed + '-ai');
     const ui = root.App.modals;
     game = {
       cfg, state, driver,
       clock: 0, last: performance.now(), paused: false, raf: 0, timer: 0, ended: false, drawn: -1,
       board: root.Board.create($('#board'), $('#summary'), {
-        myId: 'me', solo: true,
+        myId: 'me', solo: true, map: state.map,
         settings: () => root.App.store,
         onAct: a => act(a),
         manage: ui.manage, tile: ui.tile
@@ -137,7 +137,7 @@
       for (const a of g.driver.actions(g.state, g.clock)) R.act(g.state, a.id, a.action, g.clock, { ai: true });
       if (human && g.state.seats[g.state.turn].id === 'me') {
         const o = R.options(g.state, 'me');
-        const a = o.roll ? 'roll' : o.buy ? 'buy' : g.state.phase === 'buy' || g.state.phase === 'build' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : o.bankrupt ? 'bankrupt' : null;
+        const a = o.roll ? 'roll' : o.buy ? 'buy' : g.state.phase === 'buy' || g.state.phase === 'build' || g.state.phase === 'shop' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : o.bankrupt ? 'bankrupt' : null;
         if (a) R.act(g.state, 'me', { type: a }, g.clock);
       }
     }

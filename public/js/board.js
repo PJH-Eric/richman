@@ -1,4 +1,4 @@
-/* ===== board.js — 棋盤畫面：40 格、棋子、骰子、操作按鈕、左欄摘要、我的地產、格子說明 =====
+/* ===== board.js — 棋盤畫面：各種格數的地圖、棋子、骰子、操作按鈕、左欄摘要、我的地產、格子說明 =====
  *
  * 單機與線上共用同一個元件：外面只要把 Rules.publicView() 的結果丟進 render()，
  * 它會照「事件」播動畫（擲骰 → 棋子一格一格走 → 錢飄字 → 抽卡），播完才把最新的局面畫出來，
@@ -31,12 +31,13 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
   function reasonText(r) {
-    return { rent: '過路費', tax: '稅金', card: '卡片', buy: '買地', jail: '罰金', go: '起點薪水', buyout: '收購' }[r] || '';
+    return { rent: '過路費', tax: '稅金', card: '卡片', buy: '買地', jail: '罰金', go: '起點薪水', buyout: '收購', shop: '商店' }[r] || '';
   }
 
   /* ---------- 建立 ---------- */
 
   function create(boardEl, sumEl, opt) {
+    R.useMap(opt.map);      /* 先切到這一局的地圖，3D 棋盤才知道要排幾格 */
     const B = {
       opt, myId: opt.myId || null, view: null, shown: null, latest: null, lastN: -1,
       queue: [], pumping: false, busy: false, dead: false, pos: [], first: true,
@@ -55,6 +56,7 @@
     B.err = null;
     mc.innerHTML = '<p class="mc-prompt dim">3D 棋盤準備中…</p>';
     root.Board3D.create(boardEl, {
+      map: opt.map,
       onTile: i => B.tileClick(i),
       reduce: () => reduce()
     }).then(v3 => {
@@ -118,7 +120,7 @@
       const n = (s.items || []).length;
       let out = '<div class="mc-itemwrap"><button type="button" class="mc-ihead" data-inv="1" aria-label="打開道具庫"><b>\uD83C\uDF92 道具庫</b><small>' + n + '／' + R.MAX_ITEMS + '　查看全部 ›</small></button>';
       if (!n) {
-        out += '<p class="mc-inone">還沒有道具：停在溫泉休息站或抽到道具卡就能拿到</p></div>';
+        out += '<p class="mc-inone">還沒有道具：停在休息站、道具商店，或抽到道具卡就能拿到</p></div>';
         return out;
       }
       out += '<div class="mc-items" role="group" aria-label="我的道具">' + s.items.map(id => {
@@ -140,7 +142,8 @@
       const opts = me >= 0 ? R.options(v, B.myId) : null;
       const lim = v.opts.roundLimit;
       let out = '<div class="mc-top"><b class="mc-round">第 ' + v.round + (lim ? '／' + lim : '') + ' 回合</b>' +
-        (v.turnLeftMs != null ? '<span class="mc-timer" aria-live="off"></span>' : '') + '</div>';
+        (v.turnLeftMs != null ? '<span class="mc-timer" aria-live="off"></span>' : '') +
+        (me >= 0 ? '<button type="button" class="mc-props" data-open="props" aria-label="我的地產清單">' + Art.icon('home') + '我的地產</button>' : '') + '</div>';
       out += '<div class="mc-turn' + (mine ? ' mine' : '') + '" style="--seat:' + COLORS[v.turn] + '">' +
         '<span class="mini">' + Art.animalSvg(cur.char) + '</span><b>' + (mine ? '輪到你了！' : '輪到 ' + esc(cur.name)) + '</b>' +
         seatTag(cur, v.turn, v).map(t => '<i class="tag">' + t + '</i>').join('') + '</div>';
@@ -152,7 +155,7 @@
       if (me >= 0) out += itemChips(v.seats[me], canItem, opts || {});
       if (canItem && B.pick === 'dice') {
         out += '<div class="mc-pick"><p class="mc-prompt strong">遙控骰：想走幾步？</p><div class="pick-n">' +
-          [1, 2, 3, 4, 5, 6].map(n => '<button type="button" class="pick-btn" data-n="' + n + '" aria-label="走 ' + n + ' 步">' + Art.dieSvg(n) + '<small>' + tileShort((cur.pos + n) % 40) + '</small></button>').join('') +
+          [1, 2, 3, 4, 5, 6].map(n => '<button type="button" class="pick-btn" data-n="' + n + '" aria-label="走 ' + n + ' 步">' + Art.dieSvg(n) + '<small>' + tileShort((cur.pos + n) % T.length) + '</small></button>').join('') +
           '</div><button type="button" class="link-btn" data-pickcancel="1">先不用</button></div>';
         return out;
       }
@@ -202,6 +205,10 @@
           out += '<p class="mc-prompt strong">這是你的地，要加蓋房子嗎？<br><small>' + (bp.houses === 4 ? '升級成旅店' : '第 ' + bp.houses + ' 棟 → 第 ' + (bp.houses + 1) + ' 棟') + '・花 ' + bt.house + ' 元</small></p>';
           out += '<div class="mc-actions two">' + btn('build', 'coral', 'home', '蓋！−' + bt.house, ' data-tile="' + v.pending.tile + '"' + ((opts.build && opts.build.length) ? '' : ' disabled') + dis) +
             btn('decline', 'sand', '', '不蓋', dis) + '</div>';
+        } else if (v.phase === 'shop' && v.pending) {
+          out += '<p class="mc-prompt strong">道具商店：你有 ' + money(cur.cash) + ' 元，道具欄 ' + cur.items.length + '／' + R.MAX_ITEMS + '</p><div class="shop-list" role="group" aria-label="商品">' +
+            (opts.shop || []).map(x => { const it = R.ITEMS[x.item]; return '<button type="button" class="shop-item" data-shop="' + x.item + '" title="' + esc(it.desc) + '"' + (x.can && !B.sent ? '' : ' disabled') + '><span class="it-ico">' + Art.glyph('i_' + x.item) + '</span><span class="it-tx"><b>' + it.name + '</b><small>' + esc(it.desc.replace(/^擲骰前使用：/, '')) + '</small></span><i class="shop-price">' + x.cost + '</i></button>'; }).join('') +
+            '</div><div class="mc-actions">' + btn('decline', 'sand', '', '離開商店', dis) + '</div>';
         } else if (v.phase === 'debt' && v.pending) {
           const need = Math.max(0, v.pending.amount - cur.cash);
           out += '<p class="mc-prompt strong">要付 ' + money(v.pending.amount) + ' 元' + (v.pending.creditor >= 0 ? '給 ' + esc(v.seats[v.pending.creditor].name) : '') +
@@ -262,7 +269,7 @@
     function phaseText(v) {
       const cur = v.seats[v.turn];
       if (v.phase === 'over') return '遊戲結束';
-      return { roll: cur.name + ' 擲骰子', buy: cur.name + ' 決定要不要買地', debt: cur.name + ' 湊錢還債中', manage: cur.name + ' 整理財產、準備結束回合' }[v.phase] || '';
+      return { roll: cur.name + ' 擲骰子', buy: cur.name + ' 決定要不要買地', build: cur.name + ' 決定要不要蓋房子', shop: cur.name + ' 逛道具商店', debt: cur.name + ' 湊錢還債中', manage: cur.name + ' 整理財產、準備結束回合' }[v.phase] || '';
     }
 
     function drawSummary(v) {
@@ -354,7 +361,7 @@
       const owner = p && p.owner >= 0 ? v.seats[p.owner] : null;
       let h = '<div class="ti-head" style="--gc:' + (t.type === 'prop' ? R.GROUPS[t.group].color : '#8896A8') + '"><span class="ti-gl">' +
         Art.glyph(t.glyph || (t.type === 'go' ? 'go' : t.type)) + '</span><div><h3>' + esc(t.name) + '</h3><small>' +
-        ({ prop: R.GROUPS[t.group] ? R.GROUPS[t.group].name + '色組' : '', station: '車站', utility: '公司', go: '每次經過起點領 ' + R.GO_SALARY + ' 元', jail: '路過只是探監；被抓來才要坐牢', park: '什麼都不會發生，安心泡腳', gotojail: '停在這裡會被直接送進監獄', chance: '抽一張機會卡', chest: '抽一張命運卡', tax: '要繳 ' + t.tax + ' 元' }[t.type] || '') + '</small></div></div>';
+        ({ prop: R.GROUPS[t.group] ? R.GROUPS[t.group].name + '色組' : '', station: '車站', utility: '公司', go: '每次經過起點領 ' + R.GO_SALARY + ' 元', jail: '路過只是探監；被抓來才要坐牢', park: '什麼都不會發生，安心泡腳', gotojail: '停在這裡會被直接送進監獄', chance: '抽一張機會卡', chest: '抽一張命運卡', tax: '要繳 ' + t.tax + ' 元', shop: '停在這裡可以花錢買道具（道具欄最多 ' + R.MAX_ITEMS + ' 個）' }[t.type] || '') + '</small></div></div>';
       if (t.price) {
         h += '<p class="ti-line">地價 <b>' + t.price + '</b> 元・抵押可拿 ' + R.mortgageValue(t) + ' 元・贖回 ' + R.unmortgageCost(t) + ' 元' + (t.house ? '・蓋一棟房 ' + t.house + ' 元' : '') + '</p>';
         h += '<p class="ti-line">' + (owner ? '<span class="own-chip" style="--c:' + COLORS[p.owner] + '">' + shapeSvg(p.owner, COLORS[p.owner]) + esc(owner.name) + ' 擁有</span>' : '目前沒有主人') +
@@ -363,7 +370,8 @@
           const lab = ['空地', '1 棟房', '2 棟房', '3 棟房', '4 棟房', '旅店'];
           h += '<table class="ti-rent"><tbody>' + t.rent.map((r, k) =>
             '<tr class="' + (p && p.houses === k ? 'now' : '') + '"><th scope="row">' + lab[k] + '</th><td>' + r + ' 元</td></tr>').join('') + '</tbody></table>' +
-            '<p class="hint">整組同色都是同一個人的，空地租金加倍。</p>';
+            '<p class="hint">整組同色都是同一個人的，空地租金加倍。</p>' +
+            '<p class="hint">連棟加乘：同一人相鄰的格子都蓋了房子，踩到租金 2 連×1.5、3 連×2、4 連以上×2.5（目前 ' + (p && p.owner >= 0 ? R.rowLen(v, i) : 1) + ' 連）。</p>';
         } else if (t.type === 'station') h += '<p class="hint">擁有 1／2／3／4 個車站，租金 25／50／100／200 元。</p>';
         else h += '<p class="hint">擁有 1 間：骰子點數 ×4；2 間都有：×10。</p>';
       }
@@ -415,11 +423,14 @@
     async function animRoll(e) {
       const v = B.shown;
       const box = mc.querySelector('.mc-dice');
-      root.Sound.sfx('dice');
+      const dur = st().fastAnim ? 650 : 1150;
       if (B.v3 && !reduce()) {
-        B.v3.rollBegin(!e.dice[1]);
-        await wait(st().fastAnim ? 550 : 950);
-      }
+        const hits = B.v3.rollBegin(!e.dice[1], e.dice, dur) || [];
+        root.Sound.sfx('dice_throw');
+        hits.forEach((ms, i) => setTimeout(() => root.Sound.sfx('dice_hit', Math.max(0.25, 1 - i * 0.16)), ms));
+        await wait(dur);
+        root.Sound.sfx('dice_settle');
+      } else root.Sound.sfx('dice');
       if (B.v3) B.v3.rollEnd(e.dice[0], e.dice[1]);
       if (box) {
         box.innerHTML = '<span class="mc-sum">' + diceText(e.dice) + '</span>';
@@ -431,7 +442,7 @@
     }
 
     async function animMove(e) {
-      const total = e.teleport ? 0 : ((e.to - e.from + 40) % 40 || 40);
+      const total = e.teleport ? 0 : ((e.to - e.from + T.length) % T.length || T.length);
       if (e.teleport || reduce()) {
         B.pos[e.seat] = e.to;
         placeTok(e.seat, e.to, { jump: true });
@@ -443,7 +454,7 @@
       const ms = stepMs();
       if (B.v3) B.v3.setActive(e.seat);
       for (let k = 1; k <= total && !B.dead; k++) {
-        const t = (e.from + k) % 40;
+        const t = (e.from + k) % T.length;
         B.pos[e.seat] = t;
         placeAll();
         setOn(t);
@@ -580,6 +591,7 @@
 
     B.render = function (view, extra) {
       if (B.dead) return;
+      R.useMap(view.map);
       if (view.tiles && R.applyTiles(view.tiles) && B.v3) B.v3.refreshPrices();
       B.latest = view;
       B.deadlineAt = view.turnLeftMs != null ? performance.now() + view.turnLeftMs : 0;
@@ -627,6 +639,10 @@
         return;
       }
       if (ev.target.closest('[data-pickcancel]')) { B.pick = null; drawCenter(B.shown); return; }
+      const sh = ev.target.closest('[data-shop]');
+      if (sh && !sh.disabled && !B.sent) { sh.disabled = true; send({ type: 'shopBuy', item: sh.dataset.shop }); return; }
+      const op = ev.target.closest('[data-open="props"]');
+      if (op) { B.openManage(op); return; }
       const b = ev.target.closest('[data-a]');
       if (b && !b.disabled) {
         const a = b.dataset.a;

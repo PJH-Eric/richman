@@ -36,7 +36,7 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
     for (let i = 0; i < 400; i++) {
       const p = pageOf(gs.turn), d = await dbg(p);
       if (gs.phase === 'roll' && !d.busy && !d.sent) return true;
-      const sel = gs.phase === 'buy' || gs.phase === 'build' ? '[data-a="decline"]' : gs.phase === 'manage' ? '[data-a="endTurn"]' : gs.phase === 'debt' ? '[data-a="bankrupt"]' : gs.phase === 'roll' ? null : null;
+      const sel = gs.phase === 'buy' || gs.phase === 'build' || gs.phase === 'shop' ? '[data-a="decline"]' : gs.phase === 'manage' ? '[data-a="endTurn"]' : gs.phase === 'debt' ? '[data-a="bankrupt"]' : gs.phase === 'roll' ? null : null;
       if (sel) await p.click('.mc ' + sel, { timeout: 2000 }).catch(() => {});
       await p.waitForTimeout(200);
     }

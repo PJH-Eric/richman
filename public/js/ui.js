@@ -201,5 +201,13 @@
     }
   };
 
-  root.UI = { $, $$, esc, show, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
+  /** 地圖選擇卡片（單機開局與房主設定共用）。attrs：每張卡片加上的屬性，例如 'data-map' 或 'data-set="map"' */
+  function mapCards(selected, attrs, label) {
+    return '<div class="map-list" role="radiogroup" aria-label="' + (label || '地圖') + '">' + root.Rules.MAPS.LIST.map(m =>
+      '<button type="button" role="radio" class="map-card" aria-checked="' + (m.id === selected) + '" ' + attrs + ' data-val="' + m.id + '" data-map="' + m.id + '">' +
+      '<span class="map-sw" style="background:linear-gradient(135deg,' + m.theme.bg + ' 0 45%,' + m.theme.base + ' 45% 100%);color:' + (m.theme.bg === '#20204A' ? '#fff' : '#3B2A1E') + '"><b>' + m.size + '</b><small>格</small></span>' +
+      '<span class="map-tx"><b>' + esc(m.name) + '</b><small>' + esc(m.desc) + '</small></span></button>').join('') + '</div>';
+  }
+
+  root.UI = { $, $$, esc, show, mapCards, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
 })(typeof self !== 'undefined' ? self : this);

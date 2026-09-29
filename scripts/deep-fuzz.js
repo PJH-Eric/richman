@@ -12,7 +12,7 @@ function invariants(st, g) {
   const T = R.tl(st), n = st.seats.length;
   st.seats.forEach((s, i) => {
     if (!Number.isInteger(s.cash)) fail('局' + g + ' ' + s.name + ' 現金不是整數：' + s.cash);
-    if (!(s.pos >= 0 && s.pos < 40)) fail('局' + g + ' 位置不合法 ' + s.pos);
+    if (!(s.pos >= 0 && s.pos < T.length)) fail('局' + g + ' 位置不合法 ' + s.pos);
     if (s.items.length > R.MAX_ITEMS) fail('局' + g + ' 道具超過上限');
     if (s.items.some(k => !R.ITEMS[k])) fail('局' + g + ' 出現不明道具 ' + s.items);
     if (s.god && !R.GODS[s.god.k]) fail('局' + g + ' 不明的神 ' + JSON.stringify(s.god));
@@ -27,22 +27,24 @@ function invariants(st, g) {
   });
   if (st.phase !== 'over') {
     if (st.seats[st.turn].bankrupt) fail('局' + g + ' 輪到已破產的人');
-    if (['buy', 'build', 'debt'].includes(st.phase) && !st.pending) fail('局' + g + ' 階段 ' + st.phase + ' 沒有 pending');
-    if (!['buy', 'build', 'debt'].includes(st.phase) && st.pending) fail('局' + g + ' 階段 ' + st.phase + ' 卻有 pending ' + JSON.stringify(st.pending));
+    if (['buy', 'build', 'shop', 'debt'].includes(st.phase) && !st.pending) fail('局' + g + ' 階段 ' + st.phase + ' 沒有 pending');
+    if (!['buy', 'build', 'shop', 'debt'].includes(st.phase) && st.pending) fail('局' + g + ' 階段 ' + st.phase + ' 卻有 pending ' + JSON.stringify(st.pending));
   }
 }
 for (let g = 0; g < SEEDS; g++) {
   const rand = rnd(g * 7 + 3), n = 2 + Math.floor(rand() * 7);
   const ps = []; for (let i = 0; i < n; i++) ps.push({ id: 'p' + i, name: 'P' + i, char: 'otter' });
-  const st = R.create(ps, { seed: 'd' + g, roundLimit: 25 });
+  const mapId = R.MAPS.LIST[g % R.MAPS.LIST.length].id;
+  const st = R.create(ps, { seed: 'd' + g, roundLimit: 25, map: mapId });
   /* 讓道具一開始就很多，才測得到 */
   st.seats.forEach(s => { while (s.items.length < 3) s.items.push(R.ITEM_LIST[Math.floor(rand() * R.ITEM_LIST.length)]); });
   let now = 0, stall = 0, last = '';
   for (let step = 0; step < 8000 && st.phase !== 'over'; step++) {
     now += 1000;
-    const id = st.seats[st.turn].id, si = st.turn, s = st.seats[si], o = R.options(st, id);
+    const id = st.seats[st.turn].id, si = st.turn, s = st.seats[si];
     /* 隨機補道具／神，讓所有分支都被走到 */
     if (rand() < 0.05 && s.items.length < R.MAX_ITEMS) s.items.push(R.ITEM_LIST[Math.floor(rand() * R.ITEM_LIST.length)]);
+    const o = R.options(st, id);
     /* 列出所有「options 說可以」的動作 */
     const acts = [];
     ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].forEach(k => { if (o[k]) acts.push({ type: k }); });
@@ -50,9 +52,10 @@ for (let g = 0; g < SEEDS; g++) {
     if (o.dice) for (let k = 1; k <= 6; k++) acts.push({ type: 'useItem', item: 'dice', n: k });
     if (o.fly) R.itemTargets(st, si, 'fly').forEach(t => acts.push({ type: 'useItem', item: 'fly', tile: t }));
     ['steal', 'swap'].forEach(k => { if (o[k]) R.itemTargets(st, si, k).forEach(t => acts.push({ type: 'useItem', item: k, target: t })); });
+    if (o.shop && o.shop.length) o.shop.forEach(x => { if (x.can) acts.push({ type: 'shopBuy', item: x.item }); });
     if (o.bomb) R.itemTargets(st, si, 'bomb').forEach(t => acts.push({ type: 'useItem', item: 'bomb', tile: t }));
     ['free', 'cat', 'taxfree', 'guard'].forEach(k => { if (s.items.includes(k) && R.canUseItem && !R.canUseItem(st, si, k)) acts.push({ type: 'useItem', item: k }); });
-    const main = acts.filter(a => !['sell', 'mortgage', 'unmortgage', 'buyout', 'useItem', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
+    const main = acts.filter(a => !['sell', 'mortgage', 'unmortgage', 'buyout', 'useItem', 'shopBuy', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
     if (!(o.roll || o.decline || o.buy || o.settle || o.bankrupt || o.endTurn)) { fail('卡死：局' + g + ' 階段 ' + st.phase + ' 沒有主要動作'); break; }
     const side = acts.filter(a => !main.includes(a));
     const a = rand() < 0.4 && side.length ? side[Math.floor(rand() * side.length)] : main.length ? main[Math.floor(rand() * main.length)] : { type: 'bankrupt' };
@@ -60,14 +63,15 @@ for (let g = 0; g < SEEDS; g++) {
     const r = R.act(st, id, a, now);
     moves++;
     if (!r.ok) fail('局' + g + ' options 說可以、act 卻拒絕：階段 ' + st.phase + ' ' + JSON.stringify(a) + ' → ' + (r.err || r.msg || r.reason || JSON.stringify(r)));
+    else if (a.type === 'shopBuy') usedItems.shopBuy = (usedItems.shopBuy || 0) + 1;
     else if (a.type === 'useItem') usedItems[a.item] = (usedItems[a.item] || 0) + 1;
     /* 亂丟不合法動作：必須被拒絕且不改動狀態 */
     if (rand() < 0.25) {
-      const junk = [{ type: 'buy' }, { type: 'build', tile: 1 }, { type: 'useItem', item: 'steal', target: 99 }, { type: 'useItem', item: 'fly', tile: -3 }, { type: 'useItem', item: 'bomb', tile: 'x' },
-        { type: 'useItem', item: 'nope' }, { type: 'settle' }, { type: 'mortgage', tile: 39 }, { type: 'buyout', tile: 1 }, { type: 'endTurn' }, { type: 'roll' }, { type: 'zzz' }, {}][Math.floor(rand() * 13)];
+      const junk = [{ type: 'shopBuy', item: 'bomb' }, { type: 'shopBuy', item: 'zzz' }, { type: 'buy' }, { type: 'build', tile: 1 }, { type: 'useItem', item: 'steal', target: 99 }, { type: 'useItem', item: 'fly', tile: -3 }, { type: 'useItem', item: 'bomb', tile: 'x' },
+        { type: 'useItem', item: 'nope' }, { type: 'settle' }, { type: 'mortgage', tile: 39 }, { type: 'buyout', tile: 1 }, { type: 'endTurn' }, { type: 'roll' }, { type: 'zzz' }, {}][Math.floor(rand() * 15)];
       const who = rand() < 0.5 ? id : st.seats[(si + 1) % st.seats.length].id;
       const o2 = R.options(st, who), b2 = snap(st);
-      const legal = (junk.type === 'build' && o2.build.includes(junk.tile)) || (junk.type === 'buy' && o2.buy) || (junk.type === 'endTurn' && o2.endTurn) || (junk.type === 'roll' && o2.roll) || (junk.type === 'settle' && o2.settle);
+      const legal = (junk.type === 'build' && o2.build.includes(junk.tile)) || (junk.type === 'shopBuy' && (o2.shop || []).some(x => x.can && x.item === junk.item)) || (junk.type === 'buy' && o2.buy) || (junk.type === 'endTurn' && o2.endTurn) || (junk.type === 'roll' && o2.roll) || (junk.type === 'settle' && o2.settle);
       const rr = R.act(st, who, junk, now);
       if (!legal && rr.ok) fail('局' + g + ' 不合法動作被接受：' + JSON.stringify(junk) + ' 階段 ' + st.phase);
       if (!rr.ok && snap(st) !== b2) fail('局' + g + ' 被拒絕的動作卻改了狀態：' + JSON.stringify(junk));
@@ -81,6 +85,7 @@ for (let g = 0; g < SEEDS; g++) {
   endings[st.phase === 'over' ? st.reason : 'unfinished'] = (endings[st.phase === 'over' ? st.reason : 'unfinished'] || 0) + 1;
   games++;
 }
+console.log('地圖：' + R.MAPS.LIST.map(m => m.id).join('、') + '；商店購買次數：' + (usedItems.shopBuy || 0));
 console.log('結局分布：' + JSON.stringify(endings) + '；道具使用次數：' + JSON.stringify(usedItems));
 console.log(bad ? '✘ 發現 ' + bad + ' 個問題' : '✔ ' + games + ' 局、' + moves + ' 步：不變條件全部成立');
 process.exit(bad ? 1 : 0);

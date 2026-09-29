@@ -148,9 +148,9 @@ async function solo(browser, base) {
   for (let i = 0; i < 400 && !(await mineTurn()); i++) await page.waitForTimeout(500);
   await page.waitForFunction(() => !Solo.board._debug.busy, null, { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(200);
-  const mg = await page.$('.mc [data-a="manage"]');
+  const mg = await page.$(".mc .mc-props");
   if (mg) {
-    await mg.click();
+    await page.click(".mc .mc-props");
     ok(await page.isVisible('#manage-modal') && (await page.textContent('#manage-body')).includes('現金'), '「我的地產」視窗顯示現金與強制收購說明');
     await page.keyboard.press('Escape');
   } else ok(false, '找不到「我的地產」按鈕');
@@ -178,7 +178,7 @@ async function solo(browser, base) {
     for (let i = 0; i < 400 && !(await mineTurn()); i++) {
       const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
       if (ph === 'buy') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
-      else if (ph === 'build') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      else if (ph === 'build' || ph === 'shop') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
       else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(500);
     }
@@ -222,7 +222,7 @@ async function solo(browser, base) {
     await page.evaluate(() => { const g = Solo._debug; g.state.seats.forEach(x => { x.items = []; }); });
     for (let i = 0; i < 400 && !(await mineTurn()); i++) {
       const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
-      if (ph === 'buy' || ph === 'build') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      if (ph === 'buy' || ph === 'build' || ph === 'shop') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
       else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(500);
     }
@@ -293,7 +293,7 @@ async function online(browser, base) {
   const link = await A.page.inputValue('#invite-url');
   ok(/invite=/.test(link), '邀請連結帶有 token');
   await A.page.click('[data-act="add-ai"]');
-  await A.page.waitForSelector('.seat-row .tag.ai, .seat-row select[data-ai-diff]');
+  await A.page.waitForSelector('.seat-row .tag.ai, .seat-row .ai-diff-seg');
   ok(true, '房主加了一個電腦');
   await A.page.click('[data-set="roundLimit"][data-val="20"]');
   await A.page.screenshot({ path: path.join(OUT, '平板橫向-房間.png') });
