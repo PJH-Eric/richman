@@ -89,7 +89,7 @@
     $('#solo-ai').addEventListener('click', e => {
       const b = e.target.closest('[data-step]');
       if (!b) return;
-      store.aiCount = Math.min(3, Math.max(1, store.aiCount + Number(b.dataset.step)));
+      store.aiCount = Math.min(7, Math.max(1, store.aiCount + Number(b.dataset.step)));
       root.Store.save(store);
       renderSoloSetup();
     });
@@ -99,7 +99,7 @@
       const b = e.target.closest('[data-diff]');
       if (!b) return;
       store.difficulty = b.dataset.diff;
-      store.aiDiffs = [b.dataset.diff, b.dataset.diff, b.dataset.diff];     /* 全部一起設 */
+      store.aiDiffs = new Array(7).fill(b.dataset.diff);     /* 全部一起設 */
       root.Store.save(store);
       renderSoloSetup();
     });
@@ -192,8 +192,8 @@
   const DIFF_ORDER = ['kid', 'easy', 'normal', 'hard'];
   function aiDiffs() {
     const base = store.difficulty || 'normal';
-    const d = Array.isArray(store.aiDiffs) ? store.aiDiffs.slice(0, 3) : [];
-    while (d.length < 3) d.push(base);
+    const d = Array.isArray(store.aiDiffs) ? store.aiDiffs.slice(0, 7) : [];
+    while (d.length < 7) d.push(base);
     return d.map(x => DIFF_ORDER.includes(x) ? x : base);
   }
   function renderSoloSetup() {
@@ -206,7 +206,7 @@
       '</div></li>').join('');
     $('#solo-ai-n').textContent = store.aiCount;
     $('#solo-ai [data-step="-1"]').disabled = store.aiCount <= 1;
-    $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 3;
+    $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 7;
     $$('#solo-diff [data-diff]').forEach(b => b.setAttribute('aria-checked', String(same && b.dataset.diff === diffs[0])));
     $$('#solo-limit [data-limit]').forEach(b => b.setAttribute('aria-checked', String(Number(b.dataset.limit) === Number(store.roundLimit))));
     $('#solo-limit-hint').textContent = LIMIT_HINT[store.roundLimit] || '';
@@ -313,7 +313,7 @@
       step(G('jail'), '5. 監獄', '被抓進監獄後，可以擲出雙骰、繳 50 元或用出獄許可證離開；3 回合後一定要繳錢出獄。路過監獄只是探監，不會被關。') +
       step(G('coin'), '6. 錢不夠就抵押', '要付錢卻不夠時，可以到「我的地產」賣房子、抵押地產換現金。實在湊不出來就破產，淘汰出局。') +
       step(G('fort'), '7. 強制收購', '這個版本沒有交易與拍賣，取而代之：你已經有同色組的其他格，就能用 2 倍地價向對手買下最後一塊（沒蓋房才行，每回合一次）。對手可以先把地抵押起來防守。') +
-      step(G('i_dice'), '8. 道具', '停在溫泉休息站或抽到道具卡會獲得道具（最多帶 3 個）。擲骰前可以按「遙控骰」自己選走 1～6 步，或用「機票」飛到任何一格（不能去坐牢）。免租券、防收購券、招財貓會在對的時候自動生效。') +
+      step(G('i_dice'), '8. 道具', '停在溫泉休息站或抽到道具卡會獲得道具（最多帶 3 個）。面板上的「道具庫」可以看全部道具與說明。擲骰前可以按「遙控骰」自己選走 1～6 步，或用「機票」飛到任何一格（不能去坐牢）。免租券、防收購券、招財貓會在對的時候自動生效。') +
       '</ol>' +
       '<div class="help-tips"><h3>怎麼贏</h3><ul>' +
       '<li>其他人都破產，剩下的最後一個人獲勝。</li>' +

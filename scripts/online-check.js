@@ -130,7 +130,7 @@ async function liveTest() {
   const g = await host.wait(c => c.room && c.room.game);
   ok(!!g, '全員準備好 → 開局');
   const game = host.room.game;
-  ok(game.seats.length === 3 && game.seats.every(s => s.cash === 1500 && s.pos === 0), '3 人各 1500 元、站在起點');
+  ok(game.seats.length === 3 && game.seats.every(s => s.cash === Rules.START_CASH && s.pos === 0), '3 人各 2000 元、站在起點');
   ok(game.props.length === 40 && game.props.every(p => p.owner === -1), '40 格、地都還沒有主人');
   ok(!JSON.stringify(host.room).includes('seed') && !JSON.stringify(host.room).includes('_decks'), '送到瀏覽器的資料沒有 seed 與牌堆');
   ok(spec.room.game && spec.room.you.role === 'spectator', '觀戰者也看到棋盤');
@@ -274,6 +274,28 @@ function hubTest() {
   }
   ok(gs.round > 8 || !r2.game, '真人一直操作、其他座位由電腦接手，可以連續打很多回合');
   hub.leave(c);
+
+  /* 8 人房：上限、滿員、開局 */
+  const h1 = hub.identify('hhhhhhh81', '八人房主', 'otter');
+  const r8 = hub.createRoom(h1, { max: 8, pace: 'fast', roundLimit: 20 }).room;
+  ok(r8.max === 8, '房間人數上限可以到 8');
+  ok(hub.createRoom(hub.identify('hhhhhhh82', '過量', 'cat'), { max: 12 }).room.max === 8, '超過 8 人的設定會被壓回 8');
+  let added = 0;
+  while (hub.addAI(h1, 'normal').ok) added++;
+  ok(added === 7 && r8.seats.length === 8, '加滿 7 個電腦＝8 人');
+  ok(hub.startGame(h1).ok && r8.game.state.seats.length === 8, '8 人開局');
+  let n8 = 0;
+  const g8 = r8.game.state;
+  while (g8.phase !== 'over' && n8++ < 200000) {
+    now += 60; hub.tick(now);
+    if (g8.seats[g8.turn].id === h1.id) {
+      const o = Rules.options(g8, h1.id);
+      const t = o.roll ? 'roll' : o.buy ? 'buy' : g8.phase === 'buy' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : g8.phase === 'debt' ? 'bankrupt' : null;
+      if (t) hub.gameAct(h1, { type: t });
+    }
+    if (g8.round > 10) break;
+  }
+  ok(g8.round > 10 || g8.phase === 'over', '8 人一起打得下去（' + g8.round + ' 回合）');
 }
 
 async function closeTest() {

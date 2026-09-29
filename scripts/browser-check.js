@@ -127,7 +127,7 @@ async function solo(browser, base) {
   await page.click('#solo-start');
   await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 15000 });
   const st = await page.evaluate(() => ({ ai: Solo._debug.state.seats.filter(s => s.ai).map(s => s.id + ':' + s.ai).sort().join(','), lim: Solo._debug.state.opts.roundLimit }));
-  ok(st.ai === 'ai0:kid,ai1:normal,ai2:hard', '每個電腦照各自選的難度（' + st.ai + '）');
+  ok(st.ai === 'ai0:kid,ai1:normal,ai2:hard,ai3:normal,ai4:normal,ai5:normal,ai6:normal', '單機 8 人（1 真人＋7 電腦），每個電腦照各自選的難度（' + st.ai + '）');
   ok(st.lim === 20, '回合上限設定生效（20）');
 
   /* 點 3D 棋盤上的格子 → 說明視窗 */
@@ -145,7 +145,9 @@ async function solo(browser, base) {
   }
   /* 我的地產視窗 */
   const mineTurn = async () => page.evaluate(() => Solo._debug.state.seats[Solo._debug.state.turn].id === 'me' && Solo._debug.state.phase === 'roll');
-  for (let i = 0; i < 90 && !(await mineTurn()); i++) await page.waitForTimeout(500);
+  for (let i = 0; i < 400 && !(await mineTurn()); i++) await page.waitForTimeout(500);
+  await page.waitForFunction(() => !Solo.board._debug.busy, null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(200);
   const mg = await page.$('.mc [data-a="manage"]');
   if (mg) {
     await mg.click();
@@ -170,6 +172,26 @@ async function solo(browser, base) {
     await page.waitForTimeout(400);
     const flew = await page.evaluate(() => { const g = Solo._debug; const i = g.state.seats.findIndex(x => x.id === 'me'); return { pos: g.state.seats[i].pos, items: g.state.seats[i].items.join(',') }; });
     ok(flew.pos === 12 && flew.items === 'dice,cat', '機票：點格子就飛過去並用掉（' + JSON.stringify(flew) + '）');
+  }
+  /* 3D 骰子：擲完要停平、朝上的點數要跟結果一樣 */
+  {
+    await page.evaluate(() => { const g = Solo._debug; g.state.seats.forEach(x => { x.items = []; }); });
+    for (let i = 0; i < 400 && !(await mineTurn()); i++) {
+      const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
+      if (ph === 'buy') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(500);
+    }
+    const errs0 = await page.evaluate(() => { window.__e = []; window.addEventListener('error', e => window.__e.push(e.message)); return 0; });
+    await page.click('.mc [data-a="roll"]');
+    await page.waitForFunction(() => Solo._debug.state.dice[0] > 0 && Solo.board.v3 && !Solo.board.v3._debug.diceMoving, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(600);
+    const dd = await page.evaluate(() => { const v = Solo.board.v3._debug, d = Solo._debug.state.dice; return { shown: [v.diceTop(0), v.diceTop(1)], want: d.slice(), moving: v.diceMoving }; });
+    await page.waitForFunction(() => !Solo.board._debug.busy, null, { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(300);
+    const stuck = await page.evaluate(() => { const st = Solo._debug.state; return st.seats[st.turn].id === 'me' ? [...document.querySelectorAll('.mc [data-a]')].filter(b => b.disabled).map(b => b.dataset.a) : []; });
+    ok(!stuck.length, '擲完骰、動畫播完後，操作按鈕不會卡在灰色（' + stuck.join(',') + '）');
+    ok(!dd.moving && dd.shown[0] === dd.want[0] && dd.shown[1] === dd.want[1], '3D 骰子停平、朝上點數＝擲出結果（' + JSON.stringify(dd) + '）');
   }
   /* 開視窗時遊戲要暫停 */
   await page.screenshot({ path: path.join(OUT, '平板橫向-對局.png') });

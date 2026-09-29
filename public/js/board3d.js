@@ -131,13 +131,25 @@
     const INN = { b: [0, -1], t: [0, 1], l: [1, 0], r: [-1, 0], c: [0, 0] };
 
     function shapeMesh(k, color, size) {
-      let geo;
-      if (k % 4 === 0) geo = new THREE.CylinderGeometry(size * 0.5, size * 0.5, size * 0.3, 24);
-      else if (k % 4 === 1) geo = new THREE.BoxGeometry(size, size * 0.3, size);
-      else if (k % 4 === 2) geo = new THREE.ConeGeometry(size * 0.62, size * 0.6, 3);
-      else geo = new THREE.OctahedronGeometry(size * 0.62);
-      const m = new THREE.Mesh(geo, std(color, { roughness: 0.45 }));
-      if (k % 4 === 3) m.scale.y = 0.55;
+      const t = k % 8, mat = std(color, { roughness: 0.45 });
+      let m;
+      if (t === 0) m = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.5, size * 0.5, size * 0.3, 24), mat);
+      else if (t === 1) m = new THREE.Mesh(new THREE.BoxGeometry(size, size * 0.3, size), mat);
+      else if (t === 2) m = new THREE.Mesh(new THREE.ConeGeometry(size * 0.62, size * 0.6, 3), mat);
+      else if (t === 3) { m = new THREE.Mesh(new THREE.OctahedronGeometry(size * 0.62), mat); m.scale.y = 0.55; }
+      else if (t === 4) m = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.55, size * 0.55, size * 0.3, 6), mat);
+      else if (t === 5) {
+        m = new THREE.Group();
+        m.add(new THREE.Mesh(new THREE.BoxGeometry(size * 1.1, size * 0.3, size * 0.36), mat));
+        m.add(new THREE.Mesh(new THREE.BoxGeometry(size * 0.36, size * 0.3, size * 1.1), mat));
+      } else if (t === 6) { m = new THREE.Mesh(new THREE.TorusGeometry(size * 0.42, size * 0.16, 10, 24), mat); m.rotation.x = Math.PI / 2; }
+      else {
+        const sh = new THREE.Shape();
+        for (let i = 0; i < 10; i++) { const r = (i % 2 ? 0.22 : 0.6) * size, a = Math.PI / 5 * i + Math.PI / 2; const x = Math.cos(a) * r, y = Math.sin(a) * r; if (i) sh.lineTo(x, y); else sh.moveTo(x, y); }
+        const g = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: size * 0.3, bevelEnabled: false }), mat);
+        g.rotation.x = -Math.PI / 2;
+        m = new THREE.Group(); m.add(g);
+      }
       return m;
     }
 
@@ -268,8 +280,15 @@
           const q = at(pa, pb);
           const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.62, 8), std('#5A3A14')); pole.position.set(q[0], 0.31, q[1]); o.mark.add(pole);
           const flag = shapeMesh(p.owner, col, 0.34); flag.position.set(q[0], 0.66, q[1]);
-          if (p.owner % 4 === 0 || p.owner % 4 === 1) flag.rotation.x = Math.PI / 2;
+          if (p.owner % 8 === 0 || p.owner % 8 === 1) flag.rotation.x = Math.PI / 2;
           o.mark.add(flag);
+          /* 3. 地主頭像：小動物臉＋玩家顏色圈，不靠顏色也認得出是誰 */
+          const os = v.seats && v.seats[p.owner];
+          if (os) {
+            const face = new THREE.Sprite(new THREE.SpriteMaterial({ map: faceTexture(os.char, col), transparent: true }));
+            face.scale.set(0.78, 0.78, 1); face.position.set(at(0.1, 0)[0], 0.62, at(0.1, 0)[1]); face.renderOrder = 5;
+            o.mark.add(face);
+          }
           if (p.mortgaged) { const x = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.03, 0.1), std('#4A3B2C')); x.position.set(0, 0.04, 0); x.rotation.y = 0.6; o.mark.add(x); const x2 = x.clone(); x2.rotation.y = -0.6; o.mark.add(x2); }
         }
       });
@@ -300,7 +319,7 @@
         tileObjs[tile].topMat.emissive.setHex(0x6A5510); tileObjs[tile].grp.position.y = 0.08;
         paintLabel(tile);
         label.position.set(TILE_POS[tile].x, 3.0, TILE_POS[tile].z);
-        label.visible = true;
+        label.visible = false; /* 頭頂只放玩家名稱，不放地點 */
       } else label.visible = false;
     }
     const pops = [];
@@ -315,11 +334,27 @@
     function seatShape(k, color) {
       const m = std(color, { roughness: 0.45 });
       let mesh;
-      if (k % 4 === 0) mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.55, 28), m);
-      else if (k % 4 === 1) mesh = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), m);
-      else if (k % 4 === 2) mesh = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.8, 3), m);
-      else { mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.44), m); mesh.scale.y = 1.25; }
-      mesh.position.y = k % 4 === 2 ? 0.4 : k % 4 === 3 ? 0.55 : 0.28;
+      const t = k % 8;
+      let y = 0.28;
+      if (t === 0) mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.55, 28), m);
+      else if (t === 1) mesh = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.55), m);
+      else if (t === 2) { mesh = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.8, 3), m); y = 0.4; }
+      else if (t === 3) { mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.44), m); mesh.scale.y = 1.25; y = 0.55; }
+      else if (t === 4) mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.55, 6), m);
+      else if (t === 5) {
+        mesh = new THREE.Group();
+        mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.22, 0.22), m));
+        mesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.62, 0.22), m));
+        y = 0.4;
+      } else if (t === 6) { mesh = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.12, 12, 28), m); mesh.rotation.x = Math.PI / 2; y = 0.16; }
+      else {
+        const sh = new THREE.Shape();
+        for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.2 : 0.45, a = Math.PI / 5 * i + Math.PI / 2; const x = Math.cos(a) * r, z = Math.sin(a) * r; if (i) sh.lineTo(x, z); else sh.moveTo(x, z); }
+        mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.22, bevelEnabled: false }), m);
+        mesh.position.z = -0.11; y = 0.5;
+        const g = new THREE.Group(); g.add(mesh); mesh = g;
+      }
+      mesh.position.y = y;
       return mesh;
     }
     function faceTexture(char, color) {
@@ -341,19 +376,29 @@
       dirty = true;
       while (toks.length > seats.length) { const t = toks.pop(); scene.remove(t.grp); }
       seats.forEach((s, i) => {
-        if (toks[i] && toks[i].char === s.char) return;
+        if (toks[i] && toks[i].char === s.char && toks[i].name === s.name) return;
         if (toks[i]) scene.remove(toks[i].grp);
         const grp = new THREE.Group();
         grp.add(seatShape(i, COLORS[i]));
         const sh = new THREE.Mesh(new THREE.CircleGeometry(0.5, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 }));
         sh.rotation.x = -Math.PI / 2; sh.position.y = 0.01; grp.add(sh);
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: faceTexture(s.char, COLORS[i]), transparent: true }));
-        sp.scale.set(1.2, 1.2, 1); sp.position.y = i % 4 === 2 ? 1.5 : 1.42;
+        sp.scale.set(1.2, 1.2, 1); sp.position.y = i % 8 === 2 ? 1.5 : 1.42;
         grp.add(sp);
+        const nc = document.createElement('canvas'); nc.width = 256; nc.height = 64;
+        const ng = nc.getContext('2d'); const nm = String(s.name || '').slice(0, 8);
+        ng.font = '900 34px ' + FONT;
+        const nw = Math.min(248, ng.measureText(nm).width + 34);
+        pill(ng, (256 - nw) / 2, 6, nw, 52, '#FFFBEF', COLORS[i]);
+        ng.fillStyle = '#2E1F14'; ng.textAlign = 'center'; ng.textBaseline = 'middle'; ng.fillText(nm, 128, 33, 220);
+        const ntex = new THREE.CanvasTexture(nc); ntex.colorSpace = THREE.SRGBColorSpace;
+        const nsp = new THREE.Sprite(new THREE.SpriteMaterial({ map: ntex, transparent: true, depthTest: false }));
+        nsp.scale.set(1.9, 0.475, 1); nsp.position.y = i % 8 === 2 ? 2.35 : 2.27; nsp.renderOrder = 9;
+        grp.add(nsp);
         scene.add(grp);
         const start = TILE_POS[s.pos || 0];
         grp.position.set(start.x, TILE_H, start.z);
-        toks[i] = { grp, char: s.char, from: grp.position.clone(), to: grp.position.clone(), t0: 0, dur: 1, arc: 0 };
+        toks[i] = { grp, char: s.char, name: s.name, from: grp.position.clone(), to: grp.position.clone(), t0: 0, dur: 1, arc: 0 };
       });
     }
     function setTok(i, tile, ox, oz, o) {
@@ -385,6 +430,7 @@
     const dieMats = FACES.map(n => new THREE.MeshStandardMaterial({ map: pipTexture(n), roughness: 0.5 }));
     const dice = [0, 1].map(k => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.85), dieMats);
+      m.rotation.order = 'YXZ';
       m.position.set(k ? 1 : -1, TILE_H + 0.43, 0.2);
       m.visible = false;
       scene.add(m);
@@ -404,11 +450,10 @@
       1: [0, 0, 0], 6: [Math.PI, 0, 0], 3: [0, 0, Math.PI / 2], 4: [0, 0, -Math.PI / 2], 2: [-Math.PI / 2, 0, 0], 5: [Math.PI / 2, 0, 0]
     };
     let rolling = false, rollStart = 0, single = false;
-    function faceQuat(v, yaw) {
+    /* 精簡版 three.js 沒有 Quaternion／Euler，直接用旋轉角：先讓 v 點朝上，再繞 Y 軸轉 yaw（order YXZ） */
+    function faceRot(v, yaw) {
       const e = UP[v] || UP[1];
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(e[0], e[1], e[2], 'XYZ'));
-      const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-      return qy.multiply(q);
+      return { x: e[0], y: yaw, z: e[2] };
     }
     function rollBegin(isSingle) {
       dirty = true;
@@ -421,7 +466,7 @@
       dirty = true;
       rolling = false; shownDice = d0 + ',' + d1;
       single = !d1; anchorDice();
-      [d0, d1].forEach((v, k) => { dice[k].settle = performance.now(); dice[k].mesh.visible = !!v; if (v) dice[k].target = faceQuat(v, (Math.random() - 0.5) * 1.2); });
+      [d0, d1].forEach((v, k) => { dice[k].settle = performance.now(); dice[k].mesh.visible = !!v; if (v) dice[k].target = faceRot(v, (Math.random() - 0.5) * 1.2); });
     }
     let shownDice = '';
     function showDice(dv) {
@@ -433,7 +478,7 @@
       dice.forEach((d, k) => {
         const v = dv && dv[k];
         d.mesh.visible = !!v;
-        if (v) { d.mesh.quaternion.copy(faceQuat(v, k ? 0.3 : -0.25)); d.mesh.position.set(d.x, TILE_H + 0.43, d.z); d.target = null; }
+        if (v) { { const r = faceRot(v, k ? 0.3 : -0.25); d.mesh.rotation.set(r.x, r.y, r.z); } d.mesh.position.set(d.x, TILE_H + 0.43, d.z); d.target = null; }
       });
     }
 
@@ -551,9 +596,13 @@
           d.mesh.position.set(d.x + Math.sin(tt * 4 + k) * 0.35, TILE_H + 0.43 + Math.abs(Math.sin(tt * 9 + k)) * 1.1, d.z + Math.cos(tt * 5 + k) * 0.3);
         } else if (d.target) {
           const s = Math.min(1, (now - d.settle) / 260);
-          d.mesh.quaternion.slerp(d.target, 0.35);
+          ['x', 'y', 'z'].forEach(ax => {
+            const cur = d.mesh.rotation[ax], tg = d.target[ax], T2 = Math.PI * 2;
+            const goal = tg + T2 * Math.round((cur - tg) / T2);
+            d.mesh.rotation[ax] = cur + (goal - cur) * 0.35;
+          });
           d.mesh.position.lerp(tmp.set(d.x, TILE_H + 0.43, d.z), 0.3);
-          if (s >= 1) { d.mesh.quaternion.copy(d.target); d.target = null; }
+          if (s >= 1) { d.mesh.rotation.set(d.target.x, d.target.y, d.target.z); d.target = null; }
         }
       });
       for (let i = pops.length - 1; i >= 0; i--) {
@@ -600,7 +649,19 @@
         renderer.dispose();
         canvas.remove(); btns.remove();
       },
-      _debug: { cam, scene, toks, camera, get size() { return [w, h]; } }
+      _debug: {
+        /* 測試用：第 k 顆骰子現在朝上的點數（沒顯示回 0） */
+        diceTop(k) {
+          const m = dice[k].mesh;
+          if (!m.visible) return 0;
+          m.updateMatrix();
+          const e = m.matrix.elements, ys = [e[1], e[5], e[9]], face = [[3, 4], [1, 6], [2, 5]];
+          let bi = 0;
+          for (let i = 1; i < 3; i++) if (Math.abs(ys[i]) > Math.abs(ys[bi])) bi = i;
+          return face[bi][ys[bi] > 0 ? 0 : 1];
+        },
+        get diceMoving() { return rolling || dice.some(d => d.target); },
+        cam, scene, toks, camera, get size() { return [w, h]; } }
     };
   }
 

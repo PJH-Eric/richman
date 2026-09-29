@@ -14,7 +14,7 @@
  *   over    —— 只剩一人（或到回合上限）
  *
  * 已確認的規則（簡易版；不做交易與拍賣）：
- *   - 40 格；起點領 200；起始現金 1500；2～4 人；系統隨機決定座位順序。
+ *   - 40 格；起點領 200；起始現金 2000；2～8 人；系統隨機決定座位順序。
  *   - 沒人買的地不拍賣，留在原地，下次有人停到還能買。
  *   - 同色整組都是自己的才能蓋房；每格最多 4 棟房，再升級成 1 間旅店；蓋房要平均。
  *   - 強制收購（簡易版取代交易）：自己的回合可以用 2 倍地價，向對手買下「一塊」能讓你湊齊整組的地
@@ -35,8 +35,9 @@
   'use strict';
 
   const MIN_PLAYERS = 2;
-  const MAX_PLAYERS = 4;
-  const START_CASH = 1500;
+  const MAX_PLAYERS = 8;
+  const SOLO_MAX_LEVEL = 2;       /* 沒湊齊同色整組時，單格最高能升到幾級 */
+  const START_CASH = 2000;
   const GO_SALARY = 200;
   const JAIL_FINE = 50;
   const JAIL_POS = 10;
@@ -49,7 +50,7 @@
   };
   const PACES = { slow: 1.5, normal: 1, fast: 0.6 };
   const ROUND_LIMITS = [0, 20, 30, 40];   /* 0＝沒有上限 */
-  const PLAYER_COLORS = ['#EF5B5B', '#3F8CFF', '#3DAE6B', '#FFA53D'];
+  const PLAYER_COLORS = ['#EF5B5B', '#3F8CFF', '#3DAE6B', '#FFA53D', '#A56BE8', '#1FB8C4', '#F06AB2', '#7A8594'];
 
   /* ---------- 棋盤 ---------- */
 
@@ -592,12 +593,17 @@
     if (!t || t.type !== 'prop') return '只有地產可以蓋房子';
     const p = state.props[ti];
     if (p.owner !== si) return '這塊地不是你的';
-    if (!groupOwned(state, si, t.group)) return '要先買齊同色的整組地才能蓋房子';
-    if (GROUP_TILES[t.group].some(i => state.props[i].mortgaged)) return '這一組有地在抵押中，先贖回來';
+    if (p.mortgaged) return '抵押中的地不能升級，先贖回來';
     if (p.houses >= MAX_HOUSES) return '已經是旅店了';
-    const min = Math.min.apply(null, groupHouses(state, t.group));
-    if (p.houses > min) return '要平均蓋：先把同組其他格蓋到一樣多';
     if (state.seats[si].cash < t.house) return '現金不夠（要 ' + money(t.house) + '）';
+    if (!groupOwned(state, si, t.group)) {
+      /* 沒湊齊整組：每一格可以各自升級到 2 級；想更高要先買齊同色整組 */
+      if (p.houses >= SOLO_MAX_LEVEL) return '這格已升到 ' + SOLO_MAX_LEVEL + ' 級；買齊同色整組才能繼續升級';
+      return null;
+    }
+    if (GROUP_TILES[t.group].some(i => state.props[i].mortgaged)) return '這一組有地在抵押中，先贖回來';
+    const min = Math.min.apply(null, groupHouses(state, t.group));
+    if (p.houses > min) return '要平均升級：先把同組其他格升到一樣高';
     return null;
   }
 
@@ -607,8 +613,10 @@
     const p = state.props[ti];
     if (p.owner !== si) return '這塊地不是你的';
     if (p.houses <= 0) return '這格沒有房子';
-    const max = Math.max.apply(null, groupHouses(state, t.group));
-    if (p.houses < max) return '要平均賣：先賣同組蓋比較多的那格';
+    if (groupOwned(state, si, t.group)) {
+      const max = Math.max.apply(null, groupHouses(state, t.group));
+      if (p.houses < max) return '要平均賣：先賣同組蓋比較多的那格';
+    }
     return null;
   }
 
@@ -617,7 +625,9 @@
     if (bad) return bad;
     const t = TILES[ti], p = state.props[ti];
     if (p.mortgaged) return '已經抵押了';
-    if (t.type === 'prop' && GROUP_TILES[t.group].some(i => state.props[i].houses > 0)) return '同組還有房子，要先全部賣掉';
+    if (t.type === 'prop') {
+      if (groupOwned(state, si, t.group) ? GROUP_TILES[t.group].some(i => state.props[i].houses > 0) : p.houses > 0) return '房子要先賣掉才能抵押';
+    }
     return null;
   }
 
@@ -894,7 +904,7 @@
   }
 
   return {
-    MIN_PLAYERS, MAX_PLAYERS, START_CASH, GO_SALARY, JAIL_FINE, MAX_HOUSES, BOARD,
+    MIN_PLAYERS, MAX_PLAYERS, START_CASH, GO_SALARY, JAIL_FINE, MAX_HOUSES, SOLO_MAX_LEVEL, BOARD,
     DIFFICULTY_LIST, DIFFICULTIES, PACES, ROUND_LIMITS, PLAYER_COLORS,
     TILES, GROUPS, GROUP_TILES, OWNABLE, CHANCE, CHEST, ITEMS, ITEM_LIST, MAX_ITEMS, canUseItem,
     create, act, tick, options, publicView, rentOf, netWorth, liquidity, ownedBy, groupOwned,

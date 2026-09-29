@@ -14,12 +14,16 @@
   const T = R.TILES;
   const COLORS = R.PLAYER_COLORS;
   const DIFF_NAME = { kid: '幼幼班', easy: '簡單', normal: '普通', hard: '困難' };
-  const SHAPE = ['circle', 'square', 'triangle', 'diamond'];
-  const SHAPE_NAME = ['圓形', '方形', '三角', '菱形'];
+  const SHAPE = ['circle', 'square', 'triangle', 'diamond', 'hexagon', 'cross', 'ring', 'star'];
+  const SHAPE_NAME = ['圓形', '方形', '三角', '菱形', '六角', '十字', '圓環', '星形'];
 
   function shapeSvg(k, color, cls) {
     const p = { circle: '<circle cx="12" cy="12" r="8.5"/>', square: '<rect x="4" y="4" width="16" height="16" rx="2.5"/>',
-      triangle: '<path d="M12 3.5L21.5 20H2.5Z" stroke-linejoin="round"/>', diamond: '<path d="M12 2.5L21.5 12L12 21.5L2.5 12Z" stroke-linejoin="round"/>' }[SHAPE[k % 4]];
+      triangle: '<path d="M12 3.5L21.5 20H2.5Z" stroke-linejoin="round"/>', diamond: '<path d="M12 2.5L21.5 12L12 21.5L2.5 12Z" stroke-linejoin="round"/>',
+      hexagon: '<path d="M12 2.5L20.5 7.25V16.75L12 21.5L3.5 16.75V7.25Z" stroke-linejoin="round"/>',
+      cross: '<path d="M9 3H15V9H21V15H15V21H9V15H3V9H9Z" stroke-linejoin="round"/>',
+      ring: '<path fill-rule="evenodd" d="M12 3.5A8.5 8.5 0 1 0 12 20.5A8.5 8.5 0 1 0 12 3.5ZM12 8A4 4 0 1 1 12 16A4 4 0 1 1 12 8Z"/>',
+      star: '<path d="M12 2.5L14.6 9L21.5 9.4L16.1 13.7L17.9 20.5L12 16.7L6.1 20.5L7.9 13.7L2.5 9.4L9.4 9Z" stroke-linejoin="round"/>' }[SHAPE[k % 8]];
     return '<svg viewBox="0 0 24 24" class="shape ' + (cls || '') + '" aria-hidden="true" fill="' + color + '" stroke="#fff" stroke-width="2">' + p + '</svg>';
   }
 
@@ -64,13 +68,13 @@
     });
 
     /* --- 棋子位置 --- */
-    const OFFS = [[-.24, -.24], [.24, -.24], [-.24, .24], [.24, .24]];
+    const OFFS = [[-.24, -.24], [.24, -.24], [-.24, .24], [.24, .24], [0, -.34], [0, .34], [-.36, 0], [.36, 0]];
     function placeTok(i, tile, opts) {
       if (!B.v3) return;
       /* 同一格有多個棋子時錯開 */
       const same = B.pos.map((p, k) => k).filter(k => B.pos[k] === tile && !(B.shown && B.shown.seats[k] && B.shown.seats[k].bankrupt));
       const idx = Math.max(0, same.indexOf(i));
-      const o = same.length > 1 ? OFFS[idx % 4] : [0, 0];
+      const o = same.length > 1 ? OFFS[idx % 8] : [0, 0];
       B.v3.setTok(i, tile, o[0] * 1.6, o[1] * 1.6, { jump: !!(opts && opts.jump), dur: (opts && opts.jump) ? 380 : stepMs() * 0.95, instant: !!(opts && opts.instant) });
     }
     function placeAll(instant) {
@@ -110,15 +114,22 @@
       return d[0] + '＋' + d[1] + '＝' + (d[0] + d[1]) + (d[0] === d[1] ? '（雙骰）' : '');
     }
     function itemChips(s, canUse, opts) {
-      if (!s.items || !s.items.length) return '';
-      return '<div class="mc-items" role="group" aria-label="道具">' + s.items.map(id => {
+      const n = (s.items || []).length;
+      let out = '<div class="mc-itemwrap"><button type="button" class="mc-ihead" data-inv="1" aria-label="打開道具庫"><b>\uD83C\uDF92 道具庫</b><small>' + n + '／' + R.MAX_ITEMS + '　查看全部 ›</small></button>';
+      if (!n) {
+        out += '<p class="mc-inone">還沒有道具：停在溫泉休息站或抽到道具卡就能拿到</p></div>';
+        return out;
+      }
+      out += '<div class="mc-items" role="group" aria-label="我的道具">' + s.items.map(id => {
         const it = R.ITEMS[id];
         const active = it.active && canUse && ((id === 'dice' && opts.dice) || (id === 'fly' && opts.fly));
-        const inner = '<span class="it-ico">' + Art.glyph('i_' + id) + '</span><b>' + it.name + '</b>';
+        const inner = '<span class="it-ico">' + Art.glyph('i_' + id) + '</span><span class="it-tx"><b>' + it.name + '</b><small>' +
+          (it.active ? (active ? '點我使用' : '擲骰前可用') : '自動生效') + '</small></span>';
         return active
           ? '<button type="button" class="it-chip on' + (B.pick === id ? ' sel' : '') + '" data-item="' + id + '" title="' + esc(it.desc) + '">' + inner + '</button>'
-          : '<span class="it-chip" title="' + esc(it.desc) + '">' + inner + (it.active ? '' : '<small>自動</small>') + '</span>';
+          : '<span class="it-chip" title="' + esc(it.desc) + '">' + inner + '</span>';
       }).join('') + '</div>';
+      return out + '</div>';
     }
 
     function centerHtml(v) {
@@ -137,16 +148,16 @@
       const last = v.log[v.log.length - 1];
       out += '<p class="mc-msg">' + esc(last ? last.text : '') + '</p>';
       const canItem = mine && v.phase === 'roll' && !cur.jail && !B.busy && !B.sent && opts;
-      out += itemChips(cur, canItem, opts || {});
+      if (me >= 0) out += itemChips(v.seats[me], canItem, opts || {});
       if (canItem && B.pick === 'dice') {
         out += '<div class="mc-pick"><p class="mc-prompt strong">遙控骰：想走幾步？</p><div class="pick-n">' +
           [1, 2, 3, 4, 5, 6].map(n => '<button type="button" class="pick-btn" data-n="' + n + '" aria-label="走 ' + n + ' 步">' + Art.dieSvg(n) + '<small>' + tileShort((cur.pos + n) % 40) + '</small></button>').join('') +
           '</div><button type="button" class="link-btn" data-pickcancel="1">先不用</button></div>';
-        return out + '<div class="mc-card" hidden></div>';
+        return out;
       }
       if (canItem && B.pick === 'fly') {
         out += '<div class="mc-pick"><p class="mc-prompt strong">機票：點棋盤上要飛去的格子</p><button type="button" class="link-btn" data-pickcancel="1">先不用</button></div>';
-        return out + '<div class="mc-card" hidden></div>';
+        return out;
       }
 
       if (v.phase === 'over') {
@@ -190,10 +201,22 @@
           out += '<button type="button" class="link-btn mc-manage" data-a="manage">我的地產（蓋房、抵押、收購）</button>';
         }
       }
-      return out + '<div class="mc-card" hidden></div>';
+      return out;
     }
 
     function tileShort(i) { const n = T[i].name; return esc(n.length > 4 ? n.slice(0, 4) : n); }
+
+    /** 送出操作：鎖住按鈕防連按；伺服器沒回應或被拒絕時 2.5 秒後自動解鎖，不會卡住 */
+    function send(a) {
+      B.sent = true;
+      opt.onAct(a);
+      clearTimeout(B.sentT);
+      B.sentT = setTimeout(() => {
+        if (B.dead || !B.sent) return;
+        B.sent = false;
+        if (!B.busy && B.shown) drawCenter(B.shown);
+      }, 2500);
+    }
 
     function btn(a, cls, ico, label, extra) {
       return '<button type="button" class="btn3d ' + cls + '" data-a="' + a + '"' + (extra || '') + '>' + (ico ? Art.icon(ico) : '') + label + '</button>';
@@ -256,6 +279,7 @@
     strip.setAttribute('aria-hidden', 'true');
     mb.appendChild(strip);
     function drawStrip(v, me) {
+      strip.style.setProperty('--cols', Math.min(4, v.seats.length));
       strip.innerHTML = v.seats.map((s, i) =>
         '<div class="ms' + (i === v.turn && v.phase !== 'over' ? ' turn' : '') + (s.bankrupt ? ' out' : '') + '" style="--seat:' + COLORS[i] + '">' +
         '<span class="mini">' + Art.animalSvg(s.char) + '</span>' +
@@ -344,7 +368,7 @@
     function drawModals() {
       if (!B.shown) return;
       if (opt.manage && opt.manage.modal.isOpen) opt.manage.body.innerHTML = manageHtml(B.shown);
-      if (opt.tile && opt.tile.modal.isOpen && B.tileOpen != null) opt.tile.body.innerHTML = tileInfoHtml(B.shown, B.tileOpen);
+      if (opt.tile && opt.tile.modal.isOpen && B.tileOpen != null) opt.tile.body.innerHTML = B.tileOpen === -1 ? invHtml(B.shown) : tileInfoHtml(B.shown, B.tileOpen);
     }
 
     /* ---------- 全部重畫 ---------- */
@@ -353,6 +377,8 @@
       const v = B.shown;
       if (!v) return;
       B.view = v;
+      B.sent = false;      /* 先解鎖再畫，不然按鈕會被畫成灰的、再也沒人重畫 */
+      clearTimeout(B.sentT);
       v.seats.forEach((s, i) => { B.pos[i] = s.pos; });
       drawTiles(v);
       placeAll(B.firstDraw !== false);
@@ -368,7 +394,6 @@
         if (me >= 0 && v.turn === me && v.phase === 'roll' && B.lastTurn !== -1 && v.turn !== B.lastTurn) root.Sound.sfx('turn');
         B.lastTurn = v.turn; B.lastPhase = v.phase;
       }
-      B.sent = false;
       if (B.pick) {
         const cur2 = v.seats[v.turn];
         if (!(me >= 0 && v.turn === me && v.phase === 'roll' && !cur2.jail && cur2.items.includes(B.pick))) { B.pick = null; drawCenter(v); }
@@ -394,7 +419,7 @@
       const who = v && v.seats[e.seat];
       const msg = mc.querySelector('.mc-msg');
       if (msg && who) msg.textContent = e.single ? who.name + ' 用遙控骰走 ' + e.dice[0] + ' 步' : who.name + ' 擲出 ' + e.dice[0] + '＋' + e.dice[1] + ' ＝ ' + (e.dice[0] + e.dice[1]);
-      await wait(reduce() ? 0 : 450);
+      await wait(reduce() ? 0 : st().fastAnim ? 550 : 1000);
     }
 
     async function animMove(e) {
@@ -445,18 +470,21 @@
       if (e.reason === 'rent' || e.reason === 'tax' || e.reason === 'jail') await wait(reduce() ? 0 : 450);
     }
 
+    /** 機會／命運：只在棋盤上方跳出一張小卡，不擋操作、不換畫面；點一下或稍等就消失 */
     async function animCard(e) {
-      const box = mc.querySelector('.mc-card');
       root.Sound.sfx('card');
-      if (!box) return;
-      box.className = 'mc-card ' + e.deck;
-      box.innerHTML = '<span class="mc-card-ico">' + Art.glyph(e.deck) + '</span><b>' + (e.deck === 'chance' ? '機會' : '命運') + '</b><p>' + esc(e.text) + '</p><small>點一下繼續</small>';
-      box.hidden = false;
+      const cv = boardEl.querySelector('.b3d');
+      const box = document.createElement('div');
+      box.className = 'card-toast ' + e.deck;
+      box.setAttribute('role', 'status');
+      box.innerHTML = '<span class="ct-ico">' + Art.glyph(e.deck) + '</span><span class="ct-tx"><b>' + (e.deck === 'chance' ? '機會' : '命運') + '</b>' + esc(e.text) + '</span>';
+      if (cv) { box.style.top = (cv.offsetTop + 10) + 'px'; box.style.left = (cv.offsetLeft + cv.offsetWidth / 2) + 'px'; }
+      boardEl.appendChild(box);
       await new Promise(res => {
-        const done = () => { box.hidden = true; B.cardResolve = null; res(); };
+        const done = () => { box.remove(); B.cardResolve = null; res(); };
         B.cardResolve = done;
         box.onclick = done;
-        setTimeout(done, reduce() ? 1200 : 2600);
+        setTimeout(done, reduce() ? 1100 : 1700);
       });
     }
 
@@ -531,6 +559,8 @@
     };
 
     boardEl.addEventListener('click', ev => {
+      const inv = ev.target.closest('[data-inv]');
+      if (inv) { B.openInv(inv); return; }
       const it = ev.target.closest('[data-item]');
       if (it && !B.sent) {
         const id = it.dataset.item;
@@ -540,8 +570,8 @@
       }
       const pn = ev.target.closest('[data-n]');
       if (pn && !B.sent) {
-        B.pick = null; B.sent = true;
-        opt.onAct({ type: 'useItem', item: 'dice', n: Number(pn.dataset.n) });
+        B.pick = null;
+        send({ type: 'useItem', item: 'dice', n: Number(pn.dataset.n) });
         return;
       }
       if (ev.target.closest('[data-pickcancel]')) { B.pick = null; drawCenter(B.shown); return; }
@@ -553,9 +583,8 @@
           if (!B.confirmBankrupt) { B.confirmBankrupt = true; drawCenter(B.shown); setTimeout(() => { B.confirmBankrupt = false; if (!B.dead && !B.busy) drawCenter(B.shown); }, 4000); return; }
           B.confirmBankrupt = false;
         }
-        B.sent = true;
         b.disabled = true;
-        opt.onAct({ type: a });
+        send({ type: a });
         return;
       }
     });
@@ -563,9 +592,38 @@
     if (opt.manage) opt.manage.body.addEventListener('click', ev => {
       const b = ev.target.closest('[data-mg]');
       if (!b || b.disabled) return;
-      B.sent = true;
-      opt.onAct({ type: b.dataset.mg, tile: Number(b.dataset.tile) });
+      send({ type: b.dataset.mg, tile: Number(b.dataset.tile) });
       if (opt.solo) { drawModals(); }
+    });
+
+    function invHtml(v) {
+      const me = meIndex(v);
+      const cur = v.seats[me];
+      const opts = R.options(v, B.myId);
+      const can = me === v.turn && v.phase === 'roll' && !cur.jail && !B.busy && !B.sent;
+      let h = '<p class="inv-cap">最多帶 ' + R.MAX_ITEMS + ' 個，目前 ' + cur.items.length + ' 個。停在溫泉休息站、抽到道具卡可以取得。</p><ul class="inv-list">';
+      cur.items.forEach(id => {
+        const it = R.ITEMS[id];
+        const ok = it.active && can && ((id === 'dice' && opts.dice) || (id === 'fly' && opts.fly));
+        h += '<li><span class="it-ico big">' + Art.glyph('i_' + id) + '</span><span class="inv-tx"><b>' + it.name + '</b><small>' + esc(it.desc) + '</small></span>' +
+          (it.active ? '<button type="button" class="btn3d coral small" data-invuse="' + id + '"' + (ok ? '' : ' disabled') + '>' + (ok ? '使用' : '擲骰前才能用') + '</button>' : '<i class="inv-auto">自動生效</i>') + '</li>';
+      });
+      if (!cur.items.length) h += '<li class="inv-empty">道具庫是空的</li>';
+      return h + '</ul>';
+    }
+    B.openInv = function (from) {
+      if (!opt.tile || !B.shown || meIndex(B.shown) < 0) return;
+      B.tileOpen = -1;
+      opt.tile.modal.open(from);
+      opt.tile.title.textContent = '\uD83C\uDF92 道具庫';
+      opt.tile.body.innerHTML = invHtml(B.shown);
+    };
+    if (opt.tile) opt.tile.body.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-invuse]');
+      if (!b || b.disabled) return;
+      B.pick = b.dataset.invuse;
+      opt.tile.modal.close();
+      drawCenter(B.shown);
     });
 
     B.openManage = function (from) {
@@ -585,8 +643,8 @@
           floatText(i, err, false);
           return;
         }
-        B.pick = null; B.sent = true;
-        opt.onAct({ type: 'useItem', item: 'fly', tile: i });
+        B.pick = null;
+        send({ type: 'useItem', item: 'fly', tile: i });
         return;
       }
       B.openTile(i, boardEl);
@@ -608,12 +666,23 @@
       const o = R.options(v, B.myId);
       const a = o.roll ? 'roll' : o.buy ? 'buy' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : null;
       if (!a) return false;
-      B.sent = true;
-      opt.onAct({ type: a });
+      send({ type: a });
       return true;
     };
 
-    B.timer = setInterval(updateTimer, 500);
+    /* 保險：輪到我、沒在播動畫、也沒送出操作時，按鈕不該是灰的；若還是灰的就重畫，避免卡死 */
+    B.timer = setInterval(() => {
+      updateTimer();
+      if (B.dead || B.busy || B.sent || !B.shown) return;
+      if (mc.querySelector('.mc-actions button[disabled][data-a]:not([data-keep])')) {
+        const v = B.shown, me = meIndex(v);
+        if (me >= 0 && me === v.turn) {
+          const o = R.options(v, B.myId);
+          const need = (o.roll && !mc.querySelector('[data-a="roll"]:not([disabled])')) || (o.endTurn && !mc.querySelector('[data-a="endTurn"]:not([disabled])')) || (o.settle && !mc.querySelector('[data-a="settle"]:not([disabled])'));
+          if (need) drawCenter(v);
+        }
+      }
+    }, 500);
     B.destroy = function () {
       B.dead = true;
       clearInterval(B.timer);

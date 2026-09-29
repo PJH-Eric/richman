@@ -9,6 +9,9 @@
     "test": "node tests/verify.js",
     "test:online": "node scripts/online-check.js",
     "test:browser": "node scripts/browser-check.js",
+    "test:scroll": "node scripts/scroll-check.js",
+    "test:flow": "node scripts/flow-fuzz.js",
+    "test:stall": "node scripts/ui-stall-check.js",
     "verify": "node tests/verify.js && node scripts/online-check.js && node scripts/browser-check.js",
     "inject": "node scripts/inject-server-url.js"
   },
