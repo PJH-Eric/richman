@@ -176,7 +176,9 @@
       tex.anisotropy = 16;
       const bg = side === 'c' ? '#FFE9B8' : t.type === 'chance' ? '#FFF1C9' : t.type === 'chest' ? '#E1F5E8' : t.type === 'tax' ? '#FBE0DA' : t.type === 'station' ? '#E9F1FB' : t.type === 'utility' ? '#F3F0E4' : '#FFFBEF';
       const glyphName = t.glyph || (t.type === 'go' ? 'go' : t.type);
+      let curImg = null;
       function paint(img) {
+        curImg = img;
         const c = cv.getContext('2d'), W = cv.width / K, H = cv.height / K, B = 70;
         c.setTransform(K, 0, 0, K, 0, 0);
         c.fillStyle = bg; c.fillRect(0, 0, W, H);
@@ -236,7 +238,7 @@
       const houses = new THREE.Group(); houses.position.y = TILE_H; grp.add(houses);
       const mark = new THREE.Group(); mark.position.y = TILE_H; grp.add(mark);
       scene.add(grp);
-      tileObjs.push({ grp, body, topMat, houses, mark, ww, wd, inn, tan, key: '' });
+      tileObjs.push({ grp, body, topMat, houses, mark, ww, wd, inn, tan, key: '', repaint: () => paint(curImg) });
     });
 
     let curTile = -1;
@@ -630,6 +632,7 @@
     raf = requestAnimationFrame(frame);
 
     return {
+      refreshPrices() { tileObjs.forEach(o => o.repaint && o.repaint()); dirty = true; },
       setTiles, highlight, pop, setSeats, setActive, setFollow, setTok, hideTok, rollBegin, rollEnd, showDice, setView,
       get rolling() { return rolling; },
       /** 格子在畫面上的位置（給飄字用），單位 px，相對於棋盤容器左上角 */

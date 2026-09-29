@@ -16,7 +16,7 @@ function section(t) { console.log('\n[' + t + ']'); }
 function mk(n, opt) {
   const ps = [];
   for (let i = 0; i < n; i++) ps.push({ id: 'p' + i, name: '玩家' + i, char: 'otter' });
-  const st = R.create(ps, Object.assign({ seed: 'unit' }, opt || {}));
+  const st = R.create(ps, Object.assign({ seed: 'unit', fixedPrices: true }, opt || {}));
   st.seats.sort((a, b) => a.id < b.id ? -1 : 1);
   st.turn = 0;
   return st;
@@ -24,6 +24,8 @@ function mk(n, opt) {
 /** 下一次擲骰固定成 a、b */
 function dice(st, a, b) { const q = [a, b]; st._rng = { int: () => q.length ? q.shift() : 0, shuffle: x => x, next: () => 0.5 }; }
 function roll(st, a, b, now) { dice(st, a, b); return R.act(st, st.seats[st.turn].id, { type: 'roll' }, now || 0); }
+/** 模擬「走到自己的地、面板詢問要不要加蓋」再按蓋房 */
+function B(st, tile) { st.phase = 'build'; st.pending = { kind: 'build', tile }; return R.act(st, st.seats[st.turn].id, { type: 'build', tile }, 0); }
 function A(st, type, extra) { return R.act(st, st.seats[st.turn].id, Object.assign({ type }, extra || {}), 0); }
 function give(st, si, ti, houses) { st.props[ti].owner = si; st.props[ti].houses = houses || 0; }
 function endTurn(st) { if (st.phase === 'buy') A(st, 'decline'); if (st.phase === 'roll') { roll(st, 1, 2); if (st.phase === 'buy') A(st, 'decline'); } A(st, 'endTurn'); }
@@ -39,7 +41,7 @@ ok(R.TILES[0].type === 'go' && R.TILES[10].type === 'jail' && R.TILES[20].type =
 ok(Object.keys(R.GROUP_TILES).length === 8 && R.GROUP_TILES.brown.length === 2 && R.GROUP_TILES.navy.length === 2 && R.GROUP_TILES.sky.length === 3, '8 個色組（離島與台北各 2 塊，其餘 3 塊）');
 ok(R.TILES.filter(t => t.type === 'prop').every(t => t.rent.length === 6 && t.rent.every((v, i, a) => i === 0 || v > a[i - 1])), '每塊地的租金表 0～旅店 逐級變高');
 ok(new Set(R.TILES.map(t => t.name).filter(n => n !== '機會' && n !== '命運')).size === 34, '格名不重複（機會／命運各 3 格同名）');
-eq(R.CHANCE.length, 17, '機會 17 張（含道具卡）'); eq(R.CHEST.length, 17, '命運 17 張（含道具卡）');
+eq(R.CHANCE.length, 19, '機會 19 張（含道具卡、命運之神）'); eq(R.CHEST.length, 19, '命運 19 張（含道具卡、命運之神）');
 
 /* ---------- 建立與亂數 ---------- */
 section('建立與亂數');
@@ -145,33 +147,58 @@ section('同色整組、蓋房、抵押');
   give(st, 0, 1); give(st, 0, 3);
   st.phase = 'manage';
   eq(R.rentOf(st, 1, [1, 2]), 4, '整組沒有房子：租金加倍（2→4）');
-  ok(A(st, 'build', { tile: 1 }).ok && st.props[1].houses === 1, '蓋第 1 棟');
+  ok(!A(st, 'build', { tile: 1 }).ok, '不在「走到自己的地」時不能蓋房（我的地產不能直接蓋）');
+  ok(B(st, 1).ok && st.props[1].houses === 1, '走到自己的地：蓋第 1 棟');
   eq(R.rentOf(st, 1, [1, 2]), 10, '1 棟房子租金 10');
-  ok(!A(st, 'build', { tile: 1 }).ok, '蓋房要平均：另一格還沒蓋不能再蓋這格');
-  ok(A(st, 'build', { tile: 3 }).ok, '另一格蓋 1 棟');
+  ok(!B(st, 1).ok, '蓋房要平均：另一格還沒蓋不能再蓋這格');
+  ok(B(st, 3).ok, '另一格蓋 1 棟');
   ok(!A(st, 'mortgage', { tile: 1 }).ok, '同組有房子不能抵押');
-  for (let i = 0; i < 3; i++) { A(st, 'build', { tile: 1 }); A(st, 'build', { tile: 3 }); }
+  for (let i = 0; i < 3; i++) { B(st, 1); B(st, 3); }
   eq(st.props[1].houses, 4, '各蓋到 4 棟');
-  ok(A(st, 'build', { tile: 1 }).ok && st.props[1].houses === 5, '升級成旅店（5）');
-  ok(!A(st, 'build', { tile: 1 }).ok, '旅店不能再蓋');
+  ok(B(st, 1).ok && st.props[1].houses === 5, '升級成旅店（5）');
+  ok(!B(st, 1).ok, '旅店不能再蓋');
+  st.phase = 'manage'; st.pending = null;
   ok(!A(st, 'sell', { tile: 3 }).ok, '賣房也要平均：要先賣蓋比較多的那格');
   const c0 = st.seats[0].cash;
   ok(A(st, 'sell', { tile: 1 }).ok && st.seats[0].cash === c0 + 25, '賣一棟房子拿回半價');
   const st2 = mk(2);
   give(st2, 0, 6);
-  st2.phase = 'manage';
-  ok(A(st2, 'build', { tile: 6 }).ok && st2.props[6].houses === 1, '沒湊齊整組也能單格升級（1 級）');
-  ok(A(st2, 'build', { tile: 6 }).ok && st2.props[6].houses === 2, '單格升到 2 級');
-  ok(!A(st2, 'build', { tile: 6 }).ok, '沒湊齊整組：單格最高 2 級');
+  ok(B(st2, 6).ok && st2.props[6].houses === 1, '沒湊齊整組也能單格升級（1 級）');
+  ok(B(st2, 6).ok && st2.props[6].houses === 2, '單格升到 2 級');
+  ok(!B(st2, 6).ok, '沒湊齊整組：單格最高 2 級');
   ok(!A(st2, 'mortgage', { tile: 6 }).ok, '有房子的地不能抵押');
+  st2.phase = 'manage'; st2.pending = null;
   ok(A(st2, 'sell', { tile: 6 }).ok && A(st2, 'sell', { tile: 6 }).ok && st2.props[6].houses === 0, '沒湊齊整組可以隨時賣掉自己的房子（不用平均）');
   st2.phase = 'manage';
+  ok(!A(st2, 'mortgage', { tile: 6 }).ok, '不能主動抵押（只有欠錢時才行）');
+  ok(R.options(st2, 'p0').mortgage.length === 0 && R.options(st2, 'p0').build.length === 0, '整理階段的 options 沒有抵押與蓋房');
+  st2.props[6].mortgaged = true; st2.seats[0].cash += 50;
   const c1 = st2.seats[0].cash;
-  ok(A(st2, 'mortgage', { tile: 6 }).ok && st2.props[6].mortgaged && st2.seats[0].cash === c1 + 50, '抵押：拿到一半地價（100→50）');
   eq(R.rentOf(st2, 6, [1, 2]), 0, '抵押中的地不收租');
-  ok(!A(st2, 'mortgage', { tile: 6 }).ok, '不能重複抵押');
-  ok(A(st2, 'unmortgage', { tile: 6 }).ok && !st2.props[6].mortgaged && st2.seats[0].cash === c1 - 5, '贖回：付一半地價再加 10%（55），淨 -5');
+  ok(A(st2, 'unmortgage', { tile: 6 }).ok && !st2.props[6].mortgaged && st2.seats[0].cash === c1 - 55, '贖回：付一半地價再加 10%（55）');
   ok(!A(st2, 'buy').ok, '不在買地階段不能買');
+  /* 走到自己的地才會跳出詢問 */
+  const st3 = mk(2);
+  give(st3, 0, 6); st3.seats[0].pos = 2;
+  roll(st3, 2, 2);
+  ok(st3.phase === 'build' && st3.pending && st3.pending.tile === 6, '走到自己的地：進入「要不要加蓋」詢問');
+  ok(R.options(st3, 'p0').decline && R.options(st3, 'p0').build[0] === 6, '詢問時可以選「蓋」或「不蓋」');
+  ok(A(st3, 'decline').ok && st3.phase !== 'build', '選「不蓋」就繼續');
+  const st4 = mk(2);
+  give(st4, 0, 6, 2); st4.seats[0].pos = 2;
+  roll(st4, 2, 2);
+  ok(st4.phase !== 'build', '已經不能再蓋（單格 2 級）就不詢問');
+  const st5 = mk(2);
+  give(st5, 0, 6); st5.seats[0].cash = 10; st5.seats[0].pos = 2;
+  roll(st5, 2, 2);
+  ok(st5.phase !== 'build', '現金不夠蓋房就不詢問');
+  const st6 = mk(2);
+  give(st6, 0, 6); st6.seats[0].pos = 2;
+  roll(st6, 2, 2);
+  A(st6, 'build', { tile: 6 });
+  ok(st6.props[6].houses === 1 && st6.phase === 'build', '蓋完還能再蓋就繼續詢問');
+  A(st6, 'build', { tile: 6 });
+  ok(st6.props[6].houses === 2 && st6.phase !== 'build', '蓋到上限就結束詢問');
 }
 
 /* ---------- 車站與公司 ---------- */
@@ -265,35 +292,14 @@ section('還債與破產');
   eq(s4.seats[0].cash, R.START_CASH - 200, '所得稅 200');
 }
 
-/* ---------- 強制收購 ---------- */
-section('強制收購');
+/* ---------- 強制收購（已取消） ---------- */
+section('強制收購已取消');
 {
   const st = mk(2);
   give(st, 0, 1); give(st, 1, 3);
   st.phase = 'manage';
-  ok(R.options(st, 'p0').buyout.includes(3), '湊得齊整組時列入可收購');
-  ok(A(st, 'buyout', { tile: 3 }).ok, '收購成功');
-  eq(st.props[3].owner, 0, '地換成我的');
-  eq(st.seats[0].cash, R.START_CASH - 120, '付 2 倍地價 120');
-  eq(st.seats[1].cash, R.START_CASH + 120, '對方收到錢');
-  ok(R.groupOwned(st, 0, 'brown'), '湊齊整組');
-  const s2 = mk(2);
-  give(s2, 0, 1); give(s2, 1, 3); s2.props[3].mortgaged = true; s2.phase = 'manage';
-  ok(!A(s2, 'buyout', { tile: 3 }).ok, '抵押中的地不能收購（防守手段）');
-  const s3 = mk(2);
-  give(s3, 0, 6); give(s3, 1, 8); give(s3, 1, 9); s3.phase = 'manage';
-  ok(!A(s3, 'buyout', { tile: 8 }).ok, '收購後湊不齊整組就不行');
-  const s4 = mk(2);
-  give(s4, 0, 6); give(s4, 0, 8); give(s4, 1, 9); s4.phase = 'manage';
-  s4.seats[0].cash = 200;
-  ok(!A(s4, 'buyout', { tile: 9 }).ok, '現金不夠不能收購');
-  s4.seats[0].cash = 1000;
-  ok(A(s4, 'buyout', { tile: 9 }).ok, '現金夠了就可以');
-  s4.props[9].owner = 1;
-  ok(!A(s4, 'buyout', { tile: 9 }).ok, '每回合只能收購一次');
-  const s5 = mk(2);
-  give(s5, 0, 1); give(s5, 1, 3, 2); s5.phase = 'manage';
-  ok(!A(s5, 'buyout', { tile: 3 }).ok, '有房子的地不能收購');
+  ok(R.options(st, 'p0').buyout.length === 0, 'options 不再列出可收購的地');
+  ok(!A(st, 'buyout', { tile: 3 }).ok && st.props[3].owner === 1, '收購動作一律被拒絕');
 }
 
 /* ---------- 回合上限與結束 ---------- */
@@ -339,7 +345,7 @@ section('想太久');
 section('道具');
 {
   const IL = R.ITEM_LIST;
-  ok(IL.length === 5 && IL.includes('dice') && IL.includes('fly') && IL.includes('free') && IL.includes('shield') && IL.includes('cat'), '5 種道具：遙控骰、機票、免租券、防收購券、招財貓');
+  ok(IL.length === 9 && ['dice', 'fly', 'free', 'cat', 'taxfree', 'guard', 'steal', 'swap', 'bomb'].every(k => IL.includes(k)), '9 種道具（含偷錢、換位、炸彈、免稅、護身符）');
   let st = mk(2);
   ok(st.seats.every(s => Array.isArray(s.items) && s.items.length === 0), '開局沒有道具');
   /* 遙控骰 */
@@ -383,13 +389,6 @@ section('道具');
   const base = R.TILES[3].rent[0];
   eq(R.START_CASH - st.seats[0].cash, base * 2, '招財貓：房東收雙倍過路費');
   ok(st.seats[1].items.length === 0, '招財貓用掉');
-  /* 防收購券 */
-  st = mk(2);
-  give(st, 1, 1, 0); give(st, 0, 3, 0); st.seats[1].items = ['shield'];
-  st.seats[0].cash = 3000;
-  ok(!R.canBuyoutAt(st, 0, 1), '（前提）可以收購這塊地');
-  r = A(st, 'buyout', { tile: 1 });
-  ok(st.props[1].owner === 1 && st.seats[0].cash === 3000 && st.seats[1].items.length === 0, '防收購券：擋下收購、沒扣錢、券用掉');
   /* 獲得道具：卡片、休息站 */
   st = mk(2);
   st.seats[0].pos = 18;
@@ -401,8 +400,8 @@ section('道具');
   roll(st, 1, 1, 0);
   ok(st.seats[0].items.length === R.MAX_ITEMS && st.seats[0].cash === c2 + 50, '道具滿 3 個：改領 50 元');
   /* 公開視圖看得到道具 */
-  st = mk(2); st.seats[1].items = ['shield'];
-  ok(R.publicView(st, 0).seats[1].items[0] === 'shield', 'publicView 帶著道具（大家都看得到）');
+  st = mk(2); st.seats[1].items = ['guard'];
+  ok(R.publicView(st, 0).seats[1].items[0] === 'guard', 'publicView 帶著道具（大家都看得到）');
   /* AI：幼幼班絕不用；普通會為了整組用遙控骰 */
   st = mk(2); st.seats[0].items = ['dice', 'fly'];
   ok(AI.decide(st, 0, 'kid', RNG.create('k')).type !== 'useItem', '幼幼班不會用道具');
@@ -435,7 +434,7 @@ function sim(seed, levels, opts) {
   const levels = ['hard', 'normal', 'easy', 'kid'];
   const wins = { hard: 0, normal: 0, easy: 0, kid: 0 };
   const builds = { hard: 0, normal: 0, easy: 0, kid: 0 }, buyouts = { hard: 0, normal: 0, easy: 0, kid: 0 }, buys = { hard: 0, normal: 0, easy: 0, kid: 0 };
-  let stuck = 0, rejected = 0, bankruptEnds = 0, N = 100;
+  let stuck = 0, rejected = 0, bankruptEnds = 0, anyBankrupt = 0, N = 100;
   for (let g = 0; g < N; g++) {
     const order = levels.slice();
     for (let r = 0; r < g % 4; r++) order.push(order.shift());
@@ -443,6 +442,7 @@ function sim(seed, levels, opts) {
     if (st.phase !== 'over') stuck++;
     rejected += rj;
     if (st.reason === 'lastStanding') bankruptEnds++;
+    if (st.bankruptOrder.length) anyBankrupt++;
     if (st.winner != null) wins[st.seats[st.winner].ai]++;
     for (const k of levels) { builds[k] += stats.build[k] || 0; buyouts[k] += stats.buyout[k] || 0; buys[k] += stats.buy[k] || 0; }
   }
@@ -454,7 +454,7 @@ function sim(seed, levels, opts) {
   ok(builds.hard > builds.easy * 1.3 && builds.normal > builds.easy, '蓋房次數：困難 > 普通 > 簡單（行為真的不一樣）');
   ok(wins.hard > wins.kid * 4 && wins.normal > wins.kid * 3 && wins.easy > wins.kid, '勝場：幼幼班明顯最弱（' + JSON.stringify(wins) + '）');
   ok(wins.hard > wins.easy && wins.hard >= wins.normal - 6, '勝場：困難 ≥ 普通 > 簡單');
-  ok(bankruptEnds >= 1, '也有靠破產淘汰結束的局');
+  ok(anyBankrupt >= 1, '電腦互打時也會有人破產淘汰（' + anyBankrupt + ' 局有人破產，' + bankruptEnds + ' 局靠淘汰結束）');
   /* 決定性 */
   const a = sim('same', ['hard', 'normal', 'easy'], { roundLimit: 20 }), b = sim('same', ['hard', 'normal', 'easy'], { roundLimit: 20 });
   eq(JSON.stringify(R.publicView(a.st, 0)), JSON.stringify(R.publicView(b.st, 0)), '同 seed、同電腦 → 完全相同的一局（可重現）');
@@ -471,6 +471,100 @@ function sim(seed, levels, opts) {
 }
 
 /* ---------- 亂數 ---------- */
+
+section('攻擊型道具與命運之神');
+{
+  const use = (st, id, extra) => R.act(st, st.seats[st.turn].id, Object.assign({ type: 'useItem', item: id }, extra || {}), 0);
+  let st = mk(3);
+  st.seats[0].items = ['steal']; st.seats[1].cash = 1000;
+  let r = use(st, 'steal', { target: 1 });
+  ok(r.ok && st.seats[1].cash === 800 && st.seats[0].cash === R.START_CASH + 200 && !st.seats[0].items.length, '偷錢卡：偷走對手 20% 現金並用掉');
+  ok(st.phase === 'roll' && st.turn === 0, '偷錢後還是可以擲骰');
+  st = mk(3); st.seats[0].items = ['steal']; st.seats[1].cash = 5000;
+  use(st, 'steal', { target: 1 });
+  ok(st.seats[1].cash === 4700, '偷錢最多 300 元');
+  st = mk(3); st.seats[0].items = ['steal']; st.seats[1].items = ['guard'];
+  r = use(st, 'steal', { target: 1 });
+  ok(r.ok && st.seats[1].cash === R.START_CASH && !st.seats[1].items.length && !st.seats[0].items.length && st.events.some(e => e.t === 'attack' && e.blocked), '護身符擋下偷錢（兩邊道具都用掉）');
+  st = mk(3); st.seats[0].items = ['steal'];
+  ok(!use(st, 'steal', { target: 0 }).ok && !use(st, 'steal', { target: 9 }).ok, '不能偷自己或不存在的人');
+  st = mk(3); st.seats[0].items = ['swap']; st.seats[1].pos = 12; st.seats[0].pos = 3;
+  r = use(st, 'swap', { target: 1 });
+  ok(r.ok && st.seats[0].pos === 12 && st.seats[1].pos === 3 && st.seats[0].cash === R.START_CASH, '換位卡：交換位置、不領薪水');
+  ok(st.phase !== 'roll' || st.pending, '換位後落點照常處理（用掉這次擲骰）');
+  st = mk(3); st.seats[0].items = ['swap']; st.seats[1].jail = true; st.seats[1].pos = 10;
+  ok(!use(st, 'swap', { target: 1 }).ok, '對手在監獄裡不能換位');
+  st = mk(3); st.seats[0].items = ['bomb']; st.props[1].owner = 1; st.props[1].houses = 2;
+  r = use(st, 'bomb', { tile: 1 });
+  ok(r.ok && st.props[1].houses === 1 && !st.seats[0].items.length, '炸彈：對手的地少一間房子');
+  st = mk(3); st.seats[0].items = ['bomb']; st.props[1].owner = 0; st.props[1].houses = 2; st.props[3].owner = 1;
+  ok(!use(st, 'bomb', { tile: 1 }).ok && !use(st, 'bomb', { tile: 3 }).ok, '不能炸自己的地，也不能炸沒房子的地');
+  st = mk(3); st.seats[0].items = ['bomb']; st.props[1].owner = 1; st.props[1].houses = 5; st.seats[1].items = ['guard'];
+  use(st, 'bomb', { tile: 1 });
+  ok(st.props[1].houses === 5, '護身符擋下炸彈');
+  ok(R.options(mk(3), 'p0').steal === false, '沒有偷錢卡時 options.steal 為 false');
+  st = mk(3); st.seats[0].items = ['steal', 'swap', 'bomb']; st.seats[1].pos = 5;
+  const o = R.options(st, 'p0');
+  ok(o.steal && o.swap && !o.bomb, 'options 標出哪些攻擊道具現在有目標');
+  /* 免稅券 */
+  st = mk(2); st.seats[0].items = ['taxfree']; st.seats[0].pos = 2;
+  roll(st, 1, 1);
+  ok(st.seats[0].cash === R.START_CASH && !st.seats[0].items.length, '免稅券：踩到稅金格不用繳、用掉');
+  /* 命運之神 */
+  st = mk(2); st.seats[1].god = { k: 'wealth', turns: 1 }; st.phase = 'manage';
+  A(st, 'endTurn');
+  ok(st.turn === 1 && st.seats[1].cash === R.START_CASH + 120 && st.seats[1].god === null, '財神：回合開始領 120，時間到就離開');
+  st = mk(2); st.seats[1].god = { k: 'unlucky', turns: 3 }; st.phase = 'manage';
+  A(st, 'endTurn');
+  ok(st.seats[1].cash === R.START_CASH - 80 && st.seats[1].god.turns === 2, '衰神：回合開始扣 80');
+  st = mk(2); st.props[1].owner = 1; st.seats[0].god = { k: 'poor', turns: 3 };
+  const base = R.rentOf(st, 1, [1, 2]);
+  roll(st, 0, 1); st.seats[0].pos = 0; st.phase = 'roll'; st.dice = [0, 0];
+  const c0 = st.seats[0].cash; roll(st, 0, 1);
+  ok(c0 - st.seats[0].cash === base * 2, '窮神：付雙倍過路費');
+  st = mk(2); st.props[1].owner = 1; st.seats[1].god = { k: 'fortune', turns: 3 };
+  const c1 = st.seats[0].cash; roll(st, 0, 1);
+  ok(c1 - st.seats[0].cash === R.rentOf(st, 1, [0, 1]) * 2, '福神：收雙倍過路費');
+  /* 抽到神的卡片 */
+  st = mk(2);
+  const gi = R.CHANCE.findIndex(c => c.t === 'god' && c.good);
+  st._decks.chance = [gi]; st.seats[0].pos = 6;
+  roll(st, 0, 1);
+  ok(st.seats[0].god && R.GODS[st.seats[0].god.k].good && st.events.some(e => e.t === 'card' && e.mood === 'good'), '抽到好機會：福神／財神附身，事件標示 mood=good');
+  st = mk(2); st._decks.chance = [R.CHANCE.findIndex(c => c.t === 'pay')]; st.seats[0].pos = 6;
+  roll(st, 0, 1);
+  ok(st.events.some(e => e.t === 'card' && e.mood === 'bad'), '壞機會卡事件標示 mood=bad');
+}
+
+section('每場隨機地價');
+{
+  const ps = [{ id: 'a', name: 'A', char: 'otter' }, { id: 'b', name: 'B', char: 'otter' }];
+  const t1 = R.create(ps, { seed: 'price1' }).tiles, t1b = R.create(ps, { seed: 'price1' }).tiles, t2 = R.create(ps, { seed: 'price2' }).tiles;
+  ok(JSON.stringify(t1) === JSON.stringify(t1b), '同 seed 地價相同');
+  ok(JSON.stringify(t1) !== JSON.stringify(t2), '不同 seed 地價不同');
+  let ints = true, inRange = true, mono = true, rentUp = true;
+  for (let g = 0; g < 60; g++) {
+    const tl = R.create(ps, { seed: 'r' + g }).tiles;
+    R.TILES.forEach((b, i) => {
+      const t = tl[i];
+      const nums = [t.price, t.tax, t.house].concat(t.rent || []).filter(x => x != null);
+      if (!nums.every(Number.isInteger)) ints = false;
+      if (b.price && (t.price < b.price * 0.65 - 5 || t.price > b.price * 1.35 + 5)) inRange = false;
+      if (b.tax && (t.tax < b.tax * 0.65 - 5 || t.tax > b.tax * 1.35 + 5)) inRange = false;
+      if (t.rent) for (let k = 1; k < t.rent.length; k++) if (t.rent[k] <= t.rent[k - 1]) rentUp = false;
+    });
+    Object.keys(R.GROUP_TILES).forEach(gr => { const ids = R.GROUP_TILES[gr]; for (let k = 1; k < ids.length; k++) if (tl[ids[k]].price < tl[ids[k - 1]].price) mono = false; });
+  }
+  ok(ints, '所有價格、房價、租金、稅金都是整數');
+  ok(inRange, '價格都在原價 ±30% 上下（含取整）');
+  ok(mono, '同色組內價格仍由低到高');
+  ok(rentUp, '租金隨房子數遞增');
+  const st = R.create(ps, { seed: 'price1' });
+  const pv = R.publicView(st, 0);
+  ok(pv.tiles.length === 40 && pv.tiles[1].price === st.tiles[1].price, '公開資料帶有這一場的地價表');
+  ok(R.TILES[1].price === 60, '全域原始地價表不被改動（伺服器多房間共用）');
+}
+
 section('亂數');
 {
   const a = RNG.create('z'), b = RNG.create('z');

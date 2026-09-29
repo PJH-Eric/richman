@@ -290,7 +290,7 @@ function hubTest() {
     now += 60; hub.tick(now);
     if (g8.seats[g8.turn].id === h1.id) {
       const o = Rules.options(g8, h1.id);
-      const t = o.roll ? 'roll' : o.buy ? 'buy' : g8.phase === 'buy' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : g8.phase === 'debt' ? 'bankrupt' : null;
+      const t = o.roll ? 'roll' : o.buy ? 'buy' : g8.phase === 'buy' || g8.phase === 'build' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : g8.phase === 'debt' ? 'bankrupt' : null;
       if (t) hub.gameAct(h1, { type: t });
     }
     if (g8.round > 10) break;

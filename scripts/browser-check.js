@@ -116,7 +116,7 @@ async function solo(browser, base) {
   await page.keyboard.press('Escape');
 
   await page.click('#go-help');
-  ok((await page.textContent('#help-body')).includes('強制收購') && (await page.textContent('#help-body')).includes('擲骰子'), '說明頁有完整的文字教學');
+  ok((await page.textContent('#help-body')).includes('命運之神') && (await page.textContent('#help-body')).includes('擲骰子'), '說明頁有完整的文字教學');
   await page.click('#help-go');
   while (await page.isEnabled('#solo-ai [data-step="1"]')) await page.click('#solo-ai [data-step="1"]');
   await page.click('#solo-diff [data-diff="normal"]');
@@ -173,12 +173,56 @@ async function solo(browser, base) {
     const flew = await page.evaluate(() => { const g = Solo._debug; const i = g.state.seats.findIndex(x => x.id === 'me'); return { pos: g.state.seats[i].pos, items: g.state.seats[i].items.join(',') }; });
     ok(flew.pos === 12 && flew.items === 'dice,cat', '機票：點格子就飛過去並用掉（' + JSON.stringify(flew) + '）');
   }
+  /* 攻擊型道具的選目標介面、走到自己的地的蓋房詢問、自製卷軸 */
+  {
+    for (let i = 0; i < 400 && !(await mineTurn()); i++) {
+      const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
+      if (ph === 'buy') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      else if (ph === 'build') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(500);
+    }
+    await page.evaluate(() => {
+      const g = Solo._debug, me = g.state.seats.find(x => x.id === 'me');
+      me.items = ['steal', 'swap', 'bomb'];
+      g.state.seats.filter(x => x.id !== 'me').forEach((x, k) => { x.pos = 5 + k; x.cash = 1500; x.jail = false; });
+      Solo.board.render(Rules.publicView(g.state, g.clock));
+    });
+    await page.waitForSelector('.mc .it-chip.on[data-item="steal"]', { timeout: 4000 }).catch(() => {});
+    ok(await page.$('.mc .it-chip.on[data-item="steal"]') && await page.$('.mc .it-chip.on[data-item="swap"]'), '偷錢卡、換位卡在有目標時可以點');
+    await page.click('.mc .it-chip[data-item="steal"]');
+    ok((await page.$$eval('.mc .tgt-btn', e => e.length)) >= 1, '偷錢卡：出現選對手的按鈕');
+    const c0 = await page.evaluate(() => Solo._debug.state.seats.find(x => x.id === 'me').cash);
+    await page.click('.mc .tgt-btn');
+    await page.waitForTimeout(300);
+    const c1 = await page.evaluate(() => Solo._debug.state.seats.find(x => x.id === 'me').cash);
+    ok(c1 > c0, '偷錢成功：現金增加（' + c0 + '→' + c1 + '）');
+    await page.waitForFunction(() => !Solo.board._debug.busy, null, { timeout: 15000 }).catch(() => {});
+    /* 蓋房詢問 */
+    await page.evaluate(() => {
+      const g = Solo._debug, st = g.state, i = st.turn;
+      st.seats[i].cash = 3000; st.props[6].owner = i; st.props[6].houses = 0;
+      st.pending = { kind: 'build', tile: 6 }; st.phase = 'build'; st.version++;
+      Solo.board.render(Rules.publicView(st, g.clock));
+    });
+    await page.waitForSelector('.mc [data-a="build"]', { timeout: 4000 }).catch(() => {});
+    ok(await page.$('.mc [data-a="build"]:not([disabled])') && await page.$('.mc [data-a="decline"]'), '走到自己的地：面板詢問「蓋」或「不蓋」');
+    await page.click('.mc [data-a="build"]');
+    await page.waitForTimeout(400);
+    ok(await page.evaluate(() => Solo._debug.state.props[6].houses) === 1, '按「蓋」：多一棟房子');
+    /* 我的地產：不能直接蓋、不能主動抵押、沒有收購 */
+    await page.evaluate(() => { const g = Solo._debug; Solo.board.openManage(document.body); });
+    await page.waitForSelector('#manage-modal', { state: 'visible', timeout: 3000 }).catch(() => {});
+    const mtxt = await page.evaluate(() => document.querySelector('#manage-body').innerText);
+    ok(!/蓋房 −|抵押 \+|收購 −/.test(mtxt), '「我的地產」沒有蓋房、抵押、收購按鈕');
+    await page.keyboard.press('Escape');
+  }
   /* 3D 骰子：擲完要停平、朝上的點數要跟結果一樣 */
   {
     await page.evaluate(() => { const g = Solo._debug; g.state.seats.forEach(x => { x.items = []; }); });
     for (let i = 0; i < 400 && !(await mineTurn()); i++) {
       const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
-      if (ph === 'buy') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      if (ph === 'buy' || ph === 'build') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
       else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(500);
     }

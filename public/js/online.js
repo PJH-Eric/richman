@@ -34,7 +34,7 @@
     root.Net.on('room', m => onRoom(m.room));
     root.Net.on('inviteInfo', m => { S.inviteInfo = m; renderRooms(); });
     root.Net.on('error', m => toast(m.text, 'bad'));
-    root.Net.on('notice', m => toast(m.text));
+    root.Net.on('notice', m => { toast(m.text); if (root.Sound) root.Sound.sfx('join'); });
     root.Net.on('closed', m => toast(m.text));
     root.Net.on('kicked', m => { toast(m.text, 'bad'); });
     root.Net.on('replaced', () => toast('你在別的分頁開了同一個身分，這個分頁先斷線', 'bad'));
@@ -265,7 +265,7 @@
       '<button type="button" role="radio" aria-checked="' + (String(o[0]) === String(cur)) + '" data-set="' + k + '" data-val="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>';
     $('#room-host').innerHTML = me.host
       ? '<h4>房間設定（房主）</h4>' +
-        '<div class="set-line"><span>人數上限</span>' + seg('max', [[2, '2 人'], [3, '3 人'], [4, '4 人']], room.max) + '</div>' +
+        '<div class="set-line"><span>人數上限</span>' + seg('max', [[2, '2 人'], [3, '3 人'], [4, '4 人'], [5, '5 人'], [6, '6 人'], [7, '7 人'], [8, '8 人']], room.max) + '</div>' +
         '<div class="set-line"><span>每回合思考時間</span>' + seg('pace', [['slow', '90 秒'], ['normal', '60 秒'], ['fast', '40 秒']], room.pace) + '</div>' +
         '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[20, '20'], [30, '30'], [40, '40'], [0, '不限']], room.roundLimit) + '</div>' +
         '<div class="set-line"><span>新電腦預設</span>' + seg('aiDiff', Object.keys(DIFF_NAME).map(k => [k, DIFF_NAME[k]]), room.aiDiff) + '</div>'

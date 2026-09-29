@@ -75,6 +75,7 @@
   /* ---------- 提示 ---------- */
 
   function toast(text, kind) {
+    if (kind === 'bad' && root.Sound) root.Sound.sfx('error');
     const box = $('#toasts');
     if (!box) return;
     const t = document.createElement('div');

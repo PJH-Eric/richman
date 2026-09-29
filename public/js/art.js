@@ -243,7 +243,16 @@
     i_fly: () => Pth('M2 13L21 3L17 21L11 15L8 19L7.5 13Z', '#4F9BE8', 'stroke="#2C6BB5" stroke-width="1" stroke-linejoin="round"') + St('M21 3L8 14', '#FFFFFF', 1.2) + St('M2 21Q6 19 8 22', '#BFE6F5', 1.2),
     i_free: () => C(12, 12, 9, '#FFC93C') + St('M12 7V17M9 9.5Q12 7 15 9.5M9 14.5Q12 17 15 14.5', '#B97A00', 1.3) + St('M3.5 20.5L20.5 3.5', '#E8503F', 2.4),
     i_shield: () => Pth('M12 2L20 5V12Q20 19 12 22Q4 19 4 12V5Z', '#5E7FD1', 'stroke="#2F4A9E" stroke-width="1.2" stroke-linejoin="round"') + Pth('M12 4.5L17.5 6.6V12Q17.5 17 12 19.6Z', '#7A96DF') + St('M8.5 12L11 14.5L16 8.5', '#FFFFFF', 2),
-    i_cat: () => Pth('M4 4L9 8H15L20 4V13Q20 20 12 20Q4 20 4 13Z', '#FFF3D6', 'stroke="#D99A00" stroke-width="1.2" stroke-linejoin="round"') + C(9, 12, 1.2, '#23392B') + C(15, 12, 1.2, '#23392B') + Pth('M11 14.5H13L12 15.6Z', '#E8503F') + St('M6 15L3 14.5M6 16.6L3 17.6M18 15L21 14.5M18 16.6L21 17.6', '#8B5A2B', .8) + R(10, 18.6, 4, 3, '#FFC93C', 1)
+    i_cat: () => Pth('M4 4L9 8H15L20 4V13Q20 20 12 20Q4 20 4 13Z', '#FFF3D6', 'stroke="#D99A00" stroke-width="1.2" stroke-linejoin="round"') + C(9, 12, 1.2, '#23392B') + C(15, 12, 1.2, '#23392B') + Pth('M11 14.5H13L12 15.6Z', '#E8503F') + St('M6 15L3 14.5M6 16.6L3 17.6M18 15L21 14.5M18 16.6L21 17.6', '#8B5A2B', .8) + R(10, 18.6, 4, 3, '#FFC93C', 1),
+    i_steal: () => Pth('M6 9Q6 6 12 6T18 9V19Q18 22 12 22T6 19Z', '#7B5A3A', 'stroke="#4A3320" stroke-width="1.2" stroke-linejoin="round"') + Pth('M9 6L12 2L15 6Z', '#A67C52') + St('M12 10V19M14.6 12Q12 10 9.6 12T12 15T14.6 17.6T9.4 17.6', '#FFC93C', 1.3) + C(19, 6, 3, '#EF5B5B') + St('M17.7 6H20.3', '#fff', 1.4),
+    i_swap: () => C(12, 12, 10, '#7A6BE0') + St('M6 9H17M14 6L17 9L14 12', '#FFFFFF', 1.9) + St('M18 15H7M10 12L7 15L10 18', '#FFE08A', 1.9),
+    i_bomb: () => C(11, 14, 7.5, '#3A3F4B') + C(8.6, 11.6, 2, '#6B7280') + R(9, 4.6, 5, 3.4, '#8896A8', 1) + St('M13 5Q17 2 20 4', '#8B5A2B', 1.6) + C(20.4, 4, 1.6, '#FFC93C') + C(20.4, 4, .7, '#EF5B5B'),
+    i_taxfree: () => R(5, 3, 14, 18, '#FFFDF2', 2) + St('M8 8H16M8 12H16M8 16H13', '#B7A67A', 1.1) + C(17, 17, 5, '#4DBF7A') + St('M14.4 17L16.4 19L19.8 15', '#FFFFFF', 1.7),
+    i_guard: () => Pth('M12 2Q19 4 19 12Q19 20 12 22Q5 20 5 12Q5 4 12 2Z', '#E8503F', 'stroke="#A82F22" stroke-width="1.2" stroke-linejoin="round"') + St('M12 6V18M8 12H16', '#FFD86B', 1.6) + C(12, 12, 2.4, '#FFD86B') + St('M12 1V-2', '#A82F22', 1),
+    god_fortune: () => Pth('M3 14Q3 9 12 9T21 14Q21 19 12 19T3 14Z', '#FFC93C', 'stroke="#C98F00" stroke-width="1.2"') + Pth('M6 12Q12 4 18 12', '#FFE27A') + St('M8 15Q12 17 16 15', '#B97A00', 1.1) + C(12, 6, 3, '#F2A93B'),
+    god_wealth: () => Pth('M7 8Q4 20 12 21T17 8Z', '#5FBF7E', 'stroke="#2E8A52" stroke-width="1.2" stroke-linejoin="round"') + Pth('M8 8L9 4H15L16 8Z', '#8ED9A6') + St('M12 11V18M14.3 12.8Q12 11 9.9 12.8T12 15T14.3 17.2T9.7 17.2', '#FFF3B0', 1.2),
+    god_poor: () => Pth('M6 9Q6 6 12 6T18 9V18Q18 21 12 21T6 18Z', '#9AA3AF', 'stroke="#5F6875" stroke-width="1.2" stroke-linejoin="round"') + St('M9 13L15 17M15 13L9 17', '#F5F7FA', 1.5) + R(9.5, 3, 5, 4, '#7A828E', 1),
+    god_unlucky: () => Pth('M6 15Q2 15 3 11T8 8Q9 4 14 5T19 9Q23 10 21 14T17 16Z', '#6B7280', 'stroke="#3F4652" stroke-width="1.2" stroke-linejoin="round"') + St('M9 18L8 21M13 18L12 22M17 18L16 21', '#FFD86B', 1.6) + C(10, 11, 1, '#fff') + C(15, 11, 1, '#fff') + St('M10 14Q12.5 12.6 15 14', '#fff', 1)
   };
 
   /** 地標圖：inner 內容包成獨立 <svg>，放進格子或畫面任何地方 */

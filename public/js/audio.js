@@ -78,7 +78,32 @@
     click(t) { tone(880, t, 0.05, 'triangle', 0.08); },
     win(t) { [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i * 0.12, 0.3, 'triangle', 0.18)); },
     lose(t) { [392, 330, 262].forEach((f, i) => tone(f, t + i * 0.16, 0.3, 'sine', 0.16)); },
-    chat(t) { tone(988, t, 0.07, 'sine', 0.08); tone(1319, t + 0.06, 0.08, 'sine', 0.06); }
+    chat(t) { tone(988, t, 0.07, 'sine', 0.08); tone(1319, t + 0.06, 0.08, 'sine', 0.06); },
+    /* ---- 擴充：各種狀況的聲音 ---- */
+    land(t) { tone(180, t, 0.09, 'sine', 0.16, null, 110); noise(t, 0.04, 0.2, 500); },
+    pass(t) { [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, t + i * 0.06, 0.16, 'triangle', 0.11)); },
+    earn(t) { [1319, 1568, 1319, 1760].forEach((f, i) => tone(f, t + i * 0.055, 0.1, 'triangle', 0.12)); noise(t, 0.05, 0.25, 4000); },
+    tax(t) { tone(220, t, 0.16, 'square', 0.09); tone(165, t + 0.13, 0.28, 'square', 0.09); noise(t + 0.02, 0.08, 0.3, 1200); },
+    good(t) { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * 0.07, 0.18, 'triangle', 0.14)); tone(2093, t + 0.36, 0.3, 'sine', 0.06); },
+    bad(t) { tone(392, t, 0.16, 'sawtooth', 0.08, null, 330); tone(311, t + 0.15, 0.2, 'sawtooth', 0.08, null, 247); tone(196, t + 0.32, 0.34, 'sawtooth', 0.09, null, 130); },
+    pickup(t) { tone(660, t, 0.07, 'sine', 0.13); tone(990, t + 0.06, 0.12, 'sine', 0.13); tone(1320, t + 0.12, 0.16, 'sine', 0.1); },
+    fly(t) { tone(300, t, 0.4, 'sine', 0.12, null, 1400); noise(t, 0.35, 0.18, 2500); },
+    free(t) { [784, 988, 1175].forEach((f, i) => tone(f, t + i * 0.08, 0.14, 'triangle', 0.13)); },
+    block(t) { tone(1568, t, 0.06, 'square', 0.1); tone(2093, t + 0.04, 0.22, 'triangle', 0.12); noise(t, 0.05, 0.3, 5000); },
+    attack(t) { noise(t, 0.12, 0.5, 900); tone(520, t, 0.16, 'sawtooth', 0.1, null, 120); },
+    hurt(t) { tone(240, t, 0.18, 'square', 0.14, null, 90); noise(t, 0.09, 0.45, 300); tone(150, t + 0.16, 0.3, 'sine', 0.12, null, 70); },
+    steal(t) { tone(900, t, 0.07, 'triangle', 0.1, null, 500); tone(500, t + 0.08, 0.07, 'triangle', 0.1, null, 900); tone(1200, t + 0.18, 0.12, 'triangle', 0.13); },
+    swap(t) { tone(400, t, 0.22, 'sine', 0.12, null, 1100); tone(1100, t + 0.02, 0.22, 'sine', 0.1, null, 400); noise(t + 0.05, 0.16, 0.2, 3000); },
+    bomb(t) { noise(t, 0.4, 0.9, 120); tone(120, t, 0.35, 'sawtooth', 0.2, null, 40); tone(70, t + 0.05, 0.4, 'sine', 0.22, null, 30); },
+    god_good(t) { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, t + i * 0.09, 0.28, 'sine', 0.1)); tone(392, t, 0.6, 'triangle', 0.08); },
+    god_bad(t) { tone(110, t, 0.55, 'sawtooth', 0.1, null, 82); tone(117, t, 0.55, 'sawtooth', 0.08, null, 87); noise(t, 0.3, 0.25, 250); },
+    hotel(t) { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * 0.07, 0.16, 'triangle', 0.14)); },
+    mortgage(t) { tone(330, t, 0.07, 'square', 0.09); tone(247, t + 0.08, 0.14, 'square', 0.09); },
+    unmortgage(t) { tone(247, t, 0.07, 'square', 0.09); tone(392, t + 0.08, 0.14, 'triangle', 0.11); },
+    join(t) { tone(660, t, 0.08, 'sine', 0.12); tone(880, t + 0.08, 0.12, 'sine', 0.12); },
+    leave(t) { tone(880, t, 0.08, 'sine', 0.1); tone(587, t + 0.08, 0.14, 'sine', 0.1); },
+    error(t) { tone(200, t, 0.09, 'square', 0.1); tone(160, t + 0.1, 0.14, 'square', 0.1); },
+    tick(t) { tone(1400, t, 0.03, 'square', 0.06); }
   };
 
   function sfx(name) {

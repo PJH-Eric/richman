@@ -17,10 +17,13 @@ const { createServer } = require('../server.js');
 
 let pass = 0, fail = 0;
 function ok(v, name) { if (v) { pass++; console.log('  ✔ ' + name); } else { fail++; console.log('  ✘ ' + name); } }
-const SIZES = [['手機直向', 390, 844], ['手機橫向', 844, 390], ['平板直向', 820, 1180], ['平板橫向', 1180, 820], ['小手機直向', 360, 640]];
+const ALL_SIZES = [['手機直向', 390, 844], ['手機橫向', 844, 390], ['平板直向', 820, 1180], ['平板橫向', 1180, 820], ['小手機直向', 360, 640], ['矮視窗橫向', 667, 320]];
+
+const SIZES = process.env.SCROLL_ONLY ? ALL_SIZES.filter(x => x[0].includes(process.env.SCROLL_ONLY)) : ALL_SIZES;
 const LAUNCH = { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] };
 
 async function scrollProblems(page) {
+  await page.waitForTimeout(450);   /* 等自製卷軸更新位置 */
   return page.evaluate(async () => {
     const out = [];
     const vis = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
@@ -33,6 +36,8 @@ async function scrollProblems(page) {
       const bodyMoved = document.body.scrollTop > 0;
       if (!moved && !bodyMoved) out.push('頁面比視窗高（' + se.scrollHeight + '>' + innerHeight + '）卻捲不動（html ' + ho + ' / body ' + bo + '）');
       se.scrollTop = 0; document.body.scrollTop = 0;
+      const pageBar = [...document.querySelectorAll('.cs-track')].some(t => t.style.display === 'block' && t.getBoundingClientRect().right >= innerWidth - 2);
+      if (!pageBar && !document.body.classList.contains('in-game') && !document.querySelector('.modal:not([hidden])')) out.push('頁面可以捲，但看不到自製卷軸');
     }
     const skip = el => el.closest('canvas, svg, .b3d, .cam-btns') || el.matches('html, body');
     for (const el of document.querySelectorAll('body *')) {
@@ -45,6 +50,12 @@ async function scrollProblems(page) {
         const b = el.scrollTop; el.scrollTop = 99999; await new Promise(r => setTimeout(r, 30));
         if (el.scrollTop <= b) out.push(id + ' 有 overflow:' + oy + ' 但捲不動');
         el.scrollTop = 0;
+        if (!el.classList.contains('cs')) out.push(id + ' 沒有套用自製卷軸（還在用原生卷軸）');
+        else {
+          const rr = el.getBoundingClientRect(), hit = document.elementFromPoint(Math.min(innerWidth - 2, rr.right - 8), Math.min(innerHeight - 2, Math.max(1, rr.top + Math.min(rr.height, innerHeight - rr.top) / 2)));
+          const covered = !hit || !el.contains(hit) && !hit.closest('#cs-layer');
+          if (!covered && ![...document.querySelectorAll('.cs-track')].some(t => t.style.display === 'block')) out.push(id + ' 看不到自製卷軸');
+        }
       } else if (oy === 'hidden' || oy === 'clip') {
         /* 文字省略號（單行）不算；其他被裁掉的才算 */
         if (cs.textOverflow === 'ellipsis' || cs.whiteSpace === 'nowrap') continue;
@@ -86,8 +97,9 @@ async function scrollProblems(page) {
     await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 20000 });
     await page.waitForTimeout(800);
     await check('對局畫面（8 人）');
-    if (await page.isVisible('#side-open')) { await page.click('#side-open'); await page.waitForTimeout(400); await check('對局：資訊抽屜'); await page.keyboard.press('Escape'); await page.click('body', { position: { x: w - 4, y: h / 2 } }).catch(() => {}); }
+    if (await page.isVisible('#side-open')) { await page.click('#side-open'); await page.waitForTimeout(400); await check('對局：資訊抽屜'); await page.click('#side-close'); await page.waitForTimeout(400); }
     await page.evaluate(() => { const g = Solo._debug; g.state.seats.find(s => s.id === 'me').items = ['dice', 'fly', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
+    if (await page.isVisible('#menu-modal')) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
     const mg = await page.$('.mc [data-a="manage"]');
     if (mg) { await mg.click(); await page.waitForSelector('#manage-modal', { state: 'visible' }); await check('我的地產視窗'); await page.keyboard.press('Escape'); }
     await page.evaluate(() => Solo.fastForward(1200000, true));

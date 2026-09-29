@@ -22,7 +22,7 @@
 
   const RNG = deps.RNG;
   const R = deps.Rules;
-  const T = R.TILES;
+  let T = R.TILES;   /* 每次決策開頭換成這一局的地價表 */
 
   const THINK = { kid: [900, 1600], easy: [600, 1100], normal: [450, 800], hard: [300, 550] };
 
@@ -73,14 +73,7 @@
     const blocks = blocksOpponent(state, si, ti);
     const after = s.cash - price;
 
-    if (!opt.buy) {
-      /* 現金不夠：只有困難（有時普通）會抵押閒置地產來湊錢搶關鍵地 */
-      if ((level === 'hard' || (level === 'normal' && sets)) && (sets || blocks || t.type === 'station') && s.cash + idleMortgageGain(state, si) >= price) {
-        const m = pickIdleMortgage(state, si, ti);
-        if (m != null) return { type: 'mortgage', tile: m };
-      }
-      return { type: 'decline' };
-    }
+    if (!opt.buy) return { type: 'decline' };
     if (level === 'kid') return rng.chance(0.6) ? { type: 'buy' } : { type: 'decline' };
     if (level === 'easy') return after >= 100 || rng.chance(0.25) ? { type: 'buy' } : { type: 'decline' };
     if (level === 'normal') {
@@ -140,34 +133,23 @@
       }
     }
 
-    /* 強制收購：湊齊整組是這個版本最重要的一步 */
-    if (opt.buyout.length && level !== 'kid') {
-      const ok = opt.buyout.filter(i => !(level === 'hard' && state.seats[owner(state, i)].items.includes('shield'))).filter(i => s.cash - R.buyoutCost(i) >= (level === 'hard' ? 40 : level === 'normal' ? 350 : 400));
-      if (ok.length && (level !== 'easy' || rng.chance(0.4))) {
-        ok.sort((a, b) => T[b].price - T[a].price);
-        return { type: 'buyout', tile: ok[0] };
-      }
-    }
+    return null;
+  }
 
-    if (!opt.build.length) return null;
-    if (level === 'easy' && !rng.chance(0.3)) return null;
-
-    let best = null, bestScore = -1;
-    for (const i of opt.build) {
-      const t = T[i], p = state.props[i];
-      const cost = t.house;
-      if (s.cash - cost < (level === 'easy' ? 150 : reserve)) continue;
-      const gain = t.rent[p.houses + 1] - t.rent[p.houses];
-      let score = gain / cost;
-      if (level === 'hard') {
-        /* 先蓋到 3 棟最划算；旅店最貴，最後才升 */
-        if (p.houses >= 3) score *= 0.6;
-        if (p.houses === 4 && s.cash < reserve + cost + 300) continue;
-      } else if (level === 'normal') score = 1 / cost + p.houses * -0.001;
-      else score = rng.next();
-      if (score > bestScore) { bestScore = score; best = i; }
+  /** 走到自己的地：要不要加蓋房子（面板詢問的那一步） */
+  function decideBuild(state, si, level, rng, opt) {
+    const s = state.seats[si];
+    const ti = state.pending.tile;
+    if (!opt.build.length || level === 'kid') return { type: 'decline' };
+    const t = T[ti], p = state.props[ti], cost = t.house;
+    const reserve = reserveFor(level, state, si);
+    if (level === 'easy') return s.cash - cost >= 150 && rng.chance(0.5) ? { type: 'build', tile: ti } : { type: 'decline' };
+    if (s.cash - cost < reserve) return { type: 'decline' };
+    if (level === 'hard') {
+      if (p.houses === 4 && s.cash < reserve + cost + 300) return { type: 'decline' };
+      return { type: 'build', tile: ti };
     }
-    return best == null ? null : { type: 'build', tile: best };
+    return { type: 'build', tile: ti };
   }
 
   /* ---------- 還債 ---------- */
@@ -239,6 +221,20 @@
     const s = state.seats[si];
     if (level === 'kid' || !s.items.length) return null;
     const BOARD = 40;
+    /* 攻擊型道具：偷錢、炸房、換位（簡單難度偶爾才用，困難更精打細算） */
+    if (opt.steal && s.items.includes('steal')) {
+      const c = R.itemTargets(state, si, 'steal').filter(i => state.seats[i].cash >= (level === 'hard' ? 250 : 350)).sort((a, b) => state.seats[b].cash - state.seats[a].cash)[0];
+      if (c != null && (level !== 'easy' || rng.chance(0.4))) return { type: 'useItem', item: 'steal', target: c };
+    }
+    if (opt.bomb && s.items.includes('bomb') && level !== 'easy') {
+      const c = R.itemTargets(state, si, 'bomb').sort((a, b) => state.props[b].houses * T[b].house - state.props[a].houses * T[a].house)[0];
+      if (c != null && state.props[c].houses >= (level === 'hard' ? 2 : 3)) return { type: 'useItem', item: 'bomb', tile: c };
+    }
+    if (opt.swap && s.items.includes('swap') && level !== 'easy') {
+      let f = null;
+      R.itemTargets(state, si, 'swap').forEach(i => { const v = tileScore(state, si, state.seats[i].pos, level) - 40; if (!f || v > f.v) f = { v, a: { type: 'useItem', item: 'swap', target: i } }; });
+      if (f && f.v >= (level === 'hard' ? 200 : 300)) return f.a;
+    }
     let best = null;
     if (opt.dice && s.items.includes('dice')) {
       for (let n = 1; n <= 6; n++) {
@@ -267,10 +263,12 @@
   /** 這個座位現在要做什麼；回傳 Rules.act 的 action */
   function decide(state, si, level, rng) {
     level = R.DIFFICULTY_LIST.includes(level) ? level : 'normal';
+    T = state.tiles || R.TILES;
     const s = state.seats[si];
     const opt = R.options(state, s.id);
     switch (state.phase) {
       case 'buy': return decideBuy(state, si, level, rng, opt);
+      case 'build': return decideBuild(state, si, level, rng, opt);
       case 'debt': return decideDebt(state, si, level, rng, opt);
       case 'manage': return decideManage(state, si, level, rng, opt) || { type: 'endTurn' };
       case 'roll': {

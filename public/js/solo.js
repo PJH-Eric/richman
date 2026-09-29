@@ -137,7 +137,7 @@
       for (const a of g.driver.actions(g.state, g.clock)) R.act(g.state, a.id, a.action, g.clock, { ai: true });
       if (human && g.state.seats[g.state.turn].id === 'me') {
         const o = R.options(g.state, 'me');
-        const a = o.roll ? 'roll' : o.buy ? 'buy' : g.state.phase === 'buy' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : o.bankrupt ? 'bankrupt' : null;
+        const a = o.roll ? 'roll' : o.buy ? 'buy' : g.state.phase === 'buy' || g.state.phase === 'build' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : o.bankrupt ? 'bankrupt' : null;
         if (a) R.act(g.state, 'me', { type: a }, g.clock);
       }
     }
