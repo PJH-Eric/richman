@@ -126,7 +126,7 @@
         if (p.owner === me) return [t.type === 'prop' && p.houses < R.MAX_HOUSES ? '自己的地，可以加蓋' : '自己的地', 'good'];
         const seat = v.seats[me];
         if (seat && seat.items.includes('free')) return ['對手的地，但有免租券可以免付', 'good'];
-        return ['對手的地，要付過路費約 ' + R.rentOf(v, ti, dice || v.dice) + (R.rowLen(v, ti) >= 2 ? '（' + R.rowLen(v, ti) + ' 連棟，整串加總）' : ''), 'bad'];
+        return ['對手的地，要付過路費約 ' + R.rentOf(v, ti, dice || v.dice) + (R.rowLen(v, ti) >= 2 ? '（' + R.rowLen(v, ti) + ' 連棟，整串加總打 8 折）' : ''), 'bad'];
       }
       return ['', ''];
     }
@@ -584,7 +584,7 @@
           h += '<table class="ti-rent"><tbody>' + t.rent.map((r, k) =>
             '<tr class="' + (p && p.houses === k ? 'now' : '') + '"><th scope="row">' + lab[k] + '</th><td>' + r + ' 元</td></tr>').join('') + '</tbody></table>' +
             '<p class="hint">整組同色都是同一個人的，空地租金加倍。</p>' +
-            '<p class="hint">連棟加總：同一人相鄰的格子都蓋了房子，踩到其中一格，要付整串每一格過路費的總和（目前 ' + (p && p.owner >= 0 ? R.rowLen(v, i) : 1) + ' 連）。</p>';
+            '<p class="hint">連棟加總：同一人相鄰的格子都蓋了房子，踩到其中一格，要付整串每一格過路費加總後打 8 折的金額（目前 ' + (p && p.owner >= 0 ? R.rowLen(v, i) : 1) + ' 連）。</p>';
         } else if (t.type === 'station') h += '<p class="hint">擁有 1／2／3／4 個車站，租金 40／80／160／320 元。</p>';
         else h += '<p class="hint">擁有 1 間：骰子點數 ×6；2 間都有：×15。</p>';
       }

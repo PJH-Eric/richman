@@ -300,10 +300,16 @@
     return list;
   }
   function rowLen(state, ti) { return rowTiles(state, ti).length; }
-  /** 這一串連棟每一格各自的過路費（不含道具、神明等加成） */
-  function rowRent(state, ti) {
+  const ROW_DISCOUNT = 0.8;
+  /** 這一串連棟每一格各自的過路費加總（未打折、不含道具、神明等加成） */
+  function rowSum(state, ti) {
     const T = tl(state);
     return rowTiles(state, ti).reduce((a, i) => a + T[i].rent[state.props[i].houses], 0);
+  }
+  /** 連棟過路費：2 格以上整串加總後打 8 折；單獨一格照原價 */
+  function rowRent(state, ti) {
+    const sum = rowSum(state, ti);
+    return rowLen(state, ti) >= 2 ? Math.round(sum * ROW_DISCOUNT) : sum;
   }
 
   function rentOf(state, ti, dice, opt) {
@@ -558,7 +564,7 @@
         say(state, s.name + ' 停在 ' + state.seats[p.owner].name + ' 的 ' + t.name + '，用掉「免租券」，這次不用付！');
         return;
       }
-      if (t.type === 'prop' && p.houses > 0 && rowLen(state, t.i) >= 2) say(state, t.name + ' 是 ' + rowLen(state, t.i) + ' 連棟，整串每一格的過路費加起來：' + money(rent) + '！');
+      if (t.type === 'prop' && p.houses > 0 && rowLen(state, t.i) >= 2) say(state, t.name + ' 是 ' + rowLen(state, t.i) + ' 連棟，整串過路費加總後打 8 折：' + money(rent) + '！');
       if (hasItem(state, si, 'half')) {
         useUp(state, si, 'half');
         rent = Math.ceil(rent / 2);
@@ -1127,7 +1133,7 @@
     GODS, TILES, GROUPS, GROUP_TILES, OWNABLE, CHANCE, CHEST, ITEMS, ITEM_LIST, MAX_ITEMS,
     MAPS: Maps, useMap, tl, genTiles, applyTiles, create,
     itemTargets: inMap(itemTargets), canUseItem: inMap(canUseItem), act: inMap(act), tick: inMap(tick), options: inMap(options), publicView: inMap(publicView),
-    rentOf: inMap(rentOf), rowLen: inMap(rowLen), rowTiles: inMap(rowTiles), rowRent: inMap(rowRent), netWorth: inMap(netWorth), liquidity: inMap(liquidity), ownedBy: inMap(ownedBy), groupOwned: inMap(groupOwned),
+    rentOf: inMap(rentOf), rowLen: inMap(rowLen), rowTiles: inMap(rowTiles), rowRent: inMap(rowRent), rowSum: inMap(rowSum), netWorth: inMap(netWorth), liquidity: inMap(liquidity), ownedBy: inMap(ownedBy), groupOwned: inMap(groupOwned),
     buyoutCost: inMap(buyoutCost), canBuyoutAt: inMap(canBuyoutAt), completesGroup: inMap(completesGroup),
     canBuildAt: inMap(canBuildAt), canSellAt: inMap(canSellAt),
     indexOfId, cur, alive

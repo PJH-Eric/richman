@@ -170,8 +170,8 @@ section('連棟：整串過路費加總');
   eq(R.rowLen(st, 8), 1, '中間隔著機會格（7 號）不算連棟');
   give(st, 0, 9); st.props[9].houses = 1;
   eq(R.rowLen(st, 8), 2, '8、9 號都有房子＝2 連棟');
-  eq(R.rentOf(st, 8, [1, 2]), base + R.TILES[9].rent[1], '2 連棟：租金＝8、9 號兩格的過路費加總');
-  eq(R.rentOf(st, 9, [1, 2]), base + R.TILES[9].rent[1], '踩到串裡任何一格，付的都是同一個總和');
+  eq(R.rentOf(st, 8, [1, 2]), Math.round((base + R.TILES[9].rent[1]) * 0.8), '2 連棟：租金＝8、9 號兩格的過路費加總後打 8 折');
+  eq(R.rentOf(st, 9, [1, 2]), Math.round((base + R.TILES[9].rent[1]) * 0.8), '踩到串裡任何一格，付的都是同一個總和');
   give(st, 0, 11, 0); give(st, 0, 13, 2); eq(R.rowLen(st, 8), 2, '沒蓋房的格子不算進連棟');
   st.props[9].houses = 0;
   eq(R.rowLen(st, 8), 1, '沒蓋房的格子會斷開連棟');
@@ -183,8 +183,8 @@ section('連棟：整串過路費加總');
   if (run >= 0) {
     const s3 = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'row3', map: mid, fixedPrices: true });
     [0, 1, 2].forEach((k, j) => { const ti = (run + k) % 80; s3.props[ti].owner = 0; s3.props[ti].houses = j + 1; });
-    const want = [0, 1, 2].reduce((a, k, j) => a + s3.tiles[(run + k) % 80].rent[j + 1], 0);
-    ok(R.rowLen(s3, run + 1) === 3 && R.rentOf(s3, run, [1, 2]) === want && R.rentOf(s3, run + 2, [1, 2]) === want, '隨機地圖上 3 連棟：三格過路費全部加起來（' + want + '）');
+    const want = Math.round([0, 1, 2].reduce((a, k, j) => a + s3.tiles[(run + k) % 80].rent[j + 1], 0) * 0.8);
+    ok(R.rowLen(s3, run + 1) === 3 && R.rentOf(s3, run, [1, 2]) === want && R.rentOf(s3, run + 2, [1, 2]) === want, '隨機地圖上 3 連棟：三格過路費加總後打 8 折（' + want + '）');
   } else ok(true, '（這張地圖沒有連續 3 塊地）');
 }
 
