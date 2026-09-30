@@ -55,7 +55,10 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
     const chip = await p.$('.mc .it-chip.on[data-item="' + item + '"]');
     if (!chip) { ok(false, label + '：道具按鈕沒出現'); continue; }
     await p.click('.mc .it-chip.on[data-item="' + item + '"]', { timeout: 5000 }).catch(() => {});
-    if (item === 'fly' || item === 'bomb') {
+    if (item === 'fly') {
+      await p.click('.mc [data-fsel="' + arg + '"]', { timeout: 4000 });
+      await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await p.click('.mc [data-confirm]');
+    } else if (item === 'bomb') {
       await p.waitForTimeout(300); await p.evaluate(() => Online.board.v3.setFollow(false)); await p.waitForTimeout(600);
       const tile = item === 'bomb' ? 16 : arg;
       const bx = await p.evaluate(t => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const pr = Online.board.v3.project(t, 0, 0, 0.3); return { x: r.left + pr.x - c.offsetLeft, y: r.top + pr.y - c.offsetTop }; }, tile);

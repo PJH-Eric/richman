@@ -39,7 +39,7 @@
     root.Net.on('replaced', () => toast('你在別的分頁開了同一個身分，這個分頁先斷線', 'bad'));
 
     $('#lobby-quick').onclick = () => { saveProfile(); root.Net.send({ type: 'quick' }); };
-    $('#lobby-create').onclick = () => { saveProfile(); root.Net.send({ type: 'create', max: 4, pace: 'normal', roundLimit: 30, map: root.App.store.map }); };
+    $('#lobby-create').onclick = () => { saveProfile(); root.Net.send({ type: 'create', max: 4, pace: 'normal', roundLimit: 40, map: root.App.store.map }); };
     $('#room-leave').onclick = () => leaveRoom();
     $('#room-list').addEventListener('click', e => {
       const b = e.target.closest('[data-join]');
@@ -302,7 +302,7 @@
     $('#room-host').innerHTML = me.host
       ? '<h4>房間設定（房主）</h4>' +
         '<div class="set-line stack"><span>地圖</span>' + root.UI.mapCards(room.map, 'data-set="map"') + '</div>' +
-        '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[20, '20'], [30, '30'], [40, '40'], [0, '不限']], room.roundLimit) + '</div>'
+        '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[25, '25'], [40, '40'], [50, '50'], [0, '不限']], room.roundLimit) + '</div>'
       : '<p class="host-info">地圖「' + esc(root.Rules.MAPS.get(room.map).name) + '」（' + root.Rules.MAPS.get(room.map).size + ' 格）・' + limitName(room.roundLimit) + '（房主決定）</p>';
 
     /* 邀請連結 */

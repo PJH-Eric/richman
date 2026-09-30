@@ -801,3 +801,20 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 .mc-hint { margin: 0; font-size: .82rem; font-weight: 800; color: var(--ink-soft); text-align: center; }
 .mc-hint.good { color: #1F7A46; }
 .mc-hint.bad { color: #C0392B; }
+
+/* 機票：分類篩選＋格子清單 */
+.fly-filter { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; width: 100%; }
+.fly-f { min-height: 32px; padding: 2px 10px; border-radius: 999px; border: 2px solid #E9C77B; background: #fff; color: #5A3A14; font: inherit; font-size: .78rem; font-weight: 800; cursor: pointer; }
+.fly-f.on { background: #FFD86B; border-color: #F2A93B; }
+.fly-f:focus-visible, .tchip:focus-visible { outline: 3px solid #3D5FC4; outline-offset: 2px; }
+.tilegrid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); max-height: 168px; }
+.tchip { position: relative; display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 4px 8px 4px 12px; border-radius: 12px; border: 2px solid #E9C77B; background: #fff; font: inherit; text-align: left; cursor: pointer; overflow: hidden; }
+.tchip .tc-band { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--band, #D9B25C); }
+.tchip .tc-gl { width: 24px; height: 24px; flex: none; display: inline-flex; }
+.tchip .tc-gl svg { width: 100%; height: 100%; }
+.tchip .tc-tx { display: grid; min-width: 0; }
+.tchip .tc-tx b { font-size: .84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tchip .tc-tx small { font-size: .68rem; font-weight: 700; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tchip .tc-tx small.good { color: #1F7A46; }
+.tchip .tc-tx small.bad { color: #C0392B; }
+.tchip.sel { background: #FFE9A8; border-color: #F2A93B; box-shadow: 0 0 0 2px #F2A93B; }

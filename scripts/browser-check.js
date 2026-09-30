@@ -167,7 +167,13 @@ async function solo(browser, base) {
     await page.click('.mc [data-pickcancel]');
     ok(!(await page.$('.mc .pick-btn')), '「先不用」收起選單');
     await page.click('.it-chip[data-item="fly"]');
-    ok((await page.textContent('.mc')).includes('點棋盤'), '機票：提示點棋盤選格子');
+    ok((await page.$$eval('.mc .tchip', e => e.length)) > 20, '機票：面板列出可飛的格子清單');
+    await page.click('.mc [data-fflt="spec"]');
+    ok((await page.$$eval('.mc .tchip', e => e.length)) < 20 && (await page.$$eval('.mc .fly-f.on', e => e.length)) === 1, '機票：切到「特別格」只剩特別格');
+    await page.click('.mc [data-fflt="all"]');
+    await page.click('.mc [data-fsel="12"]');
+    ok(!!(await page.$('.mc [data-confirm]')) && (await page.textContent('.mc')).includes(await page.evaluate(() => Rules.TILES[12].name)), '機票：點清單的格子會選取並出現確認鈕');
+    ok(await page.evaluate(() => !Solo.board._debug.sent), '選取時還沒送出');
     await page.evaluate(() => Solo.board.v3.setFollow(false));
     await page.waitForTimeout(1200);
     const bx = await page.evaluate(() => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const p = Solo.board.v3.project(12, 0, 0, 0.3); return { x: r.left + p.x - c.offsetLeft, y: r.top + p.y - c.offsetTop }; });
@@ -260,7 +266,7 @@ async function solo(browser, base) {
 
   console.log('\n[單機：完整一局打到結算（假時鐘快轉）]');
   const c2 = await browser.newContext({ viewport: { width: 1180, height: 820 } });
-  await preset(c2, { roundLimit: 20, aiCount: 1, difficulty: 'hard', aiDiffs: ['hard', 'hard', 'hard'], reduceMotion: true, fastAnim: true, bgm: false });
+  await preset(c2, { roundLimit: 25, aiCount: 1, difficulty: 'hard', aiDiffs: ['hard', 'hard', 'hard'], reduceMotion: true, fastAnim: true, bgm: false });
   const p2 = await c2.newPage();
   const errs2 = [];
   p2.on('pageerror', e => errs2.push(e.message));

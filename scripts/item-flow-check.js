@@ -53,7 +53,12 @@ const CASES = [ ['fly', 8, '空地（買地）'], ['fly', 16, '對手的地（�
       await page.waitForTimeout(300);
       await page.click('.mc .it-chip.on[data-item="' + item + '"]', { timeout: 3000 }).catch(() => {});
     }
-    if (item === 'fly' || item === 'bomb') {
+    if (item === 'fly') {
+      /* 機票：從面板清單挑格子（不必點 3D 棋盤） */
+      if (arg === 30) { ok(!(await page.$('.mc [data-fsel="30"]')), '去坐牢：清單裡沒有這格'); await page.click('.mc [data-pickcancel]').catch(() => {}); continue; }
+      await page.click('.mc [data-fsel="' + arg + '"]', { timeout: 4000 });
+      await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await page.click('.mc [data-confirm]');
+    } else if (item === 'bomb') {
       await page.waitForTimeout(300);
       const tile = item === 'bomb' ? 16 : arg;
       await page.evaluate(() => Solo.board.v3.setFollow(false));

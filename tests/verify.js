@@ -315,7 +315,7 @@ section('強制收購已取消');
 /* ---------- 回合上限與結束 ---------- */
 section('回合上限與結束');
 {
-  const st = mk(2, { roundLimit: 20 });
+  const st = mk(2, { roundLimit: 25 });
   st.seats[0].cash = 2000;
   let guard = 0;
   while (st.phase !== 'over' && guard++ < 500) {
@@ -325,7 +325,7 @@ section('回合上限與結束');
     else if (st.phase === 'debt') A(st, 'bankrupt');
   }
   ok(st.phase === 'over' && st.reason === 'roundLimit', '到回合上限結束（比總資產）');
-  eq(st.round, 20, '回合數停在上限');
+  eq(st.round, 25, '回合數停在上限');
   ok(st.ranking.length === 2 && st.winner === st.ranking[0], '有完整名次');
   ok(R.publicView(st, 0).phase === 'over' && !!R.publicView(st, 0).ranking, '畫面資料帶名次');
 }
@@ -448,7 +448,7 @@ function sim(seed, levels, opts) {
   for (let g = 0; g < N; g++) {
     const order = levels.slice();
     for (let r = 0; r < g % 4; r++) order.push(order.shift());
-    const { st, stats, rejected: rj } = sim('vs' + g, order, { roundLimit: 30 });
+    const { st, stats, rejected: rj } = sim('vs' + g, order, { roundLimit: 40 });
     if (st.phase !== 'over') stuck++;
     rejected += rj;
     if (st.reason === 'lastStanding') bankruptEnds++;
@@ -468,9 +468,9 @@ function sim(seed, levels, opts) {
   for (let g = 0; g < 6; g++) { const { st } = sim('long' + g, levels, { roundLimit: 0 }); if (st.reason === 'lastStanding') longBk++; }
   ok(longBk >= 1, '不設回合上限時，電腦互打會打到只剩一人（' + longBk + '/6 局靠淘汰結束；30 回合限時局有 ' + anyBankrupt + ' 局有人破產）');
   /* 決定性 */
-  const a = sim('same', ['hard', 'normal', 'easy'], { roundLimit: 20 }), b = sim('same', ['hard', 'normal', 'easy'], { roundLimit: 20 });
+  const a = sim('same', ['hard', 'normal', 'easy'], { roundLimit: 25 }), b = sim('same', ['hard', 'normal', 'easy'], { roundLimit: 25 });
   eq(JSON.stringify(R.publicView(a.st, 0)), JSON.stringify(R.publicView(b.st, 0)), '同 seed、同電腦 → 完全相同的一局（可重現）');
-  const c = sim('other', ['hard', 'normal', 'easy'], { roundLimit: 20 });
+  const c = sim('other', ['hard', 'normal', 'easy'], { roundLimit: 25 });
   ok(JSON.stringify(R.publicView(a.st, 0)) !== JSON.stringify(R.publicView(c.st, 0)), '換 seed → 不同的一局');
   /* 無上限的局最後也會有人破產 */
   const free = sim('free', ['hard', 'hard'], { roundLimit: 0 });
@@ -675,7 +675,7 @@ section('多張地圖與道具商店');
     let bought = 0, stuck = 0;
     ['taiwan56', 'world48', 'park40', 'sea40', 'space40'].forEach((id, k) => {
       for (let g = 0; g < 6; g++) {
-        const { st, stats, steps } = sim('shopsim-' + id + g, ['hard', 'normal', 'easy', 'kid'], { roundLimit: 20, map: id });
+        const { st, stats, steps } = sim('shopsim-' + id + g, ['hard', 'normal', 'easy', 'kid'], { roundLimit: 25, map: id });
         if (st.phase !== 'over') stuck++;
         st.log.forEach(l => { if (/買了「/.test(l.text)) bought++; });
       }
@@ -684,7 +684,7 @@ section('多張地圖與道具商店');
   }
   /* 每張地圖電腦互打：打得完、沒有被拒絕的動作 */
   M.LIST.forEach(m => {
-    const { st, rejected } = sim('mapsim-' + m.id, ['hard', 'normal', 'easy', 'normal'], { roundLimit: 30, map: m.id });
+    const { st, rejected } = sim('mapsim-' + m.id, ['hard', 'normal', 'easy', 'normal'], { roundLimit: 40, map: m.id });
     ok(st.phase === 'over' && rejected === 0, m.id + '：電腦互打打得完（' + st.round + ' 回合），沒有被拒絕的動作（' + rejected + '）');
   });
 }

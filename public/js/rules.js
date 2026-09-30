@@ -50,7 +50,7 @@
     kid: { name: '幼幼班' }, easy: { name: '簡單' }, normal: { name: '普通' }, hard: { name: '困難' }
   };
   const PACES = { slow: 1.5, normal: 1, fast: 0.6 };
-  const ROUND_LIMITS = [0, 20, 30, 40];   /* 0＝沒有上限 */
+  const ROUND_LIMITS = [0, 25, 40, 50];   /* 0＝沒有上限 */
   const PLAYER_COLORS = ['#EF5B5B', '#3F8CFF', '#3DAE6B', '#FFA53D', '#A56BE8', '#1FB8C4', '#F06AB2', '#7A8594'];
 
   /* ---------- 棋盤 ---------- */

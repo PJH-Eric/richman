@@ -88,7 +88,7 @@ async function scrollProblems(page) {
   for (const [name, w, h] of SIZES) {
     console.log('\n[' + name + ' ' + w + '×' + h + ']');
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: w < 900 });
-    await ctx.addInitScript(() => { if (!localStorage.getItem('richman')) localStorage.setItem('richman', JSON.stringify({ seenHelp: true, nickname: '測試員', char: 'otter', reduceMotion: true, bgm: false, aiCount: 7, roundLimit: 20 })); });
+    await ctx.addInitScript(() => { if (!localStorage.getItem('richman')) localStorage.setItem('richman', JSON.stringify({ seenHelp: true, nickname: '測試員', char: 'otter', reduceMotion: true, bgm: false, aiCount: 7, roundLimit: 25 })); });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', e => errs.push(e.message));
     const check = async (label) => { const p = await scrollProblems(page); ok(!p.length, label + (p.length ? '：' + p.join('；') : '')); };

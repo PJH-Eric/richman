@@ -221,8 +221,28 @@
         return out;
       }
       if (canItem && B.pick === 'fly') {
-        out += '<div class="mc-pick"><p class="mc-prompt strong">機票：點棋盤上要飛去的格子（發亮的可以去）</p>' +
-          (B.sel != null ? tileMini(B.sel) + (() => { const h = landHint(v, me, B.sel); return '<p class="mc-hint ' + h[1] + '">' + esc(h[0]) + '</p>'; })() + confirmBtn('飛去「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">還沒選目的地</p>') + cancel + '</div>';
+        /* 機票：在面板裡直接挑格子（分類篩選＋清單），也可以點棋盤上發亮的格子 */
+        const cats = [['all', '全部'], ['buy', '空地'], ['mine', '我的地'], ['foe', '對手的地'], ['spec', '特別格']];
+        const kindOf = i => {
+          const t = T[i], p = v.props[i];
+          if (t.type === 'prop' || t.type === 'station' || t.type === 'utility') return p.owner < 0 ? 'buy' : p.owner === me ? 'mine' : 'foe';
+          return 'spec';
+        };
+        const reach = [];
+        for (let k = 1; k < T.length; k++) { const i = (cur.pos + k) % T.length; if (!R.canUseItem(v, me, 'fly', i)) reach.push(i); }
+        const cnt = {}; reach.forEach(i => { const c = kindOf(i); cnt[c] = (cnt[c] || 0) + 1; });
+        let flt = B.flyFilter || 'all';
+        if (flt !== 'all' && !cnt[flt]) flt = 'all';
+        const list = reach.filter(i => flt === 'all' || kindOf(i) === flt);
+        out += '<div class="mc-pick"><p class="mc-prompt strong">機票：選要飛去的格子</p>' +
+          '<div class="fly-filter" role="tablist" aria-label="格子分類">' + cats.filter(c => c[0] === 'all' || cnt[c[0]]).map(c =>
+            '<button type="button" role="tab" class="fly-f' + (flt === c[0] ? ' on' : '') + '" data-fflt="' + c[0] + '" aria-selected="' + (flt === c[0]) + '">' + c[1] + (c[0] === 'all' ? '' : ' ' + cnt[c[0]]) + '</button>').join('') + '</div>' +
+          '<div class="pcards tilegrid" role="group" aria-label="可以飛去的格子">' + list.map(i => {
+            const t = T[i], h = landHint(v, me, i), col = t.type === 'prop' ? R.GROUPS[t.group].color : '#D9B25C';
+            return '<button type="button" class="tgt-btn tchip' + (B.sel === i ? ' sel' : '') + '" data-fsel="' + i + '" aria-pressed="' + (B.sel === i) + '" style="--band:' + col + '">' +
+              '<i class="tc-band"></i><span class="tc-gl">' + Art.glyph(t.glyph) + '</span><span class="tc-tx"><b>' + esc(t.name) + '</b><small class="' + h[1] + '">' + esc(h[0]) + '</small></span></button>';
+          }).join('') + '</div>' +
+          (B.sel != null ? confirmBtn('飛去「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">點清單或棋盤上發亮的格子；點兩次可看詳細資料</p>') + cancel + '</div>';
         return out;
       }
 
@@ -731,6 +751,16 @@
         const id = it.dataset.item;
         B.pick = B.pick === id ? null : id; B.sel = null;
         drawCenter(B.shown);
+        return;
+      }
+      const ff = ev.target.closest('[data-fflt]');
+      if (ff && B.pick === 'fly') { B.flyFilter = ff.dataset.fflt; drawCenter(B.shown); return; }
+      const fs = ev.target.closest('[data-fsel]');
+      if (fs && !B.sent && B.pick === 'fly') {
+        const i = Number(fs.dataset.fsel);
+        if (B.sel === i) { B.openTile(i, fs); return; }
+        B.sel = i; drawCenter(B.shown);
+        const on = mc.querySelector('.tchip.sel'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
         return;
       }
       const tg = ev.target.closest('[data-tgt]');

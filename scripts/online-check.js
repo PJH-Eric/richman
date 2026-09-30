@@ -58,12 +58,12 @@ async function liveTest() {
   const spec = await client(port, 'key-spec-890', '路人', 'cat');
   ok(host.me && host.me.name === '房主', 'hello 後拿到身分');
 
-  host.send({ type: 'create', max: 3, pace: 'fast', roundLimit: 20 });
+  host.send({ type: 'create', max: 3, pace: 'fast', roundLimit: 25 });
   await host.wait(c => c.room);
   const rid = host.room.id;
   ok(host.room.you.host && host.room.you.role === 'player', '建房者是房主也是玩家');
-  ok(host.room.max === 3 && host.room.pace === 'fast' && host.room.roundLimit === 20, '建房設定生效（人數、節奏、回合上限）');
-  ok(await bob.wait(c => c.lobby.some(r => r.id === rid && r.roundLimit === 20)), '大廳列表看得到新房間與回合上限');
+  ok(host.room.max === 3 && host.room.pace === 'fast' && host.room.roundLimit === 25, '建房設定生效（人數、節奏、回合上限）');
+  ok(await bob.wait(c => c.lobby.some(r => r.id === rid && r.roundLimit === 25)), '大廳列表看得到新房間與回合上限');
 
   const tok = host.room.invite.token;
   bob.send({ type: 'inviteInfo', invite: tok });
@@ -89,7 +89,7 @@ async function liveTest() {
   ok(spec.errors.some(e => /觀戰者/.test(e.text)), '觀戰者不用準備');
   bob.send({ type: 'settings', roundLimit: 0 });
   await bob.wait(c => c.errors.length >= 2);
-  ok(host.room.roundLimit === 20, '玩家不能改回合上限');
+  ok(host.room.roundLimit === 25, '玩家不能改回合上限');
 
   /* 邀請：撤銷與重發 */
   host.send({ type: 'invite', revoke: true });
@@ -134,7 +134,7 @@ async function liveTest() {
   ok(game.props.length === 40 && game.props.every(p => p.owner === -1), '40 格、地都還沒有主人');
   ok(!JSON.stringify(host.room).includes('seed') && !JSON.stringify(host.room).includes('_decks'), '送到瀏覽器的資料沒有 seed 與牌堆');
   ok(spec.room.game && spec.room.you.role === 'spectator', '觀戰者也看到棋盤');
-  ok(game.opts.roundLimit === 20 && game.turnLeftMs > 0, '對局帶入回合上限與回合倒數');
+  ok(game.opts.roundLimit === 25 && game.turnLeftMs > 0, '對局帶入回合上限與回合倒數');
 
   /* 對局中想加入 → 觀戰 */
   const mid = await client(port, 'key-mid-333', '中途', 'shiba');
@@ -204,7 +204,7 @@ function hubTest() {
   const hub = createHub({ now: () => now });
   const a = hub.identify('aaaaaaaa1', '阿明', 'otter');
   const b = hub.identify('bbbbbbbb2', '小華', 'bunny');
-  const { room } = hub.createRoom(a, { max: 4, pace: 'fast', roundLimit: 20 });
+  const { room } = hub.createRoom(a, { max: 4, pace: 'fast', roundLimit: 25 });
   hub.join(b, room.id, 'player');
   ok(hub.addAI(a, 'hard').ok && hub.addAI(a, 'kid').ok, '房主可以加電腦補位（可指定難度）');
   ok(!hub.addAI(a).ok, '座位滿了不能再加電腦');
@@ -217,7 +217,7 @@ function hubTest() {
   ok(hub.startGame(a).ok, '2 真人＋2 電腦開局');
   const st = room.game.state;
   ok(st.seats.filter(x => x.ai).map(x => x.ai).sort().join(',') === 'easy,hard', '開局後每個電腦照各自的難度出手');
-  ok(st.opts.turnMs === TURN_MS.fast && st.opts.roundLimit === 20, '回合倒數與回合上限帶進對局');
+  ok(st.opts.turnMs === TURN_MS.fast && st.opts.roundLimit === 25, '回合倒數與回合上限帶進對局');
 
   /* 兩位真人都不動：想太久 → 代打；連續想太久 → 掛機交給電腦；b 還會斷線 */
   hub.markOffline(b.id);
@@ -245,12 +245,12 @@ function hubTest() {
   const c = hub.identify('cccccccc3', '阿志', 'cat');
   const d = hub.identify('dddddddd4', '小玉', 'koala');
   const r2 = hub.createRoom(c, { max: 4 }).room;
-  ok(r2.roundLimit === 30, '沒指定時回合上限預設 30');
+  ok(r2.roundLimit === 40, '沒指定時回合上限預設 40');
   hub.join(d, r2.id, 'player');
   ok(!hub.settings(d, { roundLimit: 0 }).ok, '只有房主能改回合上限');
-  ok(hub.settings(c, { roundLimit: 40 }).ok && r2.roundLimit === 40, '房主改成 40 回合');
-  ok(!hub.settings(c, { roundLimit: 7 }).ok || r2.roundLimit === 40, '不在選項裡的回合上限不生效');
-  ok(hub.roomView(r2, d.id).roundLimit === 40 && hub.listRooms()[0].roundLimit === 40, '玩家與大廳都看得到回合上限');
+  ok(hub.settings(c, { roundLimit: 50 }).ok && r2.roundLimit === 50, '房主改成 50 回合');
+  ok(!hub.settings(c, { roundLimit: 7 }).ok || r2.roundLimit === 50, '不在選項裡的回合上限不生效');
+  ok(hub.roomView(r2, d.id).roundLimit === 50 && hub.listRooms()[0].roundLimit === 50, '玩家與大廳都看得到回合上限');
   /* 地圖由房主決定 */
   ok(r2.map === 'taiwan40' && hub.roomView(r2, d.id).map === 'taiwan40', '沒指定時地圖預設是寶島一圈');
   ok(!hub.settings(d, { map: 'world48' }).ok, '只有房主能換地圖');
@@ -286,7 +286,7 @@ function hubTest() {
 
   /* 8 人房：上限、滿員、開局 */
   const h1 = hub.identify('hhhhhhh81', '八人房主', 'otter');
-  const r8 = hub.createRoom(h1, { max: 8, pace: 'fast', roundLimit: 20 }).room;
+  const r8 = hub.createRoom(h1, { max: 8, pace: 'fast', roundLimit: 25 }).room;
   ok(r8.max === 8, '房間人數上限可以到 8');
   ok(hub.createRoom(hub.identify('hhhhhhh82', '過量', 'cat'), { max: 12 }).room.max === 8, '超過 8 人的設定會被壓回 8');
   let added = 0;
@@ -309,7 +309,7 @@ function hubTest() {
   /* 線上使用道具：item / tile / target 欄位要能通過伺服器過濾 */
   {
     const p1 = hub.identify('itemtest001', '道具測試', 'otter');
-    const ri = hub.createRoom(p1, { max: 3, pace: 'fast', roundLimit: 20 }).room;
+    const ri = hub.createRoom(p1, { max: 3, pace: 'fast', roundLimit: 25 }).room;
     hub.addAI(p1, 'normal'); hub.addAI(p1, 'normal');
     ok(hub.startGame(p1).ok, '道具測試開局');
     const gs = ri.game.state;
