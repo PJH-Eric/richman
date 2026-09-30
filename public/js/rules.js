@@ -757,16 +757,13 @@
 
   function doRoll(state, si, now, count) {
     const s = state.seats[si];
-    /* 在牢裡不能擲骰子：這個動作只是「待在牢裡」；第 3 回合免罰金出獄，出獄後才能照常擲骰 */
+    /* 在牢裡不能擲骰子：這個動作只是「待在牢裡」；待滿 3 回合就免罰金出獄，下一回合才能擲骰 */
     if (s.jail) {
-      if (s.jailTurns >= 2) {
-        s.jail = false; s.jailTurns = 0;
-        say(state, s.name + ' 關滿 3 回合，免罰金出獄！');
-        state.readyAt = now + holdFor(state, 'roll', 500);
-        return;
-      }
       s.jailTurns++;
-      say(state, s.name + ' 留在牢裡（第 ' + s.jailTurns + '／3 回合），不能擲骰子');
+      if (s.jailTurns >= 3) {
+        s.jail = false; s.jailTurns = 0;
+        say(state, s.name + ' 待滿 3 回合，免罰金出獄！下一回合起可以擲骰子');
+      } else say(state, s.name + ' 留在牢裡（第 ' + s.jailTurns + '／3 回合），不能擲骰子');
       state.phase = 'manage';
       state.readyAt = now + holdFor(state, 'roll', 500);
       return;
