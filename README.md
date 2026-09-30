@@ -59,6 +59,9 @@ Windows 可以直接按兩下 `啟動遊戲.bat`。只玩單機的話，伺服�
 
 ```bash
 npm test               # 規則單元測試＋電腦互打 100 局（不需要瀏覽器）
+npm run test:item-cases # 9 種道具＋商店＋道具欄上限的專屬規則案例（每個參數邊界、護身符互動、6 張地圖每一格都能飛），幾秒跑完
+npm run test:e2e-quick # 平行跑最重要的實機測試（瀏覽器主流程＋道具流程＋線上道具），約 5 分鐘
+npm run test:e2e       # 平行跑全部實機測試（含捲動直／橫向、卡死掃描、地圖）；--jobs=N 調平行度、--only=名稱 只跑某幾項
 npm run test:online    # 啟動真的伺服器，用 WebSocket 測房間、邀請、觀戰、斷線重連
 npm run test:scroll    # Playwright：各尺寸各畫面的捲動檢查（頁面比視窗高就必須能捲）
 npm run test:flow      # 流程卡死模糊測試：400 局隨機操作，任何時刻輪到的人都要有路可走
@@ -70,7 +73,7 @@ npm run test:items     # Playwright 實機：每種道具在各種落點使用�
 npm run test:browser   # Playwright：5 種視窗尺寸、設定彈窗、3D 棋盤、道具、單機一整局、線上流程
 ```
 
-`test:browser` 需要 Playwright 與 Chromium（`npm i -g playwright`），無 GPU 的環境會用軟體 WebGL，比較慢。
+`test:browser` 需要 Playwright 與 Chromium（`npm i -g playwright`），無 GPU 的環境會用軟體 WebGL，比較慢；自動化瀏覽器（navigator.webdriver）會自動使用低畫質 3D（不影響版面），網址加 `?hq` 可關掉。
 
 ## 部署（免費方案）
 

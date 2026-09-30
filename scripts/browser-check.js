@@ -161,6 +161,9 @@ async function solo(browser, base) {
     ok(await page.$$eval('.mc-items .it-chip', e => e.length) === 3, '道具列顯示 3 個道具');
     await page.click('.it-chip[data-item="dice"]');
     ok((await page.$$eval('.mc .pick-btn', e => e.length)) === 6, '遙控骰：出現 1～6 步選單');
+    await page.click('.mc [data-n="3"]');
+    ok(!!(await page.$('.mc [data-confirm]')) && (await page.textContent('.mc .mc-hint')).length > 0, '遙控骰：點點數只預覽（落點說明＋確認鈕），還沒送出');
+    ok(await page.evaluate(() => Solo.board._debug.pick === 'dice' && !Solo.board._debug.sent), '預覽時尚未使用道具');
     await page.click('.mc [data-pickcancel]');
     ok(!(await page.$('.mc .pick-btn')), '「先不用」收起選單');
     await page.click('.it-chip[data-item="fly"]');

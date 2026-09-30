@@ -69,7 +69,7 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
       if (!(await p.waitForSelector('.mc [data-confirm]', { timeout: 1500 }).catch(() => null))) await p.evaluate(t => Online.board.tileClick(t), tile);
       await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 });
       await p.click('.mc [data-confirm]');
-    } else if (item === 'dice') await p.click('.mc [data-n="' + arg + '"]');
+    } else if (item === 'dice') { await p.click('.mc [data-n="' + arg + '"]'); await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await p.click('.mc [data-confirm]'); }
     else { await p.click('.mc .tgt-btn:not([disabled])'); await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await p.click('.mc [data-confirm]'); }
     let btn = null, info = null;
     for (let k = 0; k < 48; k++) {

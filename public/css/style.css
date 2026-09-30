@@ -795,3 +795,9 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 }
 .result-badge { margin-bottom: 20px; }
 @media (max-height: 560px) { .result-badge { margin-bottom: 12px; } }
+
+/* 選遙控骰／機票：選中的點數與落點預覽 */
+.pick-btn.sel { background: #FFE9A8; border-color: #F2A93B; transform: translateY(2px); box-shadow: 0 1px 0 #D99A00; }
+.mc-hint { margin: 0; font-size: .82rem; font-weight: 800; color: var(--ink-soft); text-align: center; }
+.mc-hint.good { color: #1F7A46; }
+.mc-hint.bad { color: #C0392B; }

@@ -28,7 +28,7 @@ let bad = 0;
       const info = await page.evaluate(() => {
         const g = Solo._debug.state, me = g.seats[g.turn].id === 'me';
         const vis = e => e.offsetParent !== null && !e.disabled;
-        const btns = [...document.querySelectorAll('.mc [data-a], .mc [data-item], .mc .pick-btn, .mc [data-pickcancel], .mc [data-inv]')].filter(vis).map(e => e.dataset.a ? 'a:' + e.dataset.a : e.dataset.item ? 'i:' + e.dataset.item : e.dataset.n ? 'n:' + e.dataset.n : e.dataset.inv ? 'inv' : 'cancel');
+        const btns = [...document.querySelectorAll('.mc [data-a], .mc [data-item], .mc .pick-btn, .mc [data-pickcancel], .mc [data-confirm], .mc [data-inv]')].filter(vis).map(e => e.dataset.a ? 'a:' + e.dataset.a : e.dataset.item ? 'i:' + e.dataset.item : e.dataset.n ? 'n:' + e.dataset.n : e.dataset.inv ? 'inv' : e.dataset.confirm ? 'confirm' : 'cancel');
         return { me, phase: g.phase, busy: Solo.board._debug.busy, btns, modal: [...document.querySelectorAll('[role=dialog]')].some(d => d.getClientRects().length > 0 && getComputedStyle(d).visibility !== 'hidden' && !d.closest('[hidden]')), ver: g.version, clock: Solo._debug.clock, paused: !!Solo.paused, cur: g.seats[g.turn].id + ':' + (g.seats[g.turn].ai || 'human'), pend: JSON.stringify(g.pending), html: document.querySelector('.mc') ? document.querySelector('.mc').innerHTML.slice(0, 800) : '' };
       });
       if (info.modal) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); continue; }
@@ -45,7 +45,7 @@ let bad = 0;
       const main = info.btns.filter(b => ['a:roll', 'a:buy', 'a:decline', 'a:endTurn', 'a:settle'].includes(b));
       const pool = Math.random() < 0.6 && main.length ? main : info.btns;
       const pick = pool[Math.floor(Math.random() * pool.length)];
-      const sel = pick.startsWith('a:') ? '.mc [data-a="' + pick.slice(2) + '"]' : pick.startsWith('i:') ? '.mc [data-item="' + pick.slice(2) + '"]' : pick.startsWith('n:') ? '.mc [data-n="' + pick.slice(2) + '"]' : pick === 'inv' ? '.mc [data-inv]' : '.mc [data-pickcancel]';
+      const sel = pick.startsWith('a:') ? '.mc [data-a="' + pick.slice(2) + '"]' : pick.startsWith('i:') ? '.mc [data-item="' + pick.slice(2) + '"]' : pick.startsWith('n:') ? '.mc [data-n="' + pick.slice(2) + '"]' : pick === 'inv' ? '.mc [data-inv]' : pick === 'confirm' ? '.mc [data-confirm]' : '.mc [data-pickcancel]';
       try { await page.click(sel, { timeout: 4000 }); clicks++; }
       catch (e) { bad++; console.log('  ✘ [' + name + '] 按不到 ' + pick + '（被蓋住或停用）：' + e.message.split('\n').slice(0,12).join(' | ')); break; }
       await page.waitForTimeout(80);

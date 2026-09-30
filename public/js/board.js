@@ -111,6 +111,26 @@
         '<span class="mc-tn"><b>' + esc(t.name) + '</b><small>地價 ' + t.price + '・空地租金 ' + rent + '</small></span></div>';
     }
 
+    /** 走到（或飛到）某格會發生什麼事：給選步數／選目的地時預覽用；回傳 [文字, 好壞 good|bad|''] */
+    function landHint(v, me, ti, dice) {
+      const t = T[ti], p = v.props[ti];
+      if (t.type === 'gotojail') return ['被抓去坐牢！', 'bad'];
+      if (t.type === 'tax') return ['要繳稅 ' + t.tax, 'bad'];
+      if (t.type === 'chance' || t.type === 'chest') return ['抽一張卡（好壞都有可能）', ''];
+      if (t.type === 'park') return ['泡溫泉，領一個道具', 'good'];
+      if (t.type === 'shop') return ['道具商店：可以買道具', 'good'];
+      if (t.type === 'jail') return ['只是探監，安全', ''];
+      if (t.type === 'go') return ['起點', ''];
+      if (t.type === 'prop' || t.type === 'station' || t.type === 'utility') {
+        if (p.owner < 0) return ['無人的地，可以買（' + t.price + '）', 'good'];
+        if (p.owner === me) return [t.type === 'prop' && p.houses < R.MAX_HOUSES ? '自己的地，可以加蓋' : '自己的地', 'good'];
+        const seat = v.seats[me];
+        if (seat && seat.items.includes('free')) return ['對手的地，但有免租券可以免付', 'good'];
+        return ['對手的地，要付過路費約 ' + R.rentOf(v, ti, dice || v.dice), 'bad'];
+      }
+      return ['', ''];
+    }
+
     function diceText(d) {
       if (!d[0]) return '';
       if (!d[1]) return '遙控骰：走 ' + d[0] + ' 步';
@@ -154,9 +174,15 @@
       const canItem = mine && v.phase === 'roll' && !cur.jail && !B.busy && !B.sent && opts;
       if (me >= 0) out += itemChips(v.seats[me], canItem, opts || {});
       if (canItem && B.pick === 'dice') {
+        const dn = B.sel;
         out += '<div class="mc-pick"><p class="mc-prompt strong">遙控骰：想走幾步？</p><div class="pick-n">' +
-          [1, 2, 3, 4, 5, 6].map(n => '<button type="button" class="pick-btn" data-n="' + n + '" aria-label="走 ' + n + ' 步">' + Art.dieSvg(n) + '<small>' + tileShort((cur.pos + n) % T.length) + '</small></button>').join('') +
-          '</div><button type="button" class="link-btn" data-pickcancel="1">先不用</button></div>';
+          [1, 2, 3, 4, 5, 6].map(n => '<button type="button" class="pick-btn' + (dn === n ? ' sel' : '') + '" data-n="' + n + '" aria-pressed="' + (dn === n) + '" aria-label="走 ' + n + ' 步：' + esc(T[(cur.pos + n) % T.length].name) + '">' + Art.dieSvg(n) + '<small>' + tileShort((cur.pos + n) % T.length) + '</small></button>').join('') +
+          '</div>';
+        if (dn != null) {
+          const dt = (cur.pos + dn) % T.length, h = landHint(v, me, dt, [dn, 0]);
+          out += tileMini(dt) + '<p class="mc-hint ' + h[1] + '">' + esc(h[0]) + '</p><button type="button" class="btn3d coral" data-confirm="1"' + (B.sent ? ' disabled' : '') + '>走 ' + dn + ' 步！</button>';
+        } else out += '<p class="mc-prompt dim">點一個點數，看看會走到哪裡</p>';
+        out += '<button type="button" class="link-btn" data-pickcancel="1">先不用</button></div>';
         return out;
       }
       if (!B.pick) B.sel = null;
@@ -196,7 +222,7 @@
       }
       if (canItem && B.pick === 'fly') {
         out += '<div class="mc-pick"><p class="mc-prompt strong">機票：點棋盤上要飛去的格子（發亮的可以去）</p>' +
-          (B.sel != null ? tileMini(B.sel) + confirmBtn('飛去「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">還沒選目的地</p>') + cancel + '</div>';
+          (B.sel != null ? tileMini(B.sel) + (() => { const h = landHint(v, me, B.sel); return '<p class="mc-hint ' + h[1] + '">' + esc(h[0]) + '</p>'; })() + confirmBtn('飛去「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">還沒選目的地</p>') + cancel + '</div>';
         return out;
       }
 
@@ -281,7 +307,7 @@
           else if (B.pick === 'fly') for (let i = 0; i < T.length; i++) if (!R.canUseItem(v, me2, 'fly', i)) tg.push(i);
         }
         B.v3.setTargets(tg);
-        if (B.pick && B.sel != null) B.v3.highlight((B.pick === 'steal' || B.pick === 'swap') ? v.seats[B.sel].pos : B.sel);
+        if (B.pick && B.sel != null) B.v3.highlight((B.pick === 'steal' || B.pick === 'swap') ? v.seats[B.sel].pos : B.pick === 'dice' ? (v.seats[me2].pos + B.sel) % T.length : B.sel);
         else if (!B.busy && B.hiPick) B.v3.highlight(-1);
         B.hiPick = !!(B.pick && B.sel != null);
       }
@@ -713,16 +739,13 @@
       if (ts && !B.sent && B.pick === 'bomb') { B.sel = Number(ts.dataset.tsel); drawCenter(B.shown); return; }
       if (ev.target.closest('[data-confirm]') && !B.sent && B.pick && B.sel != null) {
         const id = B.pick, sel = B.sel; B.pick = null; B.sel = null;
-        if (id === 'steal' || id === 'swap') send({ type: 'useItem', item: id, target: sel });
+        if (id === 'dice') send({ type: 'useItem', item: 'dice', n: sel });
+        else if (id === 'steal' || id === 'swap') send({ type: 'useItem', item: id, target: sel });
         else send({ type: 'useItem', item: id, tile: sel });
         return;
       }
       const pn = ev.target.closest('[data-n]');
-      if (pn && !B.sent) {
-        B.pick = null;
-        send({ type: 'useItem', item: 'dice', n: Number(pn.dataset.n) });
-        return;
-      }
+      if (pn && !B.sent && B.pick === 'dice') { B.sel = Number(pn.dataset.n); drawCenter(B.shown); return; }
       if (ev.target.closest('[data-pickcancel]')) { B.pick = null; B.sel = null; drawCenter(B.shown); return; }
       const sh = ev.target.closest('[data-shop]');
       if (sh && !sh.disabled && !B.sent) { sh.disabled = true; send({ type: 'shopBuy', item: sh.dataset.shop }); return; }

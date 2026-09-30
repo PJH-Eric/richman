@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node tests/verify.js",
+    "test:item-cases": "node tests/items.js",
     "test:online": "node scripts/online-check.js",
     "test:browser": "node scripts/browser-check.js",
     "test:scroll": "node scripts/scroll-check.js",
@@ -14,6 +15,8 @@
     "test:maps": "node scripts/map-check.js",
     "test:items": "node scripts/item-flow-check.js",
     "test:online-items": "node scripts/online-item-check.js",
+    "test:e2e": "node scripts/run-e2e.js",
+    "test:e2e-quick": "node scripts/run-e2e.js --quick",
     "test:fuzz": "node scripts/deep-fuzz.js",
     "test:stall": "node scripts/ui-stall-check.js",
     "verify": "node tests/verify.js && node scripts/online-check.js && node scripts/browser-check.js",

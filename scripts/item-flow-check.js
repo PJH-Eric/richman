@@ -70,7 +70,7 @@ const CASES = [ ['fly', 8, '空地（買地）'], ['fly', 16, '對手的地（�
       }
       await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 });
       await page.click('.mc [data-confirm]');
-    } else if (item === 'dice') await page.click('.mc [data-n="' + arg + '"]');
+    } else if (item === 'dice') { await page.click('.mc [data-n="' + arg + '"]'); await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await page.click('.mc [data-confirm]'); }
     else { await page.click('.mc .tgt-btn:not([disabled])'); await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await page.click('.mc [data-confirm]'); }
     /* 用完之後：最多 12 秒內要出現一個可以按的主線按鈕 */
     let btn = null, info = null;
