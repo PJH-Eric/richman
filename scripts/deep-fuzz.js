@@ -7,7 +7,7 @@ let bad = 0, games = 0, moves = 0, endings = {}, usedItems = {};
 const SEEDS = Number(process.env.FUZZ_GAMES || 300);
 function rnd(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const fail = (m) => { bad++; if (bad < 25) console.log('✘ ' + m); };
-function snap(st) { return JSON.stringify({ t: st.turn, p: st.phase, v: st.version, s: st.seats.map(s => [s.cash, s.pos, s.items, s.god, s.jail, s.bankrupt]), pr: st.props, pend: st.pending, ag: st.again }); }
+function snap(st) { return JSON.stringify({ t: st.turn, p: st.phase, v: st.version, s: st.seats.map(s => [s.cash, s.pos, s.items, s.god, s.jail, s.bankrupt]), pr: st.props, pend: st.pending }); }
 function invariants(st, g) {
   const T = R.tl(st), n = st.seats.length;
   st.seats.forEach((s, i) => {
@@ -34,8 +34,8 @@ function invariants(st, g) {
 for (let g = 0; g < SEEDS; g++) {
   const rand = rnd(g * 7 + 3), n = 2 + Math.floor(rand() * 7);
   const ps = []; for (let i = 0; i < n; i++) ps.push({ id: 'p' + i, name: 'P' + i, char: 'otter' });
-  const mapId = R.MAPS.LIST[g % R.MAPS.LIST.length].id;
-  const st = R.create(ps, { seed: 'd' + g, roundLimit: 25, map: mapId });
+  const mapSize = R.MAPS.SIZES[g % R.MAPS.SIZES.length];
+  const st = R.create(ps, { seed: 'd' + g, roundLimit: 25, mapSize });
   /* 讓道具一開始就很多，才測得到 */
   st.seats.forEach(s => { while (s.items.length < 3) s.items.push(R.ITEM_LIST[Math.floor(rand() * R.ITEM_LIST.length)]); });
   let now = 0, stall = 0, last = '';
@@ -47,15 +47,18 @@ for (let g = 0; g < SEEDS; g++) {
     const o = R.options(st, id);
     /* 列出所有「options 說可以」的動作 */
     const acts = [];
-    ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].forEach(k => { if (o[k]) acts.push({ type: k }); });
+    ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].forEach(k => { if (o[k]) acts.push(k === 'roll' ? { type: 'roll', dice: rand() < 0.5 ? 1 : 2 } : { type: k }); });
     ['build', 'sell', 'buyout'].forEach(k => o[k].forEach(t => acts.push({ type: k, tile: t })));
-    if (o.dice) for (let k = 1; k <= 6; k++) acts.push({ type: 'useItem', item: 'dice', n: k });
+    if (o.dice) for (let k = 1; k <= 12; k++) acts.push({ type: 'useItem', item: 'dice', n: k });
+    if (o.loan) acts.push({ type: 'useItem', item: 'loan' });
+    if (o.upgrade) R.itemTargets(st, si, 'upgrade').forEach(t => acts.push({ type: 'useItem', item: 'upgrade', tile: t }));
+    if (o.sellItems) o.sellItems.forEach(x => acts.push({ type: 'shopSell', item: x.item }));
     if (o.fly) R.itemTargets(st, si, 'fly').forEach(t => acts.push({ type: 'useItem', item: 'fly', tile: t }));
-    ['steal', 'swap'].forEach(k => { if (o[k]) R.itemTargets(st, si, k).forEach(t => acts.push({ type: 'useItem', item: k, target: t })); });
+    ['steal', 'swap', 'freeze'].forEach(k => { if (o[k]) R.itemTargets(st, si, k).forEach(t => acts.push({ type: 'useItem', item: k, target: t })); });
     if (o.shop && o.shop.length) o.shop.forEach(x => { if (x.can) acts.push({ type: 'shopBuy', item: x.item }); });
     if (o.bomb) R.itemTargets(st, si, 'bomb').forEach(t => acts.push({ type: 'useItem', item: 'bomb', tile: t }));
     ['free', 'cat', 'taxfree', 'guard'].forEach(k => { if (s.items.includes(k) && R.canUseItem && !R.canUseItem(st, si, k)) acts.push({ type: 'useItem', item: k }); });
-    const main = acts.filter(a => !['sell', 'buyout', 'useItem', 'shopBuy', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
+    const main = acts.filter(a => !['sell', 'buyout', 'useItem', 'shopBuy', 'shopSell', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
     if (!(o.roll || o.decline || o.buy || o.settle || o.bankrupt || o.endTurn)) { fail('卡死：局' + g + ' 階段 ' + st.phase + ' 沒有主要動作'); break; }
     const side = acts.filter(a => !main.includes(a));
     const a = rand() < 0.4 && side.length ? side[Math.floor(rand() * side.length)] : main.length ? main[Math.floor(rand() * main.length)] : { type: 'bankrupt' };
@@ -63,12 +66,13 @@ for (let g = 0; g < SEEDS; g++) {
     const r = R.act(st, id, a, now);
     moves++;
     if (!r.ok) fail('局' + g + ' options 說可以、act 卻拒絕：階段 ' + st.phase + ' ' + JSON.stringify(a) + ' → ' + (r.err || r.msg || r.reason || JSON.stringify(r)));
+    else if (a.type === 'shopSell') usedItems.shopSell = (usedItems.shopSell || 0) + 1;
     else if (a.type === 'shopBuy') usedItems.shopBuy = (usedItems.shopBuy || 0) + 1;
     else if (a.type === 'useItem') usedItems[a.item] = (usedItems[a.item] || 0) + 1;
     /* 亂丟不合法動作：必須被拒絕且不改動狀態 */
     if (rand() < 0.25) {
-      const junk = [{ type: 'shopBuy', item: 'bomb' }, { type: 'shopBuy', item: 'zzz' }, { type: 'buy' }, { type: 'build', tile: 1 }, { type: 'useItem', item: 'steal', target: 99 }, { type: 'useItem', item: 'fly', tile: -3 }, { type: 'useItem', item: 'bomb', tile: 'x' },
-        { type: 'useItem', item: 'nope' }, { type: 'settle' }, { type: 'mortgage', tile: 39 }, { type: 'buyout', tile: 1 }, { type: 'endTurn' }, { type: 'roll' }, { type: 'zzz' }, {}][Math.floor(rand() * 15)];
+      const junk = [{ type: 'shopBuy', item: 'bomb' }, { type: 'shopBuy', item: 'zzz' }, { type: 'shopSell', item: 'zzz' }, { type: 'roll', dice: 7 }, { type: 'useItem', item: 'dice', n: 13 }, { type: 'useItem', item: 'freeze', target: 99 }, { type: 'useItem', item: 'upgrade', tile: 'q' }, { type: 'buy' }, { type: 'build', tile: 1 }, { type: 'useItem', item: 'steal', target: 99 }, { type: 'useItem', item: 'fly', tile: -3 }, { type: 'useItem', item: 'bomb', tile: 'x' },
+        { type: 'useItem', item: 'nope' }, { type: 'settle' }, { type: 'mortgage', tile: 39 }, { type: 'buyout', tile: 1 }, { type: 'endTurn' }, { type: 'roll' }, { type: 'zzz' }, {}][Math.floor(rand() * 20)];
       const who = rand() < 0.5 ? id : st.seats[(si + 1) % st.seats.length].id;
       const o2 = R.options(st, who), b2 = snap(st);
       const legal = (junk.type === 'build' && o2.build.includes(junk.tile)) || (junk.type === 'shopBuy' && (o2.shop || []).some(x => x.can && x.item === junk.item)) || (junk.type === 'buy' && o2.buy) || (junk.type === 'endTurn' && o2.endTurn) || (junk.type === 'roll' && o2.roll) || (junk.type === 'settle' && o2.settle);

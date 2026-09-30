@@ -17,6 +17,7 @@ const only = (flag('only') || '').split(',').filter(Boolean);
 
 const ALL = [
   { name: 'browser', file: 'browser-check.js', quick: true },
+  { name: 'shop', file: 'shop-check.js', quick: true },
   { name: 'items', file: 'item-flow-check.js', quick: true },
   { name: 'online-items', file: 'online-item-check.js', quick: true },
   { name: 'scroll-portrait', file: 'scroll-check.js', env: { SCROLL_ONLY: '直向' } },

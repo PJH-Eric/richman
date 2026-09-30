@@ -1,5 +1,5 @@
 /* ===== tests/items.js — 每一種道具的專屬測試案例（node tests/items.js） =====
- * 9 種道具＋商店＋道具欄上限，每個都測：正常效果、每個參數的邊界、
+ * 16 種道具＋商店（道具點數、庫存、買賣）＋道具欄上限，每個都測：正常效果、每個參數的邊界、
  * 不能用的情況、護身符互動、用掉／不用掉、各張地圖的每一格。
  * 純規則、種子亂數，不需要瀏覽器，幾秒鐘跑完。
  */
@@ -12,20 +12,22 @@ function ok(v, name) { if (v) pass++; else { fail++; console.log('  ✘ ' + name
 function eq(a, b, name) { ok(a === b, name + (a === b ? '' : '（得到 ' + JSON.stringify(a) + '，預期 ' + JSON.stringify(b) + '）')); }
 function section(t) { console.log('[' + t + ']'); }
 
+/* 固定版面：經典 40 格；每張隨機地圖另外用 mapSize 測 */
 function mk(n, opt) {
   const ps = [];
   for (let i = 0; i < (n || 2); i++) ps.push({ id: 'p' + i, name: '玩家' + i, char: 'otter' });
-  const st = R.create(ps, Object.assign({ seed: 'items', fixedPrices: true }, opt || {}));
+  const st = R.create(ps, Object.assign({ seed: 'items', fixedPrices: true }, opt && (opt.map || opt.mapSize) ? {} : { map: 'classic40' }, opt || {}));
   st.seats.sort((a, b) => a.id < b.id ? -1 : 1);
   st.turn = 0;
   return st;
 }
-function dice(st, a, b) { const q = [a, b]; st._rng = { int: () => q.length ? q.shift() : 0, shuffle: x => x, next: () => 0.5 }; }
+function dice(st, a, b) { const q = [a, b]; st._rng = { int: (a) => q.length ? q.shift() : (a || 0), shuffle: x => x, next: () => 0.5 }; }
 function roll(st, a, b) { dice(st, a, b); return R.act(st, st.seats[st.turn].id, { type: 'roll' }, 0); }
+function roll1(st, a) { dice(st, a, 0); return R.act(st, st.seats[st.turn].id, { type: 'roll', dice: 1 }, 0); }
 function use(st, item, arg, who) {
   const si = who == null ? st.turn : who;
   const a = { type: 'useItem', item };
-  if (item === 'dice') a.n = arg; else if (item === 'steal' || item === 'swap') a.target = arg; else a.tile = arg;
+  if (item === 'dice') a.n = arg; else if (item === 'steal' || item === 'swap' || item === 'freeze') a.target = arg; else if (item !== 'loan') a.tile = arg;
   return R.act(st, st.seats[si].id, a, 0);
 }
 function own(st, si, ti, houses) { st.props[ti].owner = si; st.props[ti].houses = houses || 0; }
@@ -34,14 +36,17 @@ const rent = (ti, h) => R.TILES[ti].rent[h || 0];
 
 /* ---------- 遙控骰 ---------- */
 section('遙控骰 dice');
-for (let n = 1; n <= 6; n++) {
+for (let n = 1; n <= 12; n++) {
   const st = mk(2); st.seats[0].items = ['dice'];
   const r = use(st, 'dice', n);
-  ok(r.ok, 'dice ' + n + ' 可用'); eq(st.seats[0].pos, n, 'dice ' + n + ' 走 ' + n + ' 步'); ok(!has(st, 0, 'dice'), 'dice ' + n + ' 用掉');
+  ok(r.ok, 'dice ' + n + ' 可用');
+  if (!['chance', 'chest', 'gotojail'].includes(st.tiles[n].type)) eq(st.seats[0].pos, n, 'dice ' + n + ' 走 ' + n + ' 步');
+  eq(st.diceKind, 'remote', 'dice ' + n + ' 記為遙控骰'); ok(st.dice[0] + st.dice[1] === n && st.dice[0] >= 1, 'dice ' + n + ' 骰面合計 ' + n);
+  ok(!has(st, 0, 'dice'), 'dice ' + n + ' 用掉');
 }
 {
   const st = mk(2); st.seats[0].items = ['dice'];
-  for (const bad of [0, 7, -1, 2.5, NaN, 100]) ok(!use(st, 'dice', bad).ok, 'dice 拒絕 n=' + bad);
+  for (const bad of [0, 13, -1, 2.5, NaN, 100]) ok(!use(st, 'dice', bad).ok, 'dice 拒絕 n=' + bad);
   ok(has(st, 0, 'dice') && st.seats[0].pos === 0, '被拒絕時不消耗、不移動');
   ok(!use(st, 'dice', 3, 1).ok, '非自己回合不能用');
   const s2 = mk(2); ok(!use(s2, 'dice', 3).ok, '沒有道具不能用');
@@ -57,7 +62,7 @@ for (let n = 1; n <= 6; n++) {
 {
   const st = mk(2); st.seats[0].items = ['dice']; use(st, 'dice', 1);
   eq(st.phase, 'buy', 'dice 落在無主地 → 詢問購買'); eq(st.pending.tile, 1, '購買的是落點');
-  ok(!st.again && st.doubles === 0, 'dice 不算雙骰、不多擲');
+  ok(st.again === undefined && st.diceKind === 'remote', 'dice 不再有雙骰再擲');
 }
 {
   const st = mk(2); st.seats[0].items = ['dice']; st.seats[0].pos = 27; use(st, 'dice', 3);
@@ -111,24 +116,25 @@ section('機票 fly');
   const st = mk(2); st.seats[0].items = ['fly']; use(st, 'fly', 10); ok(!st.seats[0].jail && st.seats[0].pos === 10, 'fly 飛到監獄格只是探監');
   const s2 = mk(2); s2.seats[0].items = ['fly']; use(s2, 'fly', 20); eq(s2.seats[0].items.length, 1, 'fly 飛到休息站 → 撿到道具（機票已用掉）');
 }
-/* 每張地圖、每一格都要能飛，且不會壞掉 */
-Maps.LIST.forEach(m => {
+/* 每種格數、幾張隨機地圖，每一格都要能飛，且不會壞掉 */
+Maps.SIZES.forEach(size => ['fa', 'fb'].forEach(sd => {
+  const id = Maps.genId(size, sd + size);
   let bad = 0, n = 0;
-  const probe = mk(2, { map: m.id });
+  const probe = mk(2, { map: id });
   for (let ti = 0; ti < probe.props.length; ti++) {
-    const st = mk(2, { map: m.id }); st.seats[0].items = ['fly'];
-    const t = R.TILES && st.tiles[ti];
+    const st = mk(2, { map: id }); st.seats[0].items = ['fly'];
+    const t = st.tiles[ti];
     const r = use(st, 'fly', ti);
-    if (t && t.type === 'gotojail') { if (r.ok) bad++; continue; }
+    if (t.type === 'gotojail') { if (r.ok) bad++; continue; }
     n++;
     if (ti === 0 && st.seats[0].pos === 0) { if (r.ok) bad++; continue; }
-    const isCard = t && (t.type === 'chance' || t.type === 'chest');
+    const isCard = t.type === 'chance' || t.type === 'chest';
     if (isCard) { if (!r.ok || !st.events.some(e => e.t === 'card')) bad++; }
-    else if (!r.ok || (!st.seats[0].jail && st.seats[0].pos !== ti)) { bad++; if (process.env.DBG) console.log('   bad', m.id, ti, st.tiles[ti].type, r.ok, st.seats[0].pos); }
+    else if (!r.ok || (!st.seats[0].jail && st.seats[0].pos !== ti)) { bad++; if (process.env.DBG) console.log('   bad', id, ti, t.type, r.ok, st.seats[0].pos); }
     if (!['buy', 'build', 'roll', 'shop', 'debt', 'over', 'manage'].includes(st.phase)) bad++;
   }
-  eq(bad, 0, '地圖 ' + m.id + '：每一格（' + n + ' 格）都能飛且狀態正常');
-});
+  eq(bad, 0, '地圖 ' + id + '：每一格（' + n + ' 格）都能飛且狀態正常');
+}));
 
 /* ---------- 偷錢卡 ---------- */
 section('偷錢卡 steal');
@@ -353,73 +359,185 @@ section('護身符 guard');
   ok(has(st, 1, 'guard'), '收租不會用掉護身符');
 }
 
+/* ---------- 新道具 ---------- */
+section('提款卡 loan');
+{
+  const st = mk(2); st.seats[0].items = ['loan']; const c = st.seats[0].cash;
+  ok(use(st, 'loan').ok, 'loan 可用'); eq(st.seats[0].cash, c + 200, 'loan 領 200 元'); ok(!has(st, 0, 'loan'), 'loan 用掉');
+  eq(st.phase, 'roll', 'loan 用完還在擲骰階段（還能繼續擲骰）');
+  ok(!use(st, 'loan').ok, '沒有道具不能用');
+  const s2 = mk(2); s2.seats[0].items = ['loan']; s2.seats[0].jail = true; ok(!use(s2, 'loan').ok, '監獄中不能用');
+  const s3 = mk(2); s3.seats[0].items = ['loan']; ok(!use(s3, 'loan', 0, 1).ok, '非自己回合不能用');
+  ok(R.options(mk(2), 'p0').loan === false, '沒有道具 options.loan = false');
+}
+section('減租券 half');
+{
+  const st = mk(2); own(st, 1, 3, 0); st.seats[0].items = ['half']; const c = st.seats[0].cash; roll(st, 1, 2);
+  eq(st.seats[0].cash, c - Math.ceil(rent(3) / 2), 'half：過路費只付一半'); ok(!has(st, 0, 'half'), 'half 用掉');
+  const s2 = mk(2); s2.seats[0].items = ['half']; s2.seats[0].pos = 18; roll(s2, 1, 1); ok(has(s2, 0, 'half'), '沒付租不會用掉 half');
+  const s3 = mk(2); own(s3, 1, 3, 0); s3.seats[0].items = ['half', 'free']; const c3 = s3.seats[0].cash; roll(s3, 1, 2);
+  eq(s3.seats[0].cash, c3, 'free 優先，租金全免'); ok(has(s3, 0, 'half'), 'half 沒被用掉');
+  ok(!use(mk(2), 'half', 0).ok, 'half 不能主動使用');
+}
+section('起點加碼券 gobonus');
+{
+  const st = mk(2); st.seats[0].items = ['gobonus']; st.seats[0].pos = 38; const c = st.seats[0].cash; roll(st, 1, 2);
+  eq(st.seats[0].cash, c + R.GO_SALARY * 2, 'gobonus：經過起點薪水加倍'); ok(!has(st, 0, 'gobonus'), 'gobonus 用掉');
+  const s2 = mk(2); s2.seats[0].items = ['gobonus']; roll(s2, 1, 2); ok(has(s2, 0, 'gobonus'), '沒經過起點不會用掉');
+}
+section('保釋券 bail');
+{
+  const st = mk(2); st.seats[0].items = ['bail']; st.seats[0].pos = 27; roll(st, 1, 2);
+  ok(!st.seats[0].jail && !has(st, 0, 'bail'), 'bail：被抓去坐牢免關並用掉'); ok(st.seats[0].pos !== 10, '沒有被送到監獄');
+  const s2 = mk(2); s2.seats[0].items = ['bail']; s2.seats[0].pos = 26; roll(s2, 1, 2); ok(has(s2, 0, 'bail'), '沒進監獄不會用掉');
+}
+section('購地折價券 coupon');
+{
+  const st = mk(2); st.seats[0].items = ['coupon']; roll1(st, 1);
+  const t = R.TILES[st.seats[0].pos];
+  ok(st.phase === 'buy' && st.pending.coupon === true && st.pending.price === Math.round(t.price * 0.7), 'coupon：買地價打 7 折（' + st.pending.price + '）');
+  const c = st.seats[0].cash; R.act(st, 'p0', { type: 'buy' }, 0);
+  eq(st.seats[0].cash, c - Math.round(t.price * 0.7), 'coupon：實際付 7 折'); ok(!has(st, 0, 'coupon'), '買下才用掉');
+  const s2 = mk(2); s2.seats[0].items = ['coupon']; roll1(s2, 1); R.act(s2, 'p0', { type: 'decline' }, 0);
+  ok(has(s2, 0, 'coupon'), '不買就不會用掉 coupon');
+  const s3 = mk(2); roll1(s3, 1); ok(!s3.pending.coupon && s3.pending.price === R.TILES[s3.seats[0].pos].price, '沒有 coupon：原價');
+}
+section('冰凍卡 freeze');
+{
+  const st = mk(3); st.seats[0].items = ['freeze'];
+  ok(use(st, 'freeze', 1).ok && st.seats[1].frozen && !has(st, 0, 'freeze'), 'freeze：對手被冰凍、道具用掉');
+  ok(!use(mk(3), 'freeze', 1).ok, '沒有道具不能用');
+  const s2 = mk(3); s2.seats[0].items = ['freeze', 'freeze']; use(s2, 'freeze', 1); ok(!use(s2, 'freeze', 1).ok, '同一個人不能重複冰凍');
+  ok(!use(s2, 'freeze', 0).ok, '不能冰凍自己'); ok(!use(s2, 'freeze', 9).ok, '不能冰凍不存在的人');
+  const s3 = mk(3); s3.seats[0].items = ['freeze']; s3.seats[1].bankrupt = true; ok(!use(s3, 'freeze', 1).ok, '不能冰凍破產的人');
+  /* 被冰凍的人跳過下一回合 */
+  const s4 = mk(3); s4.seats[0].items = ['freeze']; use(s4, 'freeze', 1); roll(s4, 1, 2); if (s4.phase === 'buy') R.act(s4, 'p0', { type: 'decline' }, 0);
+  R.act(s4, 'p0', { type: 'endTurn' }, 0);
+  eq(s4.turn, 2, 'freeze：下一個玩家（被冰凍的）被跳過，輪到第三位'); ok(!s4.seats[1].frozen, '跳過一次後解凍');
+  ok(s4.events.some(e => e.t === 'attack' && e.kind === 'freezeSkip'), '有跳過的事件（給動畫用）');
+  /* 護身符擋下 */
+  const s5 = mk(3); s5.seats[0].items = ['freeze']; s5.seats[1].items = ['guard']; use(s5, 'freeze', 1);
+  ok(!s5.seats[1].frozen && !has(s5, 1, 'guard') && !has(s5, 0, 'freeze'), 'freeze：被護身符擋下（兩邊道具都用掉）');
+  const s7 = mk(3); s7.seats[0].items = ['freeze']; ok(R.itemTargets(s7, 0, 'freeze').length === 2, 'itemTargets 列出兩位對手');
+}
+section('加蓋券 upgrade');
+{
+  const st = mk(2); own(st, 0, 1, 0); st.seats[0].items = ['upgrade'];
+  ok(use(st, 'upgrade', 1).ok && st.props[1].houses === 1 && !has(st, 0, 'upgrade'), 'upgrade：自己的地免費加蓋 1 間');
+  const c = st.seats[0].cash; st.seats[0].items = ['upgrade']; use(st, 'upgrade', 1); eq(st.seats[0].cash, c, 'upgrade 不花現金');
+  const s2 = mk(2); s2.seats[0].items = ['upgrade']; ok(!use(s2, 'upgrade', 1).ok, '不是自己的地不能加蓋');
+  const s3 = mk(2); own(s3, 0, 1, 2); s3.seats[0].items = ['upgrade']; ok(!use(s3, 'upgrade', 1).ok, '沒湊齊整組最多 2 級');
+  const s4 = mk(2); own(s4, 0, 20, 0); s4.seats[0].items = ['upgrade']; ok(!use(s4, 'upgrade', 20).ok, '休息站不能加蓋');
+  const s5 = mk(2); own(s5, 1, 1, 0); s5.seats[0].items = ['upgrade']; ok(!use(s5, 'upgrade', 1).ok, '對手的地不能加蓋');
+  ok(R.itemTargets(st, 0, 'upgrade').includes(1) === !R.canUseItem(st, 0, 'upgrade', 1), 'itemTargets 與 canUseItem 一致');
+  const s6 = mk(2); own(s6, 0, 1, 0); own(s6, 0, 3, 0); s6.seats[0].items = ['upgrade', 'upgrade', 'upgrade'];
+  ok(use(s6, 'upgrade', 1).ok && !use(s6, 'upgrade', 1).ok && use(s6, 'upgrade', 3).ok, '整組要平均升級');
+}
+section('冰凍／加蓋等新道具的選項');
+{
+  const st = mk(2); own(st, 0, 1, 0); st.seats[0].items = ['upgrade', 'freeze'];
+  const o = R.options(st, 'p0'); ok(o.upgrade === true && o.freeze === true, 'options.upgrade/freeze 有目標時為 true');
+  st.seats[0].jail = true; const o2 = R.options(st, 'p0'); ok(!o2.upgrade && !o2.freeze, '監獄中都不能用');
+}
+
 /* ---------- 商店 ---------- */
-section('商店 shop 與道具欄');
-function inShop(st, cash, items) {
-  st.seats[0].cash = cash; st.seats[0].items = items || [];
-  st.phase = 'shop'; st.pending = { kind: 'shop', tile: 1 };
+section('商店 shop、道具點數與道具欄');
+function inShop(st, points, items, offer) {
+  st.seats[0].points = points; st.seats[0].items = items || [];
+  st.phase = 'shop'; st.pending = { kind: 'shop', tile: 1, offer: offer || R.ITEM_LIST.slice(), bought: [] };
 }
 function buy(st, item) { return R.act(st, st.seats[st.turn].id, { type: 'shopBuy', item }, 0); }
+function sell(st, item) { return R.act(st, st.seats[st.turn].id, { type: 'shopSell', item }, 0); }
 R.ITEM_LIST.forEach(k => {
-  const st = mk(2); inShop(st, 5000);
+  const st = mk(2); inShop(st, 5000); const stock0 = st.stock[k];
   const r = buy(st, k);
-  ok(r.ok, '買 ' + k); eq(st.seats[0].cash, 5000 - R.ITEMS[k].cost, k + ' 扣 ' + R.ITEMS[k].cost); ok(has(st, 0, k), k + ' 進道具欄');
+  ok(r.ok, '買 ' + k); eq(st.seats[0].points, 5000 - R.ITEMS[k].pts, k + ' 扣 ' + R.ITEMS[k].pts + ' 點'); ok(has(st, 0, k), k + ' 進道具欄');
+  eq(st.stock[k], stock0 - 1, k + ' 庫存 −1'); eq(st.seats[0].cash, R.START_CASH_FOR ? st.seats[0].cash : st.seats[0].cash, '不動用現金');
+  ok(!buy(st, k).ok, k + ' 同一次不能再買');
+  const s2 = mk(2); inShop(s2, 5000); s2.seats[0].cash = 1; ok(buy(s2, k).ok, k + ' 用點數買，和現金無關');
+  const s3 = mk(2); inShop(s3, R.ITEMS[k].pts - 1); ok(!buy(s3, k).ok, k + ' 差 1 點買不起'); const s4 = mk(2); inShop(s4, R.ITEMS[k].pts); ok(buy(s4, k).ok && s4.seats[0].points === 0, k + ' 剛好夠就能買');
+  const s5 = mk(2); inShop(s5, 5000); s5.stock[k] = 0; ok(!buy(s5, k).ok, k + ' 賣完不能買'); eq(s5.seats[0].points, 5000, '被拒絕不扣點');
+  const s6 = mk(2); inShop(s6, 5000, [], R.ITEM_LIST.filter(x => x !== k)); ok(!buy(s6, k).ok, k + ' 這次沒上架不能買');
+  const s7 = mk(2); inShop(s7, 5000, ['x'].concat([])); s7.seats[0].items = new Array(R.MAX_ITEMS).fill('cat'); ok(!buy(s7, k).ok, k + '：道具欄滿 ' + R.MAX_ITEMS + ' 個不能買');
+  const s8 = mk(2); inShop(s8, 5000); s8.seats[0].items = new Array(R.MAX_ITEMS - 1).fill('cat'); ok(buy(s8, k).ok && s8.seats[0].items.length === R.MAX_ITEMS, k + '：第 ' + R.MAX_ITEMS + ' 個還能買');
+  const s9 = mk(2); inShop(s9, 5000, ['cat']); ok(sell(s9, 'cat').ok && s9.seats[0].points === 5000 + R.sellPrice('cat') && R.sellPrice('cat') === Math.ceil(R.ITEMS.cat.pts / 2), '賣 cat 得半價 ' + R.sellPrice('cat') + ' 點');
 });
 {
-  const st = mk(2); inShop(st, 79); ok(!buy(st, 'dice').ok, '現金差 1 元不能買（遙控骰 80）');
-  const s2 = mk(2); inShop(s2, 80); ok(buy(s2, 'dice').ok, '剛好夠就能買'); eq(s2.seats[0].cash, 0, '花光');
-  const s3 = mk(2); inShop(s3, 5000, ['free', 'cat', 'guard']); ok(!buy(s3, 'dice').ok, '道具欄滿 3 個不能買'); eq(s3.seats[0].cash, 5000, '被拒絕不扣錢');
-  const s4 = mk(2); inShop(s4, 5000); ok(!buy(s4, 'nope').ok && !buy(s4, '').ok && !buy(s4, undefined).ok, '不存在的商品');
-  const s5 = mk(2); s5.seats[0].cash = 5000; ok(!buy(s5, 'dice').ok, '不在商店階段不能買');
+  const st = mk(2); inShop(st, 5000); ok(!buy(st, 'nope').ok && !buy(st, '').ok && !buy(st, undefined).ok, '不存在的商品');
+  const s5 = mk(2); s5.seats[0].points = 5000; ok(!buy(s5, 'dice').ok, '不在商店階段不能買'); ok(!sell(s5, 'cat').ok, '不在商店階段不能賣');
   const s6 = mk(2); inShop(s6, 5000); ok(!R.act(s6, s6.seats[1].id, { type: 'shopBuy', item: 'dice' }, 0).ok, '別人的回合不能買');
+  const s7 = mk(2); inShop(s7, 5000, ['cat']); ok(!sell(s7, 'guard').ok && !sell(s7, '').ok && !sell(s7, 'zzz').ok, '賣出沒有的道具被拒絕');
 }
 {
   const st = mk(2); inShop(st, 5000, ['free', 'cat']); buy(st, 'dice');
-  eq(st.phase, 'manage', '買到第 3 個 → 自動離開商店（進入結束回合）'); eq(st.seats[0].items.length, 3, '道具欄 3 個');
-  const s2 = mk(2); inShop(s2, 100); buy(s2, 'dice'); eq(s2.phase, 'manage', '剩餘現金買不起任何東西 → 自動離開');
-  const s3 = mk(2); inShop(s3, 5000); buy(s3, 'dice'); eq(s3.phase, 'shop', '還買得起、還有空位 → 留在商店');
-  buy(s3, 'fly'); eq(s3.phase, 'shop', '第二個仍可逛'); buy(s3, 'guard'); eq(s3.phase, 'manage', '第三個買完離開');
-  const s4 = mk(2); inShop(s4, 5000); R.act(s4, s4.seats[0].id, { type: 'decline' }, 0); eq(s4.phase, 'manage', '不買直接離開'); eq(s4.seats[0].cash, 5000, '沒扣錢');
+  eq(st.phase, 'shop', '買完仍在商店（可繼續買或賣）'); R.act(st, 'p0', { type: 'decline' }, 0); eq(st.phase, 'manage', '按離開才結束（進入結束回合）');
+  const s4 = mk(2); inShop(s4, 5000); R.act(s4, s4.seats[0].id, { type: 'decline' }, 0); eq(s4.phase, 'manage', '不買直接離開'); eq(s4.seats[0].points, 5000, '沒扣點');
+  const s5 = mk(2); inShop(s5, 5000, ['cat', 'guard']); sell(s5, 'cat'); sell(s5, 'guard'); eq(s5.seats[0].items.length, 0, '可連續賣光'); eq(s5.phase, 'shop', '賣完還在商店');
+  eq(s5.stock.cat, R.stockFor('cat', 2) + 1, '賣回去庫存 +1');
 }
 {
   const st = mk(2); inShop(st, 5000);
-  const o = R.options(st, st.seats[0].id); ok(Array.isArray(o.shop) && o.shop.length === R.ITEM_LIST.length, 'options.shop 列出全部商品');
-  ok(o.shop.every(x => x.can === true && x.cost === R.ITEMS[x.item].cost), '錢夠時每項都能買、價格正確');
-  st.seats[0].cash = 100; const o2 = R.options(st, st.seats[0].id);
-  ok(o2.shop.find(x => x.item === 'dice').can && !o2.shop.find(x => x.item === 'fly').can, '錢不夠的商品標示不能買');
-  st.seats[0].items = ['free', 'cat', 'guard']; ok(R.options(st, st.seats[0].id).shop.every(x => !x.can), '道具欄滿：全部不能買');
+  const o = R.options(st, st.seats[0].id); ok(Array.isArray(o.shop) && o.shop.length === R.ITEM_LIST.length, 'options.shop 列出上架商品');
+  ok(o.shop.every(x => x.can === true && x.pts === R.ITEMS[x.item].pts && x.stock === st.stock[x.item] && x.bought === false), '點數夠時每項都能買、點數與庫存正確');
+  st.seats[0].points = 10; const o2 = R.options(st, st.seats[0].id);
+  ok(o2.shop.find(x => x.item === 'taxfree').can && !o2.shop.find(x => x.item === 'fly').can, '點數不夠的商品標示不能買');
+  st.seats[0].items = new Array(R.MAX_ITEMS).fill('cat'); st.seats[0].points = 5000; ok(R.options(st, st.seats[0].id).shop.every(x => !x.can), '道具欄滿：全部不能買');
+  ok(Array.isArray(o.sellItems) && o.sellItems.length === 0, '沒有道具時沒有可賣的');
+  st.seats[0].items = ['cat', 'bomb']; const o3 = R.options(st, st.seats[0].id); ok(o3.sellItems.length === 2 && o3.sellItems.every(x => x.back === R.sellPrice(x.item)), 'options.sellItems 列出可賣道具與半價');
+  const v = R.publicView(st, 0); ok(v.pending && Array.isArray(v.pending.offer) && Array.isArray(v.pending.bought) && v.seats[0].points === 5000, 'publicView 帶著商店上架清單、已買、點數');
+  ok(v.stock && v.stock.cat === st.stock.cat, 'publicView 帶著庫存');
 }
 {
-  /* 只有有商店的地圖：走到商店格 */
-  Maps.LIST.filter(m => m.shops > 0).forEach(m => {
-    const st = mk(2, { map: m.id }); const ti = st.tiles.findIndex(t => t.type === 'shop');
-    const s2 = mk(2, { map: m.id }); const ti2 = s2.tiles.findIndex(t => t.type === 'shop'); s2.seats[0].pos = ti2 - 1; s2.seats[0].items = ['dice']; use(s2, 'dice', 1);
-    eq(s2.phase, 'shop', '地圖 ' + m.id + '：走到商店格 → 進入商店'); eq(s2.pending.kind, 'shop', '待處理事項是商店');
-    const s3 = mk(2, { map: m.id }); s3.seats[0].pos = ti2 - 2; s3.seats[0].items = ['dice', 'free', 'cat']; roll(s3, 1, 1);
-    ok(s3.phase !== 'shop' && s3.seats[0].pos === ti2, '地圖 ' + m.id + '：道具欄滿了，逛一逛就過');
-    const s4 = mk(2, { map: m.id }); s4.seats[0].pos = ti2 - 2; s4.seats[0].cash = 10; roll(s4, 1, 1);
-    ok(s4.phase !== 'shop' && s4.seats[0].pos === ti2, '地圖 ' + m.id + '：錢不夠買任何東西就不開商店');
+  /* 每種格數的隨機地圖：走到商店格 */
+  Maps.SIZES.forEach(size => {
+    const id = Maps.genId(size, 'sh' + size), m = Maps.get(id), ti2 = m.tiles.findIndex(t => t.type === 'shop');
+    const s2 = mk(2, { map: id }); s2.seats[0].pos = ti2 - 2; roll(s2, 1, 1);
+    eq(s2.phase, 'shop', size + ' 格：走到商店格 → 進入商店'); eq(s2.pending.kind, 'shop', size + ' 格：待處理事項是商店');
+    ok(s2.pending.offer.length >= 3 && s2.pending.offer.length <= 6, size + ' 格：上架 3～6 樣');
+    const s3 = mk(2, { map: id }); s3.seats[0].pos = ti2 - 2; s3.seats[0].points = 0; roll(s3, 1, 1);
+    ok(s3.phase !== 'shop' && s3.seats[0].pos === ti2, size + ' 格：沒有點數也沒有道具，逛一逛就過');
+    const s4 = mk(2, { map: id }); s4.seats[0].pos = ti2 - 2; s4.seats[0].points = 0; s4.seats[0].items = ['cat']; roll(s4, 1, 1);
+    eq(s4.phase, 'shop', size + ' 格：沒點數但有道具 → 還是能進商店賣道具');
+    /* 再走一圈算新的一次：同樣商品又能買 */
+    const s5 = mk(2, { map: id }); s5.seats[0].pos = ti2 - 2; s5.seats[0].points = 5000; roll(s5, 1, 1);
+    const it = s5.pending.offer[0]; R.act(s5, 'p0', { type: 'shopBuy', item: it }, 0); ok(!R.act(s5, 'p0', { type: 'shopBuy', item: it }, 0).ok, size + ' 格：本次同商品只能買 1 件');
+    R.act(s5, 'p0', { type: 'decline' }, 0);
+    s5.seats[0].pos = ti2 - 2; s5.turn = 0; s5.phase = 'roll'; s5.pending = null; s5._rng = require('../public/js/rng.js').create('again' + size);
+    R.act(s5, 'p0', { type: 'roll', dice: 1 }, 0);
+    ok(s5.phase !== 'shop' || s5.pending.bought.length === 0, size + ' 格：再走一圈踩到 → 算新的一次（bought 重置）');
   });
 }
 {
   /* 休息站與道具欄上限 */
-  const st = mk(2); st.seats[0].items = ['dice']; st.seats[0].pos = 19; const c = st.seats[0].cash; roll(st, 1, 0 + 0 || 1);
   const s2 = mk(2); s2.seats[0].pos = 18; roll(s2, 1, 1); eq(s2.seats[0].pos, 20, '走到休息站'); eq(s2.seats[0].items.length, 1, '休息站送 1 個道具');
-  const s3 = mk(2); s3.seats[0].pos = 18; s3.seats[0].items = ['free', 'cat', 'guard']; const c3 = s3.seats[0].cash; roll(s3, 1, 1);
-  eq(s3.seats[0].items.length, 3, '滿了不會超過上限'); eq(s3.seats[0].cash, c3 + 50, '道具滿了改領 50 元');
-  eq(R.MAX_ITEMS, 3, '上限 3 個');
+  const s3 = mk(2); s3.seats[0].pos = 18; s3.seats[0].items = new Array(R.MAX_ITEMS).fill('cat'); const c3 = s3.seats[0].cash; roll(s3, 1, 1);
+  eq(s3.seats[0].items.length, R.MAX_ITEMS, '滿了不會超過上限'); eq(s3.seats[0].cash, c3 + 50, '道具滿了改領 50 元');
+  eq(R.MAX_ITEMS, 10, '上限 10 個');
+}
+section('骰子數：1 顆或 2 顆');
+{
+  const st = mk(2); dice(st, 4, 0); ok(R.act(st, 'p0', { type: 'roll', dice: 1 }, 0).ok, '1 顆骰子可擲'); eq(st.seats[0].pos, 4, '走 1 顆的點數'); eq(st.dice[1], 0, '第二顆是 0'); eq(st.diceKind, 'one', 'diceKind = one');
+  ok(st.events.some(e => e.t === 'roll' && e.single === true), 'roll 事件標記 single');
+  const s2 = mk(2); dice(s2, 3, 5); R.act(s2, 'p0', { type: 'roll', dice: 2 }, 0); eq(s2.seats[0].pos, 8, '2 顆骰子走合計'); eq(s2.diceKind, 'two', 'diceKind = two');
+  const s3 = mk(2); dice(s3, 3, 5); R.act(s3, 'p0', { type: 'roll' }, 0); eq(s3.diceKind, 'two', '沒指定 → 預設 2 顆');
+  const s4 = mk(2); dice(s4, 3, 5); ok(R.act(s4, 'p0', { type: 'roll', dice: 3 }, 0).ok && s4.diceKind === 'two', '不合法的顆數當成 2 顆');
+  const s5 = mk(2); let mx1 = 0, mx2 = 0; for (let i = 0; i < 300; i++) { const a = mk(2, { seed: 'd' + i }); R.act(a, 'p0', { type: 'roll', dice: 1 }, 0); mx1 = Math.max(mx1, a.dice[0] + a.dice[1]); const b = mk(2, { seed: 'e' + i }); R.act(b, 'p0', { type: 'roll', dice: 2 }, 0); mx2 = Math.max(mx2, b.dice[0] + b.dice[1]); }
+  ok(mx1 <= 6 && mx2 <= 12 && mx2 > 6, '1 顆最多 6 點、2 顆最多 12 點');
+  const s6 = mk(2); dice(s6, 2, 2); R.act(s6, 'p0', { type: 'roll', dice: 2 }, 0); ok(s6.again === undefined && s6.doubles === undefined, '沒有雙骰機制');
 }
 
 /* ---------- 資料一致性 ---------- */
 section('道具資料');
 R.ITEM_LIST.forEach(k => {
   const it = R.ITEMS[k];
-  ok(it.name && it.desc && it.cost > 0, k + ' 有名稱、說明、價格');
+  ok(it.name && it.desc && it.pts >= 10 && it.pts <= 50 && it.pts % 10 === 0, k + ' 有名稱、說明、10～50 點');
 });
-ok(R.ITEM_LIST.filter(k => R.ITEMS[k].active).sort().join() === 'bomb,dice,fly,steal,swap', '主動道具是 dice/fly/steal/swap/bomb');
-ok(R.ITEM_LIST.filter(k => !R.ITEMS[k].active).sort().join() === 'cat,free,guard,taxfree', '被動道具是 free/cat/taxfree/guard');
-ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'seat').sort().join() === 'steal,swap', '選人道具 steal/swap');
-ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'tile').join() === 'bomb', '選地道具 bomb');
+ok(R.ITEM_LIST.filter(k => R.ITEMS[k].active).sort().join() === 'bomb,dice,fly,freeze,loan,steal,swap,upgrade', '主動道具是 dice/fly/steal/swap/bomb/freeze/loan/upgrade');
+ok(R.ITEM_LIST.filter(k => !R.ITEMS[k].active).sort().join() === 'bail,cat,coupon,free,gobonus,guard,half,taxfree', '被動道具是 free/cat/taxfree/guard/half/gobonus/bail/coupon');
+ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'seat').sort().join() === 'freeze,steal,swap', '選人道具 steal/swap/freeze');
+ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'tile').sort().join() === 'bomb,upgrade', '選地道具 bomb/upgrade');
+ok(R.ITEM_LIST.every((k, i) => R.stockFor(k, 4) >= 1) && ['taxfree', 'loan'].every(k => R.stockFor(k, 4) > R.stockFor('upgrade', 4)), '越貴庫存越少');
+ok(R.ITEM_LIST.reduce((a, k) => a.add(R.ITEMS[k].pts), new Set()).size === 5, '價格分 10／20／30／40／50 五級');
 {
   const st = mk(2); st.seats[0].items = ['dice', 'guard'];
   const v = R.publicView(st, 0); ok(Array.isArray(v.seats[0].items) && v.seats[0].items.includes('guard'), 'publicView 帶著道具清單');
@@ -434,7 +552,7 @@ ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'tile').join() === 'bomb', '選
     R.act(st, st.seats[0].id, { type: 'roll' }, 0);
     eq(st.seats[0].items[0], k, '休息站可抽到 ' + k); st.seats[0].items.forEach(x => got.add(x));
   });
-  eq(got.size, 9, '9 種道具都抽得到');
+  eq(got.size, R.ITEM_LIST.length, R.ITEM_LIST.length + ' 種道具都抽得到');
 }
 console.log('\n道具測試：通過 ' + pass + '、失敗 ' + fail);
 process.exit(fail ? 1 : 0);

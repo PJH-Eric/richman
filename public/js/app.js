@@ -4,7 +4,7 @@
   const { $, $$, esc, show, toast } = root.UI;
   const Art = root.Art;
   const store = root.Store.load();
-  let settingsModal = null, menuModal = null, manageModal = null, tileModal = null;
+  let settingsModal = null, menuModal = null, manageModal = null, tileModal = null, itemsModal = null;
   let chatPopOpen = false, unread = 0, sideUnread = 0, chatMinState = () => false;
   const modals = {};
 
@@ -54,6 +54,8 @@
     /* 我的地產、格子說明（單機開著時也暫停時鐘） */
     manageModal = root.UI.modal($('#manage-modal'), { onOpen: () => soloHold(true), onClose: () => soloHold(false) });
     tileModal = root.UI.modal($('#tile-modal'), { onOpen: () => soloHold(true), onClose: () => soloHold(false) });
+    itemsModal = root.UI.modal($('#items-modal'), { onOpen: () => soloHold(true), onClose: () => soloHold(false) });
+    document.querySelectorAll('[data-items-guide]').forEach(b => { b.onclick = e => { $('#items-body').innerHTML = itemsGuideHtml(); itemsModal.open(e.currentTarget); }; });
     modals.manage = { modal: manageModal, body: $('#manage-body') };
     modals.tile = { modal: tileModal, body: $('#tile-body'), title: $('#tile-title') };
 
@@ -120,9 +122,9 @@
       renderSoloSetup();
     });
     $('#solo-map').addEventListener('click', e => {
-      const b = e.target.closest('[data-map]');
+      const b = e.target.closest('[data-size]');
       if (!b) return;
-      store.map = b.dataset.map;
+      store.mapSize = Number(b.dataset.size);
       root.Store.save(store);
       renderSoloSetup();
     });
@@ -185,6 +187,7 @@
   }
   function onKey(e) {
     if (root.UI.current !== 'game' || root.UI.anyModalOpen()) return;
+    if (document.querySelector('.shop-ov:not([hidden])')) return;   /* 商店疊層自己處理鍵盤 */
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') {
@@ -228,8 +231,8 @@
       '<li><span class="ai-no">電腦 ' + (i + 1) + '</span><div class="seg small" role="radiogroup" aria-label="電腦 ' + (i + 1) + ' 的難度">' +
       DIFF_ORDER.map(k => '<button type="button" role="radio" data-ai="' + i + '" data-diff="' + k + '" aria-checked="' + (k === d) + '">' + names[k].name + '</button>').join('') +
       '</div></li>').join('');
-    if (!root.Rules.MAPS.has(store.map)) store.map = root.Rules.MAPS.DEFAULT;
-    $('#solo-map').innerHTML = root.UI.mapCards(store.map, '');
+    if (!root.Rules.MAPS.validSize(store.mapSize)) store.mapSize = root.Rules.MAPS.DEFAULT_SIZE;
+    $('#solo-map').innerHTML = root.UI.mapCards(store.mapSize, '');
     $('#solo-ai-n').textContent = store.aiCount;
     $('#solo-ai [data-step="-1"]').disabled = store.aiCount <= 1;
     $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 7;
@@ -246,7 +249,7 @@
     $('#result').hidden = true;
     show('game');
     gameLayout(false);
-    root.Solo.start({ name: nm, char: store.char, aiCount: store.aiCount, aiDiffs: aiDiffs().slice(0, store.aiCount), roundLimit: store.roundLimit, map: store.map });
+    root.Solo.start({ name: nm, char: store.char, aiCount: store.aiCount, aiDiffs: aiDiffs().slice(0, store.aiCount), roundLimit: store.roundLimit, mapSize: store.mapSize, map: store.testMap });   /* testMap：只給自動化測試固定版面用 */
     if (!store.seenHelp) {
       store.seenHelp = true;
       root.Store.save(store);
@@ -332,20 +335,35 @@
     menuModal.open(from);
   }
 
+  /** 道具說明：全部道具的圖示、點數、庫存、效果與取得方式 */
+  function itemsGuideHtml() {
+    const R = root.Rules;
+    const src = it => it.pts ? '' : '';
+    let h = '<p class="ig-rule"><b>道具點數</b>：開局有「回合上限 × 10」點（不限回合 500 點），只能在道具商店花。' +
+      '每次停到商店會隨機上架 3～6 樣，同一次只能各買 1 件；庫存整場全房共用，越貴越少。道具也能在商店半價賣回去。' +
+      '機會／命運卡有時會送點數。每人最多帶 ' + R.MAX_ITEMS + ' 個道具。停在溫泉休息站、抽到道具箱會拿到隨機道具。</p><ul class="ig-list">';
+    R.ITEM_LIST.forEach(id => {
+      const it = R.ITEMS[id];
+      h += '<li><span class="it-ico">' + root.Art.glyph('i_' + id) + '</span><span class="ig-tx"><b>' + esc(it.name) + '</b><small>' + esc(it.desc) + '</small></span>' +
+        '<span class="ig-meta"><b>' + it.pts + ' 點</b><br>庫存 ' + R.stockFor(id, 4) + '／賣 ' + R.sellPrice(id) + ' 點' + src(it) + '</span></li>';
+    });
+    return h + '</ul>';
+  }
+
   /* ---------- 怎麼玩（靜態圖文） ---------- */
   function renderHelp() {
     const G = Art.glyph;
     const step = (pic, h, p) => '<li><div class="help-pic">' + pic + '</div><div><h3>' + h + '</h3><p>' + p + '</p></div></li>';
     $('#help-body').innerHTML =
       '<ol class="help-steps">' +
-      step(Art.dieSvg(4) + Art.dieSvg(3), '1. 擲骰子走路', '輪到你就按「擲骰子」，棋子照點數在棋盤上順時針走（開局前可以選地圖：40／48／56 格，有台灣、世界旅行、遊樂園、海底、太空）。擲出兩顆一樣的（雙骰）可以再擲一次；連續三次雙骰會被送進監獄。') +
+      step(Art.dieSvg(4) + Art.dieSvg(3), '1. 擲骰子走路', '輪到你，先選「1 顆」還是「2 顆」骰子再按擲骰（1 顆走 1～6 步、2 顆走 2～12 步），棋子在棋盤上順時針走。每局地圖都是隨機產生的，開局前可以選地圖大小：48／64／80／96／120 格。沒有雙骰再擲的規則。') +
       step(G('gem'), '2. 買地', '停在沒有主人的地上，可以花錢買下來。買不起或不想買就按「不買」。別人停在你的地上，要付你過路費。') +
       step(Art.houseSvg() + Art.hotelSvg(), '3. 走到自己的地才能蓋房', '走到自己的地時，面板會問你要不要加蓋房子（花的錢是那塊地的房價）。每塊地單獨最多升到 2 級；同色整組都是你的，才能繼續升到 4 棟、旅店，租金最高。整組都是你的，空地租金也加倍。')+
       step(G('chance'), '4. 機會與命運', '停在「機會」或「命運」會抽一張卡，可能領獎金、被罰錢、被送去別的地方。') +
-      step(G('jail'), '5. 監獄', '被抓進監獄後，可以擲出雙骰、繳 50 元或用出獄許可證離開；3 回合後一定要繳錢出獄。路過監獄只是探監，不會被關。') +
+      step(G('jail'), '5. 監獄', '被抓進監獄後，可以繳罰款、用出獄許可證離開，或待在牢裡等；想提早出去要繳罰款，罰款依你的總資產決定（10%，最少 50、最多 500 元）；待滿 3 回合不用罰金，自動出獄並前進。路過監獄只是探監，不會被關。') +
       step(G('coin'), '6. 錢不夠就賣房', '要付錢卻不夠時，可以到「我的地產」賣房子換現金。實在湊不出來就破產，淘汰出局。') +
       step(G('god_fortune'), '7. 命運之神', '抽到好的機會／命運可能被福神（別人付你的過路費加倍）或財神（每回合領 120 元）附身；壞運氣會遇到窮神（你付雙倍過路費）或衰神（每回合被扣 80 元）。神明會陪你 4 個自己的回合。') +
-      step(G('i_dice'), '8. 道具與攻擊', '停在休息站、抽到道具卡會獲得道具；在有「道具商店」格的地圖，停在商店還能花錢買（最多帶 3 個），面板上的「道具庫」可以看全部道具與說明。擲骰前可以用：遙控骰（選走 1～6 步）、機票（飛到任何一格）、偷錢卡（偷對手 20% 現金）、換位卡（和對手換位置）、炸彈（炸掉對手一間房）。免租券、免稅券、招財貓、護身符（擋下攻擊）會在對的時候自動生效。') +
+      step(G('i_dice'), '8. 道具與攻擊', '停在休息站、抽到道具卡會獲得道具；停在「道具商店」用道具點數買道具（每次上架 3～6 樣、庫存全房共用），也能把道具半價賣回去；機會／命運卡有時會送點數。每人最多帶 10 個，大廳和面板上的「道具說明」／「道具庫」可以看全部道具。擲骰前可以主動用：遙控骰（選走 1～12 步）、機票、偷錢卡、換位卡、冰凍卡、炸彈、加蓋券、提款卡；免租券、減租券、免稅券、招財貓、起點加碼券、保釋券、購地折價券、護身符會在對的時候自動生效。') +
       '</ol>' +
       '<div class="help-tips"><h3>怎麼贏</h3><ul>' +
       '<li>其他人都破產，剩下的最後一個人獲勝。</li>' +

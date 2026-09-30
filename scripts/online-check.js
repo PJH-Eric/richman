@@ -131,7 +131,7 @@ async function liveTest() {
   ok(!!g, '全員準備好 → 開局');
   const game = host.room.game;
   ok(game.seats.length === 3 && game.seats.every(s => s.cash === Rules.startCashFor(host.room.roundLimit) && s.pos === 0), '3 人各拿起始現金（回合上限×100）、站在起點');
-  ok(game.props.length === 40 && game.props.every(p => p.owner === -1), '40 格、地都還沒有主人');
+  ok(game.props.length === 64 && game.props.every(p => p.owner === -1), '預設 64 格、地都還沒有主人');
   ok(!JSON.stringify(host.room).includes('seed') && !JSON.stringify(host.room).includes('_decks'), '送到瀏覽器的資料沒有 seed 與牌堆');
   ok(spec.room.game && spec.room.you.role === 'spectator', '觀戰者也看到棋盤');
   ok(game.opts.roundLimit === 25 && game.turnLeftMs > 0, '對局帶入回合上限與回合倒數');
@@ -252,13 +252,14 @@ function hubTest() {
   ok(!hub.settings(c, { roundLimit: 7 }).ok || r2.roundLimit === 50, '不在選項裡的回合上限不生效');
   ok(hub.roomView(r2, d.id).roundLimit === 50 && hub.listRooms()[0].roundLimit === 50, '玩家與大廳都看得到回合上限');
   /* 地圖由房主決定 */
-  ok(r2.map === 'taiwan40' && hub.roomView(r2, d.id).map === 'taiwan40', '沒指定時地圖預設是寶島一圈');
-  ok(!hub.settings(d, { map: 'world48' }).ok, '只有房主能換地圖');
-  ok(hub.settings(c, { map: 'world48' }).ok && r2.map === 'world48', '房主把地圖換成世界旅行');
-  ok(hub.settings(c, { map: 'nope' }).ok && r2.map === 'world48', '不存在的地圖代號不生效');
-  ok(hub.roomView(r2, d.id).map === 'world48' && hub.listRooms().some(x => x.map === 'world48'), '玩家與大廳都看得到地圖');
-  ok(hub.createRoom(hub.identify('mapmapmap1', '地圖房主', 'cat'), { map: 'sea40' }).room.map === 'sea40', '建房時可以指定地圖');
-  ok(hub.createRoom(hub.identify('mapmapmap2', '亂填房主', 'cat'), { map: '../x' }).room.map === 'taiwan40', '建房時亂填地圖會退回預設');
+  ok(r2.mapSize === 64 && hub.roomView(r2, d.id).mapSize === 64, '沒指定時地圖大小預設 64 格');
+  ok(!hub.settings(d, { mapSize: 48 }).ok, '只有房主能換地圖大小');
+  ok(hub.settings(c, { mapSize: 48 }).ok && r2.mapSize === 48, '房主把地圖改成 48 格');
+  ok(hub.settings(c, { mapSize: 50 }).ok && r2.mapSize === 48, '不在選項裡的格數不生效');
+  ok(hub.settings(c, { mapSize: '../x' }).ok && r2.mapSize === 48, '亂填的格數不生效');
+  ok(hub.roomView(r2, d.id).mapSize === 48 && hub.listRooms().some(x => x.mapSize === 48), '玩家與大廳都看得到地圖大小');
+  ok(hub.createRoom(hub.identify('mapmapmap1', '地圖房主', 'cat'), { mapSize: 120 }).room.mapSize === 120, '建房時可以指定地圖大小');
+  ok(hub.createRoom(hub.identify('mapmapmap2', '亂填房主', 'cat'), { mapSize: 7 }).room.mapSize === 64, '建房時亂填格數會退回 64'); 
 
   /* 真人中途離開 → 電腦代打，不影響其他人 */
   hub.addAI(c, 'normal');
@@ -266,7 +267,7 @@ function hubTest() {
   ok(hub.startGame(c).ok, '2 真人＋1 電腦開局');
   hub.leave(d);
   ok(r2.game.state.seats.find(s => s.id === d.id).ai === 'normal', '對局中離開 → 位子交給電腦代打');
-  ok(r2.game.state.map === 'world48' && r2.game.state.tiles.length === 48, '對局用的是房主選的地圖（世界旅行 48 格）');
+  ok(/^g48-/.test(r2.game.state.map) && r2.game.state.tiles.length === 48, '對局用的是房主選的格數（每局隨機生成的 48 格地圖）');
   const gs = r2.game.state;
   guard = 0;
   c.online = true;
@@ -315,15 +316,16 @@ function hubTest() {
     const gs = ri.game.state;
     const mine = () => gs.seats.findIndex(x => x.id === p1.id);
     const fresh = (item) => {
-      gs.turn = mine(); gs.phase = 'roll'; gs.pending = null; gs.again = false; gs.doubles = 0;
+      gs.turn = mine(); gs.phase = 'roll'; gs.pending = null;
       const me = gs.seats[gs.turn]; me.items = [item]; me.cash = 3000; me.pos = 3; me.jail = false;
       gs.seats.forEach((x, k) => { if (k !== gs.turn) { x.pos = 14 + k; x.cash = 1500; x.jail = false; x.god = null; x.items = []; } });
-      gs.props[8].owner = -1;
+      T8 = gs.tiles.findIndex((t, i) => i >= 6 && t.type === 'prop'); gs.props[T8].owner = -1;
       return me;
     };
+    let T8 = 8;
     let me = fresh('fly');
-    let r = hub.gameAct(p1, { type: 'useItem', item: 'fly', tile: 8 });
-    ok(r && r.ok !== false && me.pos === 8 && gs.phase === 'buy', '線上：飛機飛到指定格，接著進入買地（階段 ' + gs.phase + '）');
+    let r = hub.gameAct(p1, { type: 'useItem', item: 'fly', tile: T8 });
+    ok(r && r.ok !== false && me.pos === T8 && gs.phase === 'buy', '線上：飛機飛到指定格，接著進入買地（階段 ' + gs.phase + '）');
     hub.gameAct(p1, { type: 'decline' });
     ok(Rules.options(gs, p1.id).endTurn || gs.turn !== mine(), '線上：飛機用完後可以結束回合');
     me = fresh('dice');

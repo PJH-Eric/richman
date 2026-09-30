@@ -19,6 +19,7 @@ try { pw = require('playwright'); } catch (e) {
 }
 if (!pw) { console.log('沒有安裝 Playwright，略過瀏覽器檢查。'); process.exit(0); }
 
+require('./_fast.js')(pw);
 const { createServer } = require('../server.js');
 const OUT = path.join(__dirname, '..', 'screenshots');
 fs.mkdirSync(OUT, { recursive: true });
@@ -36,10 +37,19 @@ const LAUNCH = { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'
 
 /** 預先寫好本機設定：不跳教學提示、動畫關掉讓測試快一點 */
 const seed = (extra) => (extra ? { ...extra } : {});
+async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]', { timeout: 3000 }).catch(() => {}); await pg.click('.shop-ov [data-a="decline"]', { timeout: 3000 }).catch(() => {}); }
+async function invUse(pg, item) {
+  try {
+    await pg.click('.mc [data-inv]', { timeout: 3000 });
+    const b = await pg.waitForSelector('#tile-body [data-invuse="' + item + '"]:not([disabled])', { timeout: 3000 });
+    await b.click();
+    return true;
+  } catch (e) { await pg.keyboard.press('Escape').catch(() => {}); return false; }
+}
 async function preset(ctxOrPage, data) {
   await ctxOrPage.addInitScript(([k, d]) => {
     if (!localStorage.getItem(k)) localStorage.setItem(k, JSON.stringify(d));
-  }, [KEY, { seenHelp: true, nickname: '測試員', char: 'otter', ...data }]);
+  }, [KEY, { seenHelp: true, nickname: '測試員', char: 'otter', testMap: 'classic40', ...data }]);
 }
 
 async function layoutProblems(page) {
@@ -123,12 +133,13 @@ async function solo(browser, base) {
   await page.click('#solo-ai-list [data-ai="0"][data-diff="kid"]');
   await page.click('#solo-ai-list [data-ai="2"][data-diff="hard"]');
   ok(!(await page.$('#solo-diff [aria-checked="true"]')) && /混合難度/.test(await page.textContent('#solo-diff-hint')), '電腦難度不一樣時顯示「混合難度」');
-  await page.click('#solo-limit [data-limit="20"]');
+  await page.click('#solo-limit [data-limit="25"]');
+  await page.evaluate(() => { App.store.testMap = 'classic40'; });   /* 前面按過「恢復預設」，測試用固定版面要再指定一次 */
   await page.click('#solo-start');
   await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 15000 });
   const st = await page.evaluate(() => ({ ai: Solo._debug.state.seats.filter(s => s.ai).map(s => s.id + ':' + s.ai).sort().join(','), lim: Solo._debug.state.opts.roundLimit }));
   ok(st.ai === 'ai0:kid,ai1:normal,ai2:hard,ai3:normal,ai4:normal,ai5:normal,ai6:normal', '單機 8 人（1 真人＋7 電腦），每個電腦照各自選的難度（' + st.ai + '）');
-  ok(st.lim === 20, '回合上限設定生效（20）');
+  ok(st.lim === 25, '回合上限設定生效（25）');
 
   /* 點 3D 棋盤上的格子 → 說明視窗 */
   await page.evaluate(() => Solo.board.v3.setFollow(false));
@@ -145,6 +156,7 @@ async function solo(browser, base) {
   }
   /* 我的地產視窗 */
   const mineTurn = async () => page.evaluate(() => Solo._debug.state.seats[Solo._debug.state.turn].id === 'me' && Solo._debug.state.phase === 'roll');
+  await page.evaluate(() => Solo.skipToMyRoll());
   for (let i = 0; i < 400 && !(await mineTurn()); i++) await page.waitForTimeout(500);
   await page.waitForFunction(() => !Solo.board._debug.busy, null, { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(200);
@@ -157,16 +169,16 @@ async function solo(browser, base) {
   /* 道具：遙控骰選點數、機票點 3D 棋盤 */
   if (await mineTurn()) {
     await page.evaluate(() => { const g = Solo._debug; g.state.seats[g.state.turn].items = ['dice', 'fly', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
-    await page.waitForSelector('.mc-items .it-chip.on[data-item="dice"]', { timeout: 3000 }).catch(() => {});
+    await page.waitForSelector('.mc-items .it-chip.ready', { timeout: 3000 }).catch(() => {});
     ok(await page.$$eval('.mc-items .it-chip', e => e.length) === 3, '道具列顯示 3 個道具');
-    await page.click('.it-chip[data-item="dice"]');
-    ok((await page.$$eval('.mc .pick-btn', e => e.length)) === 6, '遙控骰：出現 1～6 步選單');
+    ok(await invUse(page, 'dice'), '道具庫裡按「使用」→ 接著在面板選遙控骰步數');
+    ok((await page.$$eval('.mc .pick-btn', e => e.length)) === 12, '遙控骰：出現 1～12 步選單');
     await page.click('.mc [data-n="3"]');
     ok(!!(await page.$('.mc [data-confirm]')) && (await page.textContent('.mc .mc-hint')).length > 0, '遙控骰：點點數只預覽（落點說明＋確認鈕），還沒送出');
     ok(await page.evaluate(() => Solo.board._debug.pick === 'dice' && !Solo.board._debug.sent), '預覽時尚未使用道具');
     await page.click('.mc [data-pickcancel]');
     ok(!(await page.$('.mc .pick-btn')), '「先不用」收起選單');
-    await page.click('.it-chip[data-item="fly"]');
+    ok(await invUse(page, 'fly'), '道具庫裡按「使用」→ 接著在面板選機票目的地');
     ok((await page.$$eval('.mc .tchip', e => e.length)) > 20, '機票：面板列出可飛的格子清單');
     await page.click('.mc [data-fflt="spec"]');
     ok((await page.$$eval('.mc .tchip', e => e.length)) < 20 && (await page.$$eval('.mc .fly-f.on', e => e.length)) === 1, '機票：切到「特別格」只剩特別格');
@@ -189,10 +201,12 @@ async function solo(browser, base) {
   }
   /* 攻擊型道具的選目標介面、走到自己的地的蓋房詢問、自製卷軸 */
   {
+    await page.evaluate(() => Solo.skipToMyRoll());
     for (let i = 0; i < 400 && !(await mineTurn()); i++) {
       const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
-      if (ph === 'buy') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
-      else if (ph === 'build' || ph === 'shop') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      if (ph === 'shop') await leaveShop(page);
+      else if (ph === 'buy') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      else if (ph === 'build') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
       else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(500);
     }
@@ -202,9 +216,9 @@ async function solo(browser, base) {
       g.state.seats.filter(x => x.id !== 'me').forEach((x, k) => { x.pos = 5 + k; x.cash = 1500; x.jail = false; });
       Solo.board.render(Rules.publicView(g.state, g.clock));
     });
-    await page.waitForSelector('.mc .it-chip.on[data-item="steal"]', { timeout: 4000 }).catch(() => {});
-    ok(await page.$('.mc .it-chip.on[data-item="steal"]') && await page.$('.mc .it-chip.on[data-item="swap"]'), '偷錢卡、換位卡在有目標時可以點');
-    await page.click('.mc .it-chip[data-item="steal"]');
+    await page.waitForSelector('.mc .it-chip.ready', { timeout: 4000 }).catch(() => {});
+    ok(!(await page.$('.mc [data-item]')), '面板上的道具不能直接按（統一在道具庫使用）');
+    ok(await invUse(page, 'steal'), '偷錢卡在道具庫按「使用」');
     ok((await page.$$eval('.mc .tgt-btn', e => e.length)) >= 1, '偷錢卡：出現選對手的按鈕');
     const c0 = await page.evaluate(() => Solo._debug.state.seats.find(x => x.id === 'me').cash);
     await page.click('.mc .tgt-btn:not([disabled])');
@@ -238,9 +252,11 @@ async function solo(browser, base) {
   /* 3D 骰子：擲完要停平、朝上的點數要跟結果一樣 */
   {
     await page.evaluate(() => { const g = Solo._debug; g.state.seats.forEach(x => { x.items = []; }); });
+    await page.evaluate(() => Solo.skipToMyRoll());
     for (let i = 0; i < 400 && !(await mineTurn()); i++) {
       const ph = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.phase : ''; });
-      if (ph === 'buy' || ph === 'build' || ph === 'shop') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
+      if (ph === 'shop') await leaveShop(page);
+      else if (ph === 'buy' || ph === 'build') await page.click('.mc [data-a="decline"]', { timeout: 5000 }).catch(() => {});
       else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 5000 }).catch(() => {});
       await page.waitForTimeout(500);
     }
@@ -283,7 +299,7 @@ async function solo(browser, base) {
     const res = await p2.evaluate(() => ({ rows: document.querySelectorAll('#result .rank-list li').length, txt: document.querySelector('#result').textContent, st: JSON.parse(localStorage.getItem('richman')).stats }));
     ok(res.rows === 2, '結算列出每個玩家的名次');
     ok(Object.values(res.st).reduce((a, x) => a + x.play, 0) === 1, '這局的戰績記到這台裝置');
-    await p2.click('#res-again');
+    await p2.click('#res-again', { timeout: 25000 });
     ok(await p2.isHidden('#result') && await p2.evaluate(() => Solo._debug.state.round === 1), '「再來一局」重新開始');
   }
   ok(!errs2.length, '完整一局沒有 JS 錯誤' + (errs2.length ? '：' + errs2.join('；') : ''));
@@ -320,7 +336,7 @@ async function online(browser, base) {
   await A.page.click('.dd-menu .dd-opt[data-val="hard"]');
   await A.page.waitForFunction(() => { const b = document.querySelector('.seat-row .ai-dd'); return b && b.dataset.val === 'hard'; }, null, { timeout: 5000 });
   ok(!(await A.page.$('.dd-menu')), '選完難度：選單收起，電腦難度改成困難');
-  await A.page.click('[data-set="roundLimit"][data-val="20"]');
+  await A.page.click('[data-set="roundLimit"][data-val="25"]');
   await A.page.screenshot({ path: path.join(OUT, '平板橫向-房間.png') });
 
   /* 朋友用邀請連結：選觀戰 */
@@ -374,6 +390,7 @@ async function online(browser, base) {
 }
 
 (async () => {
+  process.env.RICHMAN_TEST_MAP = 'classic40';
   const app = createServer();
   await new Promise(r => app.server.listen(0, r));
   app.start();

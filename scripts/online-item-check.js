@@ -5,17 +5,19 @@ const path = require('path'), { execSync } = require('child_process');
 let pw = null;
 try { pw = require('playwright'); } catch (e) { try { pw = require(path.join(execSync('npm root -g').toString().trim(), 'playwright')); } catch (e2) { } }
 if (!pw) { console.log('沒有 Playwright，略過'); process.exit(0); }
+require('./_fast.js')(pw);
 const { createServer } = require('../server.js');
 let pass = 0, fail = 0;
 const ok = (v, n) => { v ? pass++ : fail++; console.log((v ? '  ✔ ' : '  ✘ ') + n); };
 const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['fly', 7, '飛到機會'], ['fly', 6, '飛到自己的地'], ['steal', 0, '偷錢'], ['swap', 0, '換位'], ['bomb', 0, '炸彈'], ['dice', 4, '遙控骰'], ['fly', 5, '飛到車站'], ['fly', 4, '飛到所得稅']];
 (async () => {
+  process.env.RICHMAN_TEST_MAP = 'classic40';
   const app = createServer(); app.start(); await new Promise(r => app.server.listen(0, r));
   const base = 'http://localhost:' + app.server.address().port;
   let browser; try { browser = await pw.chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] }); } catch (e) { browser = await pw.chromium.launch({ executablePath: '/opt/pw-browsers/chromium' }); }
   const mk = async (name) => {
     const ctx = await browser.newContext({ viewport: { width: 1180, height: 820 } });
-    await ctx.addInitScript((n) => localStorage.setItem('richman', JSON.stringify({ seenHelp: true, nickname: n, char: 'otter', reduceMotion: true, fastAnim: true, bgm: false })), name);
+    await ctx.addInitScript((n) => localStorage.setItem('richman', JSON.stringify({ testMap: 'classic40', seenHelp: true, nickname: n, char: 'otter', reduceMotion: true, fastAnim: true, bgm: false })), name);
     const page = await ctx.newPage(); page.errs = []; page.on('pageerror', e => page.errs.push(e.message)); return page;
   };
   const A = await mk('房主'), B = await mk('朋友');
@@ -32,11 +34,21 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
   const room = [...app.hub.rooms.values()][0], gs = room.game.state;
   const pageOf = (i) => (gs.seats[i].name === '房主' ? A : B);
   const dbg = (p) => p.evaluate(() => ({ busy: Online.board._debug.busy, sent: Online.board._debug.sent, pick: Online.board._debug.pick }));
+async function invUse(pg, item) {
+  try {
+    await pg.click('.mc [data-inv]', { timeout: 3000 });
+    const b = await pg.waitForSelector('#tile-body [data-invuse="' + item + '"]:not([disabled])', { timeout: 3000 });
+    await b.click();
+    return true;
+  } catch (e) { await pg.keyboard.press('Escape').catch(() => {}); return false; }
+}
+async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]', { timeout: 3000 }).catch(() => {}); await pg.click('.shop-ov [data-a="decline"]', { timeout: 3000 }).catch(() => {}); }
   const settle = async () => { /* 讓當前輪到的人回到 roll 階段、動畫靜止 */
     for (let i = 0; i < 400; i++) {
       const p = pageOf(gs.turn), d = await dbg(p);
       if (gs.phase === 'roll' && !d.busy && !d.sent) return true;
-      const sel = gs.phase === 'buy' || gs.phase === 'build' || gs.phase === 'shop' ? '[data-a="decline"]' : gs.phase === 'manage' ? '[data-a="endTurn"]' : gs.phase === 'debt' ? '[data-a="bankrupt"]' : gs.phase === 'roll' ? null : null;
+      if (gs.phase === 'shop') { await leaveShop(p); await p.waitForTimeout(200); continue; }
+      const sel = gs.phase === 'buy' || gs.phase === 'build' ? '[data-a="decline"]' : gs.phase === 'manage' ? '[data-a="endTurn"]' : gs.phase === 'debt' ? '[data-a="bankrupt"]' : gs.phase === 'roll' ? null : null;
       if (sel) await p.click('.mc ' + sel, { timeout: 2000 }).catch(() => {});
       await p.waitForTimeout(200);
     }
@@ -46,15 +58,13 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
     if (gs.phase === 'over') break;
     const okRoll = await settle(); if (!okRoll) { ok(false, label + '：開始前流程就停住 ' + gs.phase); break; }
     const i = gs.turn, other = 1 - i, me = gs.seats[i], p = pageOf(i), q = pageOf(other);
-    me.items = [item]; me.cash = 3000; me.pos = 3; me.jail = false; gs.again = false; gs.doubles = 0;
+    me.items = [item]; me.cash = 3000; me.pos = 3; me.jail = false;
     gs.seats[other].pos = 14; gs.seats[other].cash = 1500; gs.seats[other].jail = false; gs.seats[other].god = null; gs.seats[other].items = [];
     gs.props.forEach(pr => { if (pr.owner !== -1 && pr.owner !== other) { } });
     gs.props[6].owner = i; gs.props[6].houses = 0; gs.props[16].owner = other; gs.props[16].houses = 2; gs.props[8].owner = -1;
     gs.version++; room.changed = true; app.flush();
-    await p.waitForSelector('.mc .it-chip.on[data-item="' + item + '"]', { timeout: 6000 }).catch(() => {});
-    const chip = await p.$('.mc .it-chip.on[data-item="' + item + '"]');
-    if (!chip) { ok(false, label + '：道具按鈕沒出現'); continue; }
-    await p.click('.mc .it-chip.on[data-item="' + item + '"]', { timeout: 5000 }).catch(() => {});
+    await p.waitForSelector('.mc .it-chip.ready', { timeout: 6000 }).catch(() => {});
+    if (!(await invUse(p, item))) { ok(false, label + '：道具庫裡的「使用」按鈕沒出現'); continue; }
     if (item === 'fly') {
       await p.click('.mc [data-fsel="' + arg + '"]', { timeout: 4000 });
       await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await p.click('.mc [data-confirm]');
@@ -97,8 +107,8 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
     await settle();
     const i = gs.turn, p = pageOf(i);
     gs.seats[i].items = ['fly']; gs.version++; room.changed = true; app.flush();
-    await p.waitForSelector('.mc .it-chip.on[data-item="fly"]', { timeout: 6000 }).catch(() => {});
-    await p.click('.mc .it-chip.on[data-item="fly"]');   /* 開著選格子的狀態直接重新整理 */
+    await p.waitForSelector('.mc .it-chip.ready', { timeout: 6000 }).catch(() => {});
+    await invUse(p, 'fly');   /* 開著選格子的狀態直接重新整理 */
     await p.reload();
     await p.waitForFunction(() => window.Online && Online.board && Online.board.v3 && Online.room && Online.room.game, null, { timeout: 25000 }).catch(() => {});
     const back = await p.evaluate(() => !!(window.Online && Online.board && Online.room && Online.room.game));

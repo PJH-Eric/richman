@@ -13,6 +13,7 @@ try { pw = require('playwright'); } catch (e) {
   try { pw = require(path.join(execSync('npm root -g').toString().trim(), 'playwright')); } catch (e2) { pw = null; }
 }
 if (!pw) { console.log('沒有安裝 Playwright，略過捲動檢查。'); process.exit(0); }
+require('./_fast.js')(pw);
 const { createServer } = require('../server.js');
 
 let pass = 0, fail = 0;
@@ -91,7 +92,8 @@ async function scrollProblems(page) {
     await ctx.addInitScript(() => { if (!localStorage.getItem('richman')) localStorage.setItem('richman', JSON.stringify({ seenHelp: true, nickname: '測試員', char: 'otter', reduceMotion: true, bgm: false, aiCount: 7, roundLimit: 25 })); });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', e => errs.push(e.message));
-    const check = async (label) => { const p = await scrollProblems(page); ok(!p.length, label + (p.length ? '：' + p.join('；') : '')); };
+    let tk = Date.now();
+    const check = async (label) => { const p = await scrollProblems(page); ok(!p.length, label + (p.length ? '：' + p.join('；') : '') + (process.env.TIMING ? '  [' + (Date.now() - tk) + 'ms]' : '')); tk = Date.now(); };
     await page.goto(base);
     await page.waitForSelector('#screen-home:not([hidden])');
     await check('首頁');
@@ -114,9 +116,9 @@ async function scrollProblems(page) {
     await page.click('#go-online'); await page.waitForFunction(() => Net.connected, null, { timeout: 10000 });
     await check('線上大廳');
     await page.click('#lobby-create'); await page.waitForSelector('#screen-room:not([hidden])');
-    for (let i = 0; i < 7; i++) await page.click('[data-act="add-ai"]').catch(() => {});
-    await page.click('[data-set="roundLimit"][data-val="30"]').catch(() => {});
-    for (let i = 0; i < 7; i++) await page.click('[data-act="add-ai"]').catch(() => {});
+    await page.click('[data-set="max"][data-val="8"]').catch(() => {});
+    await page.click('[data-set="roundLimit"][data-val="25"]').catch(() => {});
+    for (let i = 0; i < 7; i++) await page.click('[data-act="add-ai"]', { timeout: 1500 }).catch(() => {});
     await page.waitForTimeout(400);
     await check('房間等待室（8 人）');
     ok(!errs.length, '沒有 JS 錯誤' + (errs.length ? '：' + errs.join('；') : ''));

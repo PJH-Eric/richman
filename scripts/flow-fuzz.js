@@ -5,7 +5,7 @@ function rnd(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 10139
 for (let g = 0; g < 400; g++) {
   const rand = rnd(g + 1), n = 2 + Math.floor(rand() * 7);
   const ps = []; for (let i = 0; i < n; i++) ps.push({ id: 'p' + i, name: 'P' + i, char: 'otter' });
-  const st = R.create(ps, { seed: 'f' + g, roundLimit: 25 });
+  const st = R.create(ps, { seed: 'f' + g, roundLimit: 25, mapSize: R.MAPS.SIZES[g % R.MAPS.SIZES.length] });
   let now = 0, stall = 0, last = '';
   for (let step = 0; step < 6000 && st.phase !== 'over'; step++) {
     now += 1000;

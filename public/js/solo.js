@@ -22,7 +22,7 @@
     const seed = root.RNG.newSeed();
     /* 動作節奏跟著最簡單的電腦：有幼幼班電腦在，小朋友也跟得上 */
     const easiest = R.DIFFICULTY_LIST.find(k => diffs.includes(k)) || 'normal';
-    const state = R.create(players, { seed, pace: R.DIFFICULTIES[easiest].pace, now: 0, roundLimit: cfg.roundLimit, turnMs: 0, map: cfg.map });
+    const state = R.create(players, { seed, pace: R.DIFFICULTIES[easiest].pace, now: 0, roundLimit: cfg.roundLimit, turnMs: 0, mapSize: cfg.mapSize, map: cfg.map });
     const driver = root.AI.createDriver(seed + '-ai');
     const ui = root.App.modals;
     game = {
@@ -143,8 +143,29 @@
     }
     draw();
   }
+  /** 給自動化測試用：快轉到「輪到我擲骰」（別人的回合照電腦流程跑完；我自己卡在買地／商店／整理時自動略過） */
+  function skipToMyRoll(maxMs) {
+    const g = game, R = root.Rules;
+    if (!g || g.ended) return false;
+    const end = g.clock + (maxMs || 600000);
+    while (g.clock < end && g.state.phase !== 'over') {
+      const mine = g.state.seats[g.state.turn].id === 'me';
+      if (mine && g.state.phase === 'roll') break;
+      g.clock += 100;
+      R.tick(g.state, g.clock);
+      for (const a of g.driver.actions(g.state, g.clock)) R.act(g.state, a.id, a.action, g.clock, { ai: true });
+      if (mine && g.state.seats[g.state.turn].id === 'me') {
+        const o = R.options(g.state, 'me'), ph = g.state.phase;
+        const a = ph === 'buy' || ph === 'build' || ph === 'shop' ? 'decline' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : o.bankrupt ? 'bankrupt' : null;
+        if (a) R.act(g.state, 'me', { type: a }, g.clock);
+      }
+    }
+    if (g.board.skipAnim) g.board.skipAnim();
+    draw(true);
+    return g.state.seats[g.state.turn].id === 'me' && g.state.phase === 'roll';
+  }
   root.Solo = {
-    fastForward, start, stop, pause, resume,
+    fastForward, skipToMyRoll, start, stop, pause, resume,
     primary() { return game && !game.paused ? game.board.primary() : false; },
     get active() { return !!game; },
     get paused() { return !!(game && game.paused); },

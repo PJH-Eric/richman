@@ -201,12 +201,14 @@
     }
   };
 
-  /** 地圖選擇卡片（單機開局與房主設定共用）。attrs：每張卡片加上的屬性，例如 'data-map' 或 'data-set="map"' */
+  /** 地圖大小選擇卡片（單機開局與房主設定共用）。地圖每局隨機生成，只選格數。attrs：每張卡片加上的屬性，例如 'data-size' 或 'data-set="mapSize"' */
+  const SIZE_INFO = { 48: ['小巧', '節奏快，約 10～15 分鐘'], 64: ['標準', '地產多一點，剛剛好'], 80: ['寬廣', '色組多、要走比較久'], 96: ['超大', '長線經營，適合久玩'], 120: ['巨大', '超大棋盤，玩很久也很豐富'] };
   function mapCards(selected, attrs, label) {
-    return '<div class="map-list" role="radiogroup" aria-label="' + (label || '地圖') + '">' + root.Rules.MAPS.LIST.map(m =>
-      '<button type="button" role="radio" class="map-card" aria-checked="' + (m.id === selected) + '" ' + attrs + ' data-val="' + m.id + '" data-map="' + m.id + '">' +
-      '<span class="map-sw" style="background:linear-gradient(135deg,' + m.theme.bg + ' 0 45%,' + m.theme.base + ' 45% 100%);color:' + (m.theme.bg === '#20204A' ? '#fff' : '#3B2A1E') + '"><b>' + m.size + '</b><small>格</small></span>' +
-      '<span class="map-tx"><b>' + esc(m.name) + '</b><small>' + esc(m.desc) + '</small></span></button>').join('') + '</div>';
+    return '<div class="map-list" role="radiogroup" aria-label="' + (label || '地圖大小') + '">' + root.Rules.MAPS.SIZES.map(n =>
+      '<button type="button" role="radio" class="map-card" aria-checked="' + (Number(selected) === n) + '" ' + attrs + ' data-val="' + n + '" data-size="' + n + '">' +
+      '<span class="map-sw"><b>' + n + '</b><small>格</small></span>' +
+      '<span class="map-tx"><b>' + SIZE_INFO[n][0] + '</b><small>' + SIZE_INFO[n][1] + '</small></span></button>').join('') +
+      '</div><p class="map-note">每一局的主題、地名和格子位置都是隨機生成的</p>';
   }
 
   root.UI = { $, $$, esc, show, mapCards, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };

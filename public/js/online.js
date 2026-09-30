@@ -39,7 +39,7 @@
     root.Net.on('replaced', () => toast('你在別的分頁開了同一個身分，這個分頁先斷線', 'bad'));
 
     $('#lobby-quick').onclick = () => { saveProfile(); root.Net.send({ type: 'quick' }); };
-    $('#lobby-create').onclick = () => { saveProfile(); root.Net.send({ type: 'create', max: 4, pace: 'normal', roundLimit: 40, map: root.App.store.map }); };
+    $('#lobby-create').onclick = () => { saveProfile(); root.Net.send({ type: 'create', max: 4, pace: 'normal', roundLimit: 40, mapSize: root.App.store.mapSize }); };
     $('#room-leave').onclick = () => leaveRoom();
     $('#room-list').addEventListener('click', e => {
       const b = e.target.closest('[data-join]');
@@ -178,7 +178,7 @@
         return '<li class="room-row"><div class="room-meta"><b>' + esc(r.name) + '</b>' +
           '<span class="code">' + r.id + '</span>' +
           '<span class="pill ' + (r.playing ? 'playing' : 'waiting') + '">' + (r.playing ? '對局中' : '等待中') + '</span>' +
-          '<small>玩家 ' + r.players + '/' + r.max + '・觀戰 ' + r.specs + '・' + esc(root.Rules.MAPS.get(r.map).name) + '・' + limitName(r.roundLimit) + '</small></div>' +
+          '<small>玩家 ' + r.players + '/' + r.max + '・觀戰 ' + r.specs + '・' + r.mapSize + ' 格・' + limitName(r.roundLimit) + '</small></div>' +
           '<div class="room-btns">' +
           '<button type="button" class="btn3d coral small" data-join="' + r.id + '" data-as="player"' + (r.playing || full ? ' disabled' : '') + '>' + (full ? '已滿' : '加入遊戲') + '</button>' +
           '<button type="button" class="btn3d sea small" data-join="' + r.id + '" data-as="spectator">觀戰</button></div></li>';
@@ -301,9 +301,9 @@
       '<button type="button" role="radio" aria-checked="' + (String(o[0]) === String(cur)) + '" data-set="' + k + '" data-val="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>';
     $('#room-host').innerHTML = me.host
       ? '<h4>房間設定（房主）</h4>' +
-        '<div class="set-line stack"><span>地圖</span>' + root.UI.mapCards(room.map, 'data-set="map"') + '</div>' +
+        '<div class="set-line stack"><span>地圖大小</span>' + root.UI.mapCards(room.mapSize, 'data-set="mapSize"') + '</div>' +
         '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[25, '25'], [40, '40'], [50, '50'], [0, '不限']], room.roundLimit) + '</div>'
-      : '<p class="host-info">地圖「' + esc(root.Rules.MAPS.get(room.map).name) + '」（' + root.Rules.MAPS.get(room.map).size + ' 格）・' + limitName(room.roundLimit) + '（房主決定）</p>';
+      : '<p class="host-info">地圖 ' + room.mapSize + ' 格（每局隨機生成）・' + limitName(room.roundLimit) + '（房主決定）</p>';
 
     /* 邀請連結 */
     const link = room.invite.active ? inviteLink(room.invite.token) : '';
@@ -338,7 +338,7 @@
     if (!b || !S.room) return;
     const act = b.dataset.act;
     if (b.dataset.set) {
-      const v = (b.dataset.set === 'max' || b.dataset.set === 'roundLimit') ? Number(b.dataset.val) : b.dataset.val;
+      const v = (b.dataset.set === 'max' || b.dataset.set === 'roundLimit' || b.dataset.set === 'mapSize') ? Number(b.dataset.val) : b.dataset.val;
       root.Net.send({ type: 'settings', [b.dataset.set]: v });
       return;
     }

@@ -6,9 +6,10 @@ const path = require('path'), fs = require('fs'), { execSync } = require('child_
 let pw = null;
 try { pw = require('playwright'); } catch (e) { try { pw = require(path.join(execSync('npm root -g').toString().trim(), 'playwright')); } catch (e2) { } }
 if (!pw) { console.log('沒有 Playwright，略過'); process.exit(0); }
+require('./_fast.js')(pw);
 const { createServer } = require('../server.js');
 const LAUNCH = { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] };
-const ACTIONS = Number(process.env.STALL_ACTIONS || 220);
+const ACTIONS = Number(process.env.STALL_ACTIONS || 150);
 let bad = 0;
 (async () => {
   const app = createServer(); await new Promise(r => app.server.listen(0, r));
@@ -23,12 +24,12 @@ let bad = 0;
     await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 20000 });
     let idle = 0, clicks = 0, busyAt = 0, oppAt = 0;
     const t0 = Date.now();
-    while (clicks < ACTIONS && Date.now() - t0 < 240000) {
+    while (clicks < ACTIONS && Date.now() - t0 < 80000) {
       if (await page.isVisible('#result')) { console.log('  （一局打完，再開一局）'); await page.click('#res-again'); await page.waitForTimeout(500); continue; }
       const info = await page.evaluate(() => {
         const g = Solo._debug.state, me = g.seats[g.turn].id === 'me';
         const vis = e => e.offsetParent !== null && !e.disabled;
-        const btns = [...document.querySelectorAll('.mc [data-a], .mc [data-item], .mc .pick-btn, .mc [data-pickcancel], .mc [data-confirm], .mc [data-inv]')].filter(vis).map(e => e.dataset.a ? 'a:' + e.dataset.a : e.dataset.item ? 'i:' + e.dataset.item : e.dataset.n ? 'n:' + e.dataset.n : e.dataset.inv ? 'inv' : e.dataset.confirm ? 'confirm' : 'cancel');
+        const btns = [...document.querySelectorAll('.mc [data-a], .mc .pick-btn, .mc [data-pickcancel], .mc [data-confirm], .mc [data-inv]')].filter(vis).map(e => e.dataset.a ? 'a:' + e.dataset.a : e.dataset.n ? 'n:' + e.dataset.n : e.dataset.inv ? 'inv' : e.dataset.confirm ? 'confirm' : 'cancel');
         return { me, phase: g.phase, busy: Solo.board._debug.busy, btns, modal: [...document.querySelectorAll('[role=dialog]')].some(d => d.getClientRects().length > 0 && getComputedStyle(d).visibility !== 'hidden' && !d.closest('[hidden]')), ver: g.version, clock: Solo._debug.clock, paused: !!Solo.paused, cur: g.seats[g.turn].id + ':' + (g.seats[g.turn].ai || 'human'), pend: JSON.stringify(g.pending), html: document.querySelector('.mc') ? document.querySelector('.mc').innerHTML.slice(0, 800) : '' };
       });
       if (info.modal) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); continue; }

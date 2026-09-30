@@ -13,6 +13,7 @@
     "test:scroll": "node scripts/scroll-check.js",
     "test:flow": "node scripts/flow-fuzz.js",
     "test:maps": "node scripts/map-check.js",
+    "test:shop": "node scripts/shop-check.js",
     "test:items": "node scripts/item-flow-check.js",
     "test:online-items": "node scripts/online-item-check.js",
     "test:e2e": "node scripts/run-e2e.js",

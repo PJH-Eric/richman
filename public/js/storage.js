@@ -17,7 +17,7 @@
     aiCount: 3,
     aiDiffs: null,        /* 每個電腦各自的難度（最多 7 個）；null＝全部跟 difficulty 一樣 */
     roundLimit: 40,       /* 單機：回合上限（0＝不限） */
-    map: 'taiwan40',      /* 單機：地圖 */
+    mapSize: 64,          /* 單機：地圖格數（48／64／80／96／120，每局隨機生成） */
     seenHelp: false,
     stats: {}             /* { [難度|online|mixed]: { play, win } } */
   }, SETTING_DEFAULTS);

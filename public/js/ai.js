@@ -102,15 +102,14 @@
     return null;
   }
 
-  /** 道具商店：幼幼班不買；其他難度留一筆保命錢，挑對自己有用的買（帶 2 個以上就不再買） */
+  /** 道具商店：用道具點數買（點數沒有別的用途，能買就買）。幼幼班不買；簡單難度偶爾亂逛；帶太多就不再買 */
   function decideShop(state, si, level, rng, opt) {
     const s = state.seats[si];
     const leave = { type: 'decline' };
-    if (level === 'kid' || !opt.shop || s.items.length >= 2) return leave;
-    const keep = reserveFor(level, state, si) + 100;
-    const can = (opt.shop || []).filter(x => x.can && s.cash - x.cost >= keep);
-    if (!can.length || (level === 'easy' && rng.chance(0.5))) return leave;
-    const pref = { guard: 3, free: 3, cat: 3, taxfree: 2, fly: 2, steal: 2, bomb: 2, dice: 1, swap: 1 };
+    if (level === 'kid' || !opt.shop || s.items.length >= 6) return leave;
+    const can = (opt.shop || []).filter(x => x.can);
+    if (!can.length || (level === 'easy' && rng.chance(0.4))) return leave;
+    const pref = { upgrade: 5, guard: 4, free: 3, cat: 3, fly: 3, freeze: 3, coupon: 3, half: 3, steal: 2, bomb: 2, gobonus: 2, bail: 2, taxfree: 2, loan: 2, dice: 2, swap: 1 };
     can.sort((a, b) => (pref[b.item] || 0) - (pref[a.item] || 0) || rng.next() - 0.5);
     const pick = level === 'hard' ? can[0] : can[Math.floor(rng.next() * Math.min(3, can.length))];
     return { type: 'shopBuy', item: pick.item };
@@ -156,11 +155,11 @@
     if (opt.useCard) return { type: 'useCard' };
     if (level === 'kid' || level === 'easy') return { type: 'roll' };
     const early = unownedCount(state) >= 6;
-    if (level === 'normal') return opt.payJail && early && s.cash >= 400 ? { type: 'payJail' } : { type: 'roll' };
+    if (level === 'normal') return opt.payJail && early && s.cash >= (opt.jailFine || 50) + 350 ? { type: 'payJail' } : { type: 'roll' };
     /* 困難：前期趕快出去買地，後期別亂跑，在監獄裡最安全 */
-    if (early) return opt.payJail && s.cash >= 150 ? { type: 'payJail' } : { type: 'roll' };
+    if (early) return opt.payJail && s.cash >= (opt.jailFine || 50) + 100 ? { type: 'payJail' } : { type: 'roll' };
     const danger = worstRent(state, si) >= s.cash * 0.5;
-    return danger ? { type: 'roll' } : (opt.payJail && s.cash >= 600 ? { type: 'payJail' } : { type: 'roll' });
+    return danger ? { type: 'roll' } : (opt.payJail && s.cash >= (opt.jailFine || 50) + 500 ? { type: 'payJail' } : { type: 'roll' });
   }
 
 
@@ -189,6 +188,20 @@
     return -rent;
   }
 
+  function ownedWorth(state, i) { return R.ownedBy(state, i).reduce((a, k) => a + T[k].price + state.props[k].houses * (T[k].house || 0), 0); }
+
+  /** 擲骰前選 1 顆還是 2 顆：比較兩種擲法的平均落點分數（簡單難度隨機、幼幼班固定 2 顆） */
+  function decideDiceCount(state, si, level, rng) {
+    if (level === 'kid') return 2;
+    if (level === 'easy') return rng.chance(0.5) ? 1 : 2;
+    const s = state.seats[si], B = T.length;
+    const at = n => tileScore(state, si, (s.pos + n) % B, level) + ((s.pos + n >= B) ? 60 : 0);
+    let one = 0; for (let n = 1; n <= 6; n++) one += at(n) / 6;
+    let two = 0; for (let n = 2; n <= 12; n++) two += at(n) * (6 - Math.abs(7 - n)) / 36;
+    if (Math.abs(one - two) < 5) return 2;
+    return one > two ? 1 : 2;
+  }
+
   function decideItem(state, si, level, rng, opt) {
     const s = state.seats[si];
     if (level === 'kid' || !s.items.length) return null;
@@ -207,9 +220,18 @@
       R.itemTargets(state, si, 'swap').forEach(i => { const v = tileScore(state, si, state.seats[i].pos, level) - 40; if (!f || v > f.v) f = { v, a: { type: 'useItem', item: 'swap', target: i } }; });
       if (f && f.v >= (level === 'hard' ? 200 : 300)) return f.a;
     }
+    if (opt.loan && s.items.includes('loan') && level !== 'easy' && s.cash < 500) return { type: 'useItem', item: 'loan' };
+    if (opt.upgrade && s.items.includes('upgrade') && (level !== 'easy' || rng.chance(0.5))) {
+      const c = R.itemTargets(state, si, 'upgrade').sort((a, b) => T[b].house - T[a].house)[0];
+      if (c != null) return { type: 'useItem', item: 'upgrade', tile: c };
+    }
+    if (opt.freeze && s.items.includes('freeze') && level !== 'easy') {
+      const c = R.itemTargets(state, si, 'freeze').sort((a, b) => state.seats[b].cash + ownedWorth(state, b) - state.seats[a].cash - ownedWorth(state, a))[0];
+      if (c != null && (level === 'hard' || rng.chance(0.5))) return { type: 'useItem', item: 'freeze', target: c };
+    }
     let best = null;
     if (opt.dice && s.items.includes('dice')) {
-      for (let n = 1; n <= 6; n++) {
+      for (let n = 1; n <= 12; n++) {
         const v = tileScore(state, si, (s.pos + n) % BOARD, level) + ((s.pos + n >= BOARD) ? 60 : 0);
         if (!best || v > best.v) best = { v, a: { type: 'useItem', item: 'dice', n } };
       }
@@ -250,7 +272,7 @@
         const it = decideItem(state, si, level, rng, opt);
         if (it) return it;
         const m = decideManage(state, si, level, rng, opt);
-        return m || { type: 'roll' };
+        return m || { type: 'roll', dice: decideDiceCount(state, si, level, rng) };
       }
       default: return null;
     }
