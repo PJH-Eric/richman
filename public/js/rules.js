@@ -9,20 +9,19 @@
  * 回合流程（phase）：
  *   roll    —— 等目前玩家擲骰（在監獄裡可改成繳罰金／用出獄許可證）
  *   buy     —— 停在沒人的地產上，等玩家決定買或不買
- *   debt    —— 付不出錢，等玩家賣房／抵押湊錢，或宣告破產
- *   manage  —— 這回合的事都做完了，可以蓋房、抵押，然後結束回合
+ *   debt    —— 付不出錢，等玩家賣房子湊錢，或宣告破產
+ *   manage  —— 這回合的事都做完了，可以結束回合
  *   over    —— 只剩一人（或到回合上限）
  *
  * 已確認的規則（簡易版；不做交易與拍賣）：
- *   - 40 格；起點領 200；起始現金 2000；2～8 人；系統隨機決定座位順序。
+ *   - 40 格；起點領 200；起始現金＝回合上限×100（不限回合 10000）；2～8 人；系統隨機決定座位順序。
  *   - 沒人買的地不拍賣，留在原地，下次有人停到還能買。
  *   - 同色整組都是自己的才能蓋房；每格最多 4 棟房，再升級成 1 間旅店；蓋房要平均。
  *   - 強制收購（簡易版取代交易）：自己的回合可以用 2 倍地價，向對手買下「一塊」能讓你湊齊整組的地
- *     （沒有房子、沒在抵押才行，每回合一次）；對手想防守就把那塊地先抵押起來。
- *   - 抵押：整組沒有房子才能抵押，抵押拿一半地價，贖回要加 10%；抵押中的地不收租。
+ *     （沒有房子才行，每回合一次）。
  *   - 擲出雙骰可再擲一次，連三次雙骰進監獄。
  *   - 監獄：繳 50、用出獄許可證、或擲出雙骰出獄；第三回合還沒出就強制繳 50 並照骰子前進。
- *   - 付不出錢：先賣房、抵押還債；所有資產加起來都不夠就破產，資產全給債主（給銀行就回收）。
+ *   - 付不出錢：先賣房子還債；所有資產加起來都不夠就破產，資產全給債主（給銀行就回收）。
  *   - 最後一個沒破產的人獲勝；房主／單機可設回合上限，到了就比總資產。
  */
 (function (root, factory) {
@@ -37,7 +36,9 @@
   const MIN_PLAYERS = 2;
   const MAX_PLAYERS = 8;
   const SOLO_MAX_LEVEL = 2;       /* 沒湊齊同色整組時，單格最高能升到幾級 */
-  const START_CASH = 2000;
+  const START_CASH = 10000;        /* 不限回合的起始現金 */
+  /** 起始現金：回合上限 × 100（20／30／40 回合＝2000／3000／4000），不限回合＝10000 */
+  function startCashFor(limit) { return Number(limit) > 0 ? Number(limit) * 100 : START_CASH; }
   const GO_SALARY = 200;
   const JAIL_FINE = 50;
   let JAIL_POS = 10;
@@ -133,7 +134,7 @@
     });
     return changed;
   }
-  const STATION_RENT = [25, 50, 100, 200];
+  const STATION_RENT = [40, 80, 160, 320];
 
   /* ---------- 機會／命運 ---------- */
 
@@ -145,7 +146,7 @@
     { t: 'moveTo', to: 5, text: '搭高鐵到台北車站' },
     { t: 'nearest', kind: 'station', text: '前進到最近的車站；如果有主人，租金加倍' },
     { t: 'nearest', kind: 'station', text: '前進到最近的車站；如果有主人，租金加倍' },
-    { t: 'nearest', kind: 'utility', text: '前進到最近的公司；如果有主人，付骰子點數的 10 倍' },
+    { t: 'nearest', kind: 'utility', text: '前進到最近的公司；如果有主人，付骰子點數的 15 倍' },
     { t: 'collect', n: 50, text: '銀行發放股息，領 50 元' },
     { t: 'collect', n: 150, text: '定存到期，領 150 元' },
     { t: 'collect', n: 100, text: '統一發票中獎，領 100 元' },
@@ -223,10 +224,10 @@
     const order = rng.shuffle(players.slice());
     const seats = order.map(p => ({
       id: p.id, name: p.name, char: p.char, ai: p.ai || null,
-      cash: o.startCash || START_CASH, pos: 0, jail: false, jailTurns: 0, getOut: 0, items: [], god: null,
+      cash: o.startCash || startCashFor(ROUND_LIMITS.includes(Number(o.roundLimit)) ? Number(o.roundLimit) : 0), pos: 0, jail: false, jailTurns: 0, getOut: 0, items: [], god: null,
       bankrupt: false, auto: false, timeouts: 0, afk: false
     }));
-    const props = TILES.map(() => ({ owner: -1, houses: 0, mortgaged: false }));
+    const props = TILES.map(() => ({ owner: -1, houses: 0 }));
     const tiles = o.fixedPrices ? TILES : genTiles(rng);
     const now = o.now || 0;
     const state = {
@@ -261,15 +262,13 @@
   function groupOwned(state, si, group) { return GROUP_TILES[group].every(i => state.props[i].owner === si); }
   function groupHouses(state, group) { return GROUP_TILES[group].map(i => state.props[i].houses); }
   function countKind(state, si, type) { return OWNABLE.filter(i => tl(state)[i].type === type && state.props[i].owner === si).length; }
-  function mortgageValue(t) { return Math.floor(t.price / 2); }
-  function unmortgageCost(t) { return Math.ceil(Math.floor(t.price / 2) * 11 / 10); }
 
-  /** 租金；opt.double 車站加倍、opt.tenX 公司固定 10 倍（機會卡） */
-  /* 連棟加乘：同一個人在「相鄰」的連續格子上都蓋了房子（沒抵押），踩到其中任何一格租金加成：2 連 ×1.5、3 連 ×2、4 連以上 ×2.5 */
+  /** 租金；opt.double 車站加倍、opt.tenX 公司固定 15 倍（機會卡） */
+  /* 連棟加乘：同一個人在「相鄰」的連續格子上都蓋了房子，踩到其中任何一格租金加成：2 連 ×1.5、3 連 ×2、4 連以上 ×2.5 */
   const ROW_BONUS = [1, 1, 1.5, 2, 2.5];
   function rowLen(state, ti) {
     const T = tl(state), n = T.length, o = state.props[ti].owner;
-    const ok = i => { const q = state.props[i]; return T[i].type === 'prop' && q.owner === o && !q.mortgaged && q.houses > 0; };
+    const ok = i => { const q = state.props[i]; return T[i].type === 'prop' && q.owner === o && q.houses > 0; };
     if (o < 0 || !ok(ti)) return 1;
     let len = 1;
     for (let k = 1; k < n && ok((ti + k) % n); k++) len++;
@@ -281,24 +280,23 @@
   function rentOf(state, ti, dice, opt) {
     opt = opt || {};
     const t = tl(state)[ti], p = state.props[ti];
-    if (p.owner < 0 || p.mortgaged) return 0;
+    if (p.owner < 0) return 0;
     if (t.type === 'prop') {
       if (p.houses > 0) return Math.round(t.rent[p.houses] * rowBonus(state, ti));
       return t.rent[0] * (groupOwned(state, p.owner, t.group) ? 2 : 1);
     }
     if (t.type === 'station') return STATION_RENT[Math.max(0, countKind(state, p.owner, 'station') - 1)] * (opt.double ? 2 : 1);
     const d = dice ? dice[0] + dice[1] : 7;
-    return (opt.tenX || countKind(state, p.owner, 'utility') >= 2 ? 10 : 4) * d;
+    return (opt.tenX || countKind(state, p.owner, 'utility') >= 2 ? 15 : 6) * d;
   }
 
-  /** 一個人手上能換成現金的最大金額（現金＋抵押＋賣房） */
+  /** 一個人手上能換成現金的最大金額（現金＋賣房） */
   function liquidity(state, si) {
     const s = state.seats[si];
     let v = s.cash;
     for (const i of ownedBy(state, si)) {
       const t = tl(state)[i], p = state.props[i];
       v += p.houses * Math.floor((t.house || 0) / 2);
-      if (!p.mortgaged) v += mortgageValue(t);
     }
     return v;
   }
@@ -308,7 +306,7 @@
     let v = s.cash;
     for (const i of ownedBy(state, si)) {
       const t = tl(state)[i], p = state.props[i];
-      v += p.mortgaged ? mortgageValue(t) : t.price;
+      v += t.price;
       v += p.houses * (t.house || 0);
     }
     return v;
@@ -403,7 +401,7 @@
     if (liquidity(state, si) >= amount) {
       state.pending = { kind: 'debt', amount, creditor: to, reason, cont: cont || null };
       state.phase = 'debt';
-      say(state, s.name + ' 現金不夠付 ' + money(amount) + '，要先賣房子或抵押地產');
+      say(state, s.name + ' 現金不夠付 ' + money(amount) + '，要先賣房子');
       return false;
     }
     say(state, s.name + ' 要付 ' + money(amount) + '，但全部資產都不夠');
@@ -432,7 +430,7 @@
     for (const i of ownedBy(state, si)) {
       const p = state.props[i];
       if (heir >= 0) p.owner = heir;
-      else { p.owner = -1; p.mortgaged = false; }
+      else p.owner = -1;
     }
     if (heir >= 0) {
       state.seats[heir].cash += cash;
@@ -507,7 +505,6 @@
         } else say(state, s.name + ' 來到自己的 ' + t.name);
         return;
       }
-      if (p.mortgaged) { say(state, t.name + ' 抵押中，不收過路費'); return; }
       let rent = rentOf(state, t.i, state.dice, ctx);
       if (hasItem(state, si, 'free')) {
         useUp(state, si, 'free');
@@ -662,7 +659,7 @@
 
   function holdFor(state, kind, extra) {
     const f = PACES[state.opts.pace] || 1;
-    const base = { roll: 900, buy: 600, decline: 450, build: 550, shop: 500, sell: 450, mortgage: 450, unmortgage: 450, buyout: 800, end: 350, pay: 500, settle: 450, bankrupt: 1200 }[kind] || 400;
+    const base = { roll: 900, buy: 600, decline: 450, build: 550, shop: 500, sell: 450, buyout: 800, end: 350, pay: 500, settle: 450, bankrupt: 1200 }[kind] || 400;
     return Math.round((base + (extra || 0)) * f);
   }
 
@@ -723,7 +720,6 @@
     if (!t || t.type !== 'prop') return '只有地產可以蓋房子';
     const p = state.props[ti];
     if (p.owner !== si) return '這塊地不是你的';
-    if (p.mortgaged) return '抵押中的地不能升級，先贖回來';
     if (p.houses >= MAX_HOUSES) return '已經是旅店了';
     if (state.seats[si].cash < t.house) return '現金不夠（要 ' + money(t.house) + '）';
     if (!groupOwned(state, si, t.group)) {
@@ -731,7 +727,6 @@
       if (p.houses >= SOLO_MAX_LEVEL) return '這格已升到 ' + SOLO_MAX_LEVEL + ' 級；買齊同色整組才能繼續升級';
       return null;
     }
-    if (GROUP_TILES[t.group].some(i => state.props[i].mortgaged)) return '這一組有地在抵押中，先贖回來';
     const min = Math.min.apply(null, groupHouses(state, t.group));
     if (p.houses > min) return '要平均升級：先把同組其他格升到一樣高';
     return null;
@@ -750,26 +745,6 @@
     return null;
   }
 
-  function canMortgageAt(state, si, ti) {
-    const bad = checkTileOwn(state, si, ti);
-    if (bad) return bad;
-    const t = tl(state)[ti], p = state.props[ti];
-    if (p.mortgaged) return '已經抵押了';
-    if (t.type === 'prop') {
-      if (groupOwned(state, si, t.group) ? GROUP_TILES[t.group].some(i => state.props[i].houses > 0) : p.houses > 0) return '房子要先賣掉才能抵押';
-    }
-    return null;
-  }
-
-  function canUnmortgageAt(state, si, ti) {
-    const bad = checkTileOwn(state, si, ti);
-    if (bad) return bad;
-    const t = tl(state)[ti], p = state.props[ti];
-    if (!p.mortgaged) return '這塊地沒有抵押';
-    if (state.seats[si].cash < unmortgageCost(t)) return '現金不夠（要 ' + money(unmortgageCost(t)) + '）';
-    return null;
-  }
-
   /** 買了這塊，同組其他格都是自己的 → 湊齊整組 */
   function completesGroup(state, si, ti) {
     const t = tl(state)[ti];
@@ -785,7 +760,6 @@
     if (p.owner < 0) return '這塊地還沒有主人，直接停上去買就好';
     if (p.owner === si) return '這塊地已經是你的了';
     if (state.boughtOut) return '這回合已經收購過一次了';
-    if (p.mortgaged) return '抵押中的地不能收購';
     if (p.houses > 0) return '有房子的地不能收購';
     if (!completesGroup(state, si, ti)) return '收購後要能湊齊同色整組才行';
     if (state.seats[si].cash < buyoutCost(state, ti)) return '現金不夠（要 ' + money(buyoutCost(state, ti)) + '）';
@@ -794,7 +768,7 @@
 
   /**
    * 執行一個行動。
-   * action：{ type: 'useItem'|'roll'|'payJail'|'useCard'|'buy'|'decline'|'build'|'sell'|'mortgage'|'unmortgage'|'buyout'|'settle'|'bankrupt'|'endTurn', tile? }
+   * action：{ type: 'useItem'|'roll'|'payJail'|'useCard'|'buy'|'decline'|'build'|'sell'|'buyout'|'settle'|'bankrupt'|'endTurn', tile? }
    * meta.ai：電腦或系統代打（不會清掉「掛機」狀態）
    */
   function act(state, id, action, now, meta) {
@@ -922,16 +896,14 @@
         afterResolve(state, si);
         hold = 'decline';
         break;
-      case 'build': case 'sell': case 'mortgage': case 'unmortgage': {
+      case 'mortgage': case 'unmortgage': return { ok: false, reason: 'illegal', text: '沒有抵押功能' };
+      case 'build': case 'sell': {
         const okPhase = type === 'build' ? ph === 'build'
-          : type === 'mortgage' ? ph === 'debt'
-          : type === 'sell' ? (ph === 'roll' || ph === 'manage' || ph === 'buy' || ph === 'debt')
-          : (ph === 'roll' || ph === 'manage' || ph === 'buy');
+          : (ph === 'roll' || ph === 'manage' || ph === 'buy' || ph === 'debt');
         if (!okPhase) return fail('bad-phase');
         const ti = Number(action.tile);
         if (type === 'build' && (!state.pending || state.pending.tile !== ti)) return { ok: false, reason: 'illegal', text: '只能在你剛走到的這塊地加蓋' };
-        const err = type === 'build' ? canBuildAt(state, si, ti) : type === 'sell' ? canSellAt(state, si, ti)
-          : type === 'mortgage' ? canMortgageAt(state, si, ti) : canUnmortgageAt(state, si, ti);
+        const err = type === 'build' ? canBuildAt(state, si, ti) : canSellAt(state, si, ti);
         if (err) return { ok: false, reason: 'illegal', text: err };
         const t = tl(state)[ti], p = state.props[ti];
         if (type === 'build') {
@@ -945,14 +917,6 @@
           s.cash += back; p.houses--;
           ev(state, { t: 'build', seat: si, tile: ti, houses: p.houses });
           say(state, s.name + ' 賣掉 ' + t.name + ' 的一棟房子，拿回 ' + money(back));
-        } else if (type === 'mortgage') {
-          s.cash += mortgageValue(t); p.mortgaged = true;
-          ev(state, { t: 'mortgage', seat: si, tile: ti, on: true });
-          say(state, s.name + ' 抵押了 ' + t.name + '，拿到 ' + money(mortgageValue(t)));
-        } else {
-          s.cash -= unmortgageCost(t); p.mortgaged = false;
-          ev(state, { t: 'mortgage', seat: si, tile: ti, on: false });
-          say(state, s.name + ' 贖回了 ' + t.name + '，花 ' + money(unmortgageCost(t)));
         }
         hold = type;
         break;
@@ -1015,7 +979,7 @@
   function options(state, id) {
     const si = indexOfId(state, id);
     const out = { roll: false, payJail: false, useCard: false, buy: false, decline: false, settle: false, bankrupt: false, endTurn: false,
-      build: [], sell: [], mortgage: [], unmortgage: [], buyout: [], shop: [], liquidity: 0, dice: false, fly: false, steal: false, swap: false, bomb: false };
+      build: [], sell: [], buyout: [], shop: [], liquidity: 0, dice: false, fly: false, steal: false, swap: false, bomb: false };
     if (si < 0 || state.phase === 'over' || si !== state.turn) return out;
     const s = state.seats[si], ph = state.phase;
     out.liquidity = liquidity(state, si);
@@ -1043,8 +1007,6 @@
     const manageable = ph === 'roll' || ph === 'manage';
     for (const i of ownedBy(state, si)) {
       if ((manageable || ph === 'debt' || ph === 'buy') && !canSellAt(state, si, i)) out.sell.push(i);
-      if (ph === 'debt' && !canMortgageAt(state, si, i)) out.mortgage.push(i);
-      if ((manageable || ph === 'buy') && !canUnmortgageAt(state, si, i)) out.unmortgage.push(i);
     }
     return out;
   }
@@ -1060,7 +1022,7 @@
         id: s.id, name: s.name, char: s.char, ai: s.ai, cash: s.cash, pos: s.pos, jail: s.jail, jailTurns: s.jailTurns,
         getOut: s.getOut, items: s.items.slice(), god: s.god ? { k: s.god.k, turns: s.god.turns } : null, bankrupt: s.bankrupt, auto: s.auto, afk: s.afk, worth: netWorth(state, i)
       })),
-      props: state.props.map(p => ({ owner: p.owner, houses: p.houses, mortgaged: p.mortgaged })),
+      props: state.props.map(p => ({ owner: p.owner, houses: p.houses })),
       tiles: state.tiles.map(t => t.type === 'prop' ? { price: t.price, house: t.house, rent: t.rent } : t.price ? { price: t.price } : t.tax ? { tax: t.tax } : null),
       turn: state.turn, round: state.round, phase: state.phase, dice: state.dice, doubles: state.doubles,
       pending: state.pending ? { kind: state.pending.kind, tile: state.pending.tile, price: state.pending.price,
@@ -1075,14 +1037,14 @@
   const inMap = fn => function (state) { if (state && state.map) useMap(state.map); return fn.apply(null, arguments); };
   useMap(Maps.DEFAULT);
   const api = {
-    MIN_PLAYERS, MAX_PLAYERS, START_CASH, GO_SALARY, JAIL_FINE, MAX_HOUSES, SOLO_MAX_LEVEL,
+    MIN_PLAYERS, MAX_PLAYERS, START_CASH, startCashFor, GO_SALARY, JAIL_FINE, MAX_HOUSES, SOLO_MAX_LEVEL,
     DIFFICULTY_LIST, DIFFICULTIES, PACES, ROUND_LIMITS, PLAYER_COLORS,
     GODS, TILES, GROUPS, GROUP_TILES, OWNABLE, CHANCE, CHEST, ITEMS, ITEM_LIST, MAX_ITEMS,
     MAPS: Maps, useMap, tl, genTiles, applyTiles, create,
     itemTargets: inMap(itemTargets), canUseItem: inMap(canUseItem), act: inMap(act), tick: inMap(tick), options: inMap(options), publicView: inMap(publicView),
     rentOf: inMap(rentOf), rowLen: inMap(rowLen), netWorth: inMap(netWorth), liquidity: inMap(liquidity), ownedBy: inMap(ownedBy), groupOwned: inMap(groupOwned),
-    mortgageValue, unmortgageCost, buyoutCost: inMap(buyoutCost), canBuyoutAt: inMap(canBuyoutAt), completesGroup: inMap(completesGroup),
-    canBuildAt: inMap(canBuildAt), canSellAt: inMap(canSellAt), canMortgageAt: inMap(canMortgageAt), canUnmortgageAt: inMap(canUnmortgageAt),
+    buyoutCost: inMap(buyoutCost), canBuyoutAt: inMap(canBuyoutAt), completesGroup: inMap(completesGroup),
+    canBuildAt: inMap(canBuildAt), canSellAt: inMap(canSellAt),
     indexOfId, cur, alive
   };
   Object.defineProperty(api, 'BOARD', { get: () => BOARD, enumerable: true });

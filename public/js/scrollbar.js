@@ -4,7 +4,7 @@
  * 套用對象：SEL 列出的容器＋整個頁面（非遊戲畫面時）。新容器出現會自動接上。 */
 (function (root) {
   'use strict';
-  const SEL = '.chat-log, .summary, .result-card, .modal-body, .mc, .side, [data-cs]';
+  const SEL = '.chat-log, .summary, .sum-pane, .pcards, .result-card, .modal-body, .mc, .side, [data-cs]';
   const bars = new Map();
   let layer = null, raf = 0;
 

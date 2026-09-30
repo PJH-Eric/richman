@@ -5,7 +5,7 @@
   const Art = root.Art;
   const store = root.Store.load();
   let settingsModal = null, menuModal = null, manageModal = null, tileModal = null;
-  let chatPopOpen = false, unread = 0;
+  let chatPopOpen = false, unread = 0, sideUnread = 0, chatMinState = () => false;
   const modals = {};
 
   const DIFF_HINT = {
@@ -132,6 +132,23 @@
     $('#side-open').onclick = () => setSide(true);
     $('#side-close').onclick = () => setSide(false);
     $('#chat-fab').onclick = () => setChatPop(true);
+    /* 左欄聊天室可以縮成一條，摘要就能完整顯示 */
+    let chatMin = false;
+    try { chatMin = localStorage.getItem('richman-chat-min') === '1'; } catch (e) { /* 沒有儲存空間也沒關係 */ }
+    const applyChatMin = () => {
+      const box = $('#side-chatbox'), t = $('#chat-toggle');
+      box.classList.toggle('min', chatMin);
+      t.setAttribute('aria-expanded', String(!chatMin));
+      t.setAttribute('aria-label', chatMin ? '展開聊天室' : '縮小聊天室');
+      if (!chatMin) { sideUnread = 0; renderSideUnread(); root.UI.chat.render(); }
+    };
+    $('#chat-toggle').onclick = () => {
+      chatMin = !chatMin;
+      try { localStorage.setItem('richman-chat-min', chatMin ? '1' : '0'); } catch (e) { /* ignore */ }
+      applyChatMin();
+    };
+    chatMinState = () => chatMin;
+    applyChatMin();
     $('#chat-pop-close').onclick = () => setChatPop(false);
     root.UI.chat.mount();
     root.UI.chat.onSend = text => root.Net.send({ type: 'chat', text });
@@ -243,7 +260,7 @@
   function gameLayout(online) {
     if (online != null) document.body.classList.toggle('online-game', !!online);
     const on = document.body.classList.contains('online-game');
-    const side = $('[data-chat="game"]');
+    const side = $('#side-chatbox');
     side.hidden = !on;
     $('#chat-fab').hidden = !on || isWide();
     if (isWide()) { setChatPop(false); setSide(false); }
@@ -262,9 +279,15 @@
       root.UI.chat.render();
     }
   }
+  function renderSideUnread() {
+    const b = $('#side-unread');
+    b.hidden = sideUnread === 0;
+    b.textContent = sideUnread > 9 ? '9+' : sideUnread;
+  }
   function chatArrived(m) {
     if (!m || m.system) return;
     root.Sound.sfx('chat');
+    if (root.UI.current === 'game' && chatMinState()) { sideUnread++; renderSideUnread(); }
     if (root.UI.current === 'game' && !isWide() && !chatPopOpen) { unread++; renderUnread(); }
   }
   function renderUnread() {
@@ -320,7 +343,7 @@
       step(Art.houseSvg() + Art.hotelSvg(), '3. 走到自己的地才能蓋房', '走到自己的地時，面板會問你要不要加蓋房子（花的錢是那塊地的房價）。每塊地單獨最多升到 2 級；同色整組都是你的，才能繼續升到 4 棟、旅店，租金最高。整組都是你的，空地租金也加倍。')+
       step(G('chance'), '4. 機會與命運', '停在「機會」或「命運」會抽一張卡，可能領獎金、被罰錢、被送去別的地方。') +
       step(G('jail'), '5. 監獄', '被抓進監獄後，可以擲出雙骰、繳 50 元或用出獄許可證離開；3 回合後一定要繳錢出獄。路過監獄只是探監，不會被關。') +
-      step(G('coin'), '6. 錢不夠就抵押', '要付錢卻不夠時，可以到「我的地產」賣房子、抵押地產換現金。實在湊不出來就破產，淘汰出局。') +
+      step(G('coin'), '6. 錢不夠就賣房', '要付錢卻不夠時，可以到「我的地產」賣房子換現金。實在湊不出來就破產，淘汰出局。') +
       step(G('god_fortune'), '7. 命運之神', '抽到好的機會／命運可能被福神（別人付你的過路費加倍）或財神（每回合領 120 元）附身；壞運氣會遇到窮神（你付雙倍過路費）或衰神（每回合被扣 80 元）。神明會陪你 4 個自己的回合。') +
       step(G('i_dice'), '8. 道具與攻擊', '停在休息站、抽到道具卡會獲得道具；在有「道具商店」格的地圖，停在商店還能花錢買（最多帶 3 個），面板上的「道具庫」可以看全部道具與說明。擲骰前可以用：遙控骰（選走 1～6 步）、機票（飛到任何一格）、偷錢卡（偷對手 20% 現金）、換位卡（和對手換位置）、炸彈（炸掉對手一間房）。免租券、免稅券、招財貓、護身符（擋下攻擊）會在對的時候自動生效。') +
       '</ol>' +

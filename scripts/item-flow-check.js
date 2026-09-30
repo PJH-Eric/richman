@@ -47,6 +47,12 @@ const CASES = [ ['fly', 8, '空地（買地）'], ['fly', 16, '對手的地（�
     const chip = await page.$('.mc .it-chip.on[data-item="' + item + '"]');
     if (!chip) { ok(false, label + '：道具按鈕沒出現'); continue; }
     await chip.click();
+    /* 點道具鈕之後要真的進入「選目標」狀態；剛好被重繪吃掉的話（彈窗、換階段）就關掉彈窗再點一次 */
+    if (!(await page.waitForFunction(() => Solo.board._debug.pick, null, { timeout: 1500 }).catch(() => null))) {
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(300);
+      await page.click('.mc .it-chip.on[data-item="' + item + '"]', { timeout: 3000 }).catch(() => {});
+    }
     if (item === 'fly' || item === 'bomb') {
       await page.waitForTimeout(300);
       const tile = item === 'bomb' ? 16 : arg;
@@ -55,8 +61,17 @@ const CASES = [ ['fly', 8, '空地（買地）'], ['fly', 16, '對手的地（�
       const bx = await page.evaluate(t => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const p = Solo.board.v3.project(t, 0, 0, 0.3); return { x: r.left + p.x - c.offsetLeft, y: r.top + p.y - c.offsetTop }; }, tile);
       await page.mouse.click(bx.x, bx.y);
       if (item === 'fly' && arg === 30) { await page.click('.mc [data-pickcancel]').catch(() => {}); ok(true, '去坐牢：不能飛（已取消）'); continue; }
+      /* 起點附近的格子可能被操作面板蓋住點不到：沒選到就改用程式選（真人可以拖動鏡頭或點面板上的清單） */
+      if (!(await page.waitForSelector('.mc [data-confirm]', { timeout: 1500 }).catch(() => null))) {
+        /* 滑鼠沒點到（被面板或鏡頭按鈕擋住，或剛好被重繪吃掉）：關掉彈窗、確認還在選目標狀態，再用程式選 */
+        if (await page.isVisible('#tile-modal')) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
+        if (!(await page.evaluate(() => Solo.board._debug.pick))) await page.click('.mc .it-chip.on[data-item="' + item + '"]', { timeout: 3000 }).catch(() => {});
+        await page.evaluate(t => Solo.board.tileClick(t), tile);
+      }
+      await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 });
+      await page.click('.mc [data-confirm]');
     } else if (item === 'dice') await page.click('.mc [data-n="' + arg + '"]');
-    else await page.click('.mc .tgt-btn');
+    else { await page.click('.mc .tgt-btn:not([disabled])'); await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await page.click('.mc [data-confirm]'); }
     /* 用完之後：最多 12 秒內要出現一個可以按的主線按鈕 */
     let btn = null, info = null;
     for (let i = 0; i < 48; i++) {

@@ -21,7 +21,7 @@ function invariants(st, g) {
   });
   st.props.forEach((p, i) => {
     if (!(p.owner === -1 || (p.owner >= 0 && p.owner < n))) fail('局' + g + ' 地產 ' + i + ' 主人不合法 ' + p.owner);
-    if (p.owner === -1 && (p.houses || p.mortgaged)) fail('局' + g + ' 無主地有房子／抵押 ' + i);
+    if (p.owner === -1 && p.houses) fail('局' + g + ' 無主地有房子 ' + i);
     if (p.houses < 0 || p.houses > 5) fail('局' + g + ' 房子數不合法 ' + i + ':' + p.houses);
     if (p.owner !== -1 && T[i].type !== 'prop' && !T[i].price) fail('局' + g + ' 不能買的格子有主人 ' + i);
   });
@@ -48,14 +48,14 @@ for (let g = 0; g < SEEDS; g++) {
     /* 列出所有「options 說可以」的動作 */
     const acts = [];
     ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].forEach(k => { if (o[k]) acts.push({ type: k }); });
-    ['build', 'sell', 'mortgage', 'unmortgage', 'buyout'].forEach(k => o[k].forEach(t => acts.push({ type: k, tile: t })));
+    ['build', 'sell', 'buyout'].forEach(k => o[k].forEach(t => acts.push({ type: k, tile: t })));
     if (o.dice) for (let k = 1; k <= 6; k++) acts.push({ type: 'useItem', item: 'dice', n: k });
     if (o.fly) R.itemTargets(st, si, 'fly').forEach(t => acts.push({ type: 'useItem', item: 'fly', tile: t }));
     ['steal', 'swap'].forEach(k => { if (o[k]) R.itemTargets(st, si, k).forEach(t => acts.push({ type: 'useItem', item: k, target: t })); });
     if (o.shop && o.shop.length) o.shop.forEach(x => { if (x.can) acts.push({ type: 'shopBuy', item: x.item }); });
     if (o.bomb) R.itemTargets(st, si, 'bomb').forEach(t => acts.push({ type: 'useItem', item: 'bomb', tile: t }));
     ['free', 'cat', 'taxfree', 'guard'].forEach(k => { if (s.items.includes(k) && R.canUseItem && !R.canUseItem(st, si, k)) acts.push({ type: 'useItem', item: k }); });
-    const main = acts.filter(a => !['sell', 'mortgage', 'unmortgage', 'buyout', 'useItem', 'shopBuy', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
+    const main = acts.filter(a => !['sell', 'buyout', 'useItem', 'shopBuy', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
     if (!(o.roll || o.decline || o.buy || o.settle || o.bankrupt || o.endTurn)) { fail('卡死：局' + g + ' 階段 ' + st.phase + ' 沒有主要動作'); break; }
     const side = acts.filter(a => !main.includes(a));
     const a = rand() < 0.4 && side.length ? side[Math.floor(rand() * side.length)] : main.length ? main[Math.floor(rand() * main.length)] : { type: 'bankrupt' };

@@ -11,7 +11,7 @@ for (let g = 0; g < 400; g++) {
     now += 1000;
     const id = st.seats[st.turn].id, o = R.options(st, id);
     const legal = ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].filter(k => o[k]);
-    ['build', 'sell', 'mortgage', 'unmortgage', 'buyout'].forEach(k => o[k].forEach(t => legal.push(k + ':' + t)));
+    ['build', 'sell', 'buyout'].forEach(k => o[k].forEach(t => legal.push(k + ':' + t)));
     if (o.dice) legal.push('useItem:dice'); if (o.fly) legal.push('useItem:fly');
     const mainOk = o.roll || o.decline || o.buy || o.settle || o.bankrupt || o.endTurn;
     if (!mainOk) { bad++; console.log('✘ 卡死：局' + g + ' 階段 ' + st.phase + ' 輪到 ' + id + ' 沒有主要動作'); break; }

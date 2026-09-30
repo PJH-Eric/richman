@@ -54,6 +54,8 @@ const ok = (v, n) => { v ? pass++ : fail++; console.log((v ? '  ✔ ' : '  ✘ '
       await page.click('.mc .it-chip.on[data-item="fly"]', { timeout: 4000 }).catch(() => {});
       await page.waitForTimeout(400);
       await page.evaluate(t => Solo.board.tileClick(t), idx);
+      await page.waitForSelector('.mc [data-confirm]', { timeout: 3000 }).catch(() => {});
+      await page.click('.mc [data-confirm]', { timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(600);
       let btn = null, ph = '';
       for (let i = 0; i < 48; i++) {

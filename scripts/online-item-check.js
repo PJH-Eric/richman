@@ -62,12 +62,15 @@ const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['
       await p.mouse.click(bx.x, bx.y);
       for (let r = 0; r < 3; r++) {   /* 3D 點選偶爾點在鏡頭按鈕上：沒反應就再點一次 */
         await p.waitForTimeout(1200);
-        if (!(await dbg(p)).pick) break;
+        if (await p.$('.mc [data-confirm]')) break;
         const b2 = await p.evaluate(t => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const pr = Online.board.v3.project(t, 0, 0, 0.3); return { x: r.left + pr.x - c.offsetLeft, y: r.top + pr.y - c.offsetTop }; }, tile);
         await p.mouse.click(b2.x + r * 3, b2.y - r * 3);
       }
+      if (!(await p.waitForSelector('.mc [data-confirm]', { timeout: 1500 }).catch(() => null))) await p.evaluate(t => Online.board.tileClick(t), tile);
+      await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 });
+      await p.click('.mc [data-confirm]');
     } else if (item === 'dice') await p.click('.mc [data-n="' + arg + '"]');
-    else await p.click('.mc .tgt-btn');
+    else { await p.click('.mc .tgt-btn:not([disabled])'); await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await p.click('.mc [data-confirm]'); }
     let btn = null, info = null;
     for (let k = 0; k < 48; k++) {
       await p.waitForTimeout(250);

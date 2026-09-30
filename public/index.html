@@ -151,7 +151,10 @@
           <button class="icon-btn side-close" id="side-close" type="button" aria-label="收起資訊"></button>
         </div>
         <div class="summary" id="summary"></div>
-        <div class="chat side-chat" data-chat="game" hidden></div>
+        <div class="side-chatbox" id="side-chatbox" hidden>
+          <button class="chat-toggle" id="chat-toggle" type="button" aria-expanded="true" aria-controls="side-chat-body"><b>聊天室</b><span class="badge" id="side-unread" hidden>0</span><i class="caret" aria-hidden="true"></i></button>
+          <div class="chat side-chat" id="side-chat-body" data-chat="game"></div>
+        </div>
       </aside>
       <button class="icon-btn side-open" id="side-open" type="button" aria-label="打開對局資訊"></button>
       <button class="icon-btn menu-fab" id="btn-menu-fab" type="button" aria-label="暫停／選單"></button>

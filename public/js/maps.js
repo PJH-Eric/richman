@@ -15,8 +15,9 @@
 
   /* 房價依地價分級；租金＝基本租金的 1／5／15／45／65／90 倍 */
   function houseCost(price) { return price <= 130 ? 50 : price <= 210 ? 100 : price <= 290 ? 150 : price <= 380 ? 200 : 250; }
+  const RENT_UP = 1.5;   /* 過路費整體調高倍數（原本地價約 6.3%，現在約 9.4%） */
   function rentLadder(price) {
-    const r0 = Math.max(2, Math.round(price / 16));
+    const r0 = Math.max(3, Math.round(price / 16 * RENT_UP));
     return [r0, r0 * 5, r0 * 15, r0 * 45, r0 * 65, r0 * 90];
   }
   const P = (name, group, price, glyph) => ({ type: 'prop', name, group, price, house: houseCost(price), rent: rentLadder(price), glyph });
@@ -92,7 +93,7 @@
     { type: 'prop', name: '信義區', group: 'navy', price: 350, house: 200, rent: [35, 175, 500, 1100, 1300, 1500], glyph: 'towers' },
     TAX('奢侈稅', 100, 'gem'),
     { type: 'prop', name: '台北101', group: 'navy', price: 400, house: 200, rent: [50, 200, 600, 1400, 1700, 2000], glyph: 'tower101' }
-  ].map((t, i) => Object.assign({}, t, { i }));
+  ].map((t, i) => Object.assign({}, t, { i }, t.rent ? { rent: t.rent.map(x => Math.round(x * RENT_UP)) } : {}));   /* 經典版手寫租金也一起調高 */
 
   /* ---------- 2. 台灣環島加大版（56 格） ---------- */
   const TAIWAN56_GROUPS = Object.assign({}, TAIWAN_GROUPS, {

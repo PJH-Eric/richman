@@ -169,9 +169,14 @@ async function solo(browser, base) {
     await page.waitForTimeout(1200);
     const bx = await page.evaluate(() => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const p = Solo.board.v3.project(12, 0, 0, 0.3); return { x: r.left + p.x - c.offsetLeft, y: r.top + p.y - c.offsetTop }; });
     await page.mouse.click(bx.x, bx.y);
+    if (!(await page.waitForSelector('.mc [data-confirm]', { timeout: 1500 }).catch(() => null))) await page.evaluate(() => Solo.board.tileClick(12));
+    await page.waitForSelector('.mc [data-confirm]', { timeout: 3000 });
+    const before = await page.evaluate(() => { const g = Solo._debug; return g.state.seats.find(x => x.id === 'me').pos; });
+    ok(before !== 12, '機票：點格子只是選目的地，還沒飛（要按確認）');
+    await page.click('.mc [data-confirm]');
     await page.waitForTimeout(400);
     const flew = await page.evaluate(() => { const g = Solo._debug; const i = g.state.seats.findIndex(x => x.id === 'me'); return { pos: g.state.seats[i].pos, items: g.state.seats[i].items.join(',') }; });
-    ok(flew.pos === 12 && flew.items === 'dice,cat', '機票：點格子就飛過去並用掉（' + JSON.stringify(flew) + '）');
+    ok(flew.pos === 12 && flew.items === 'dice,cat', '機票：按確認才飛過去並用掉（' + JSON.stringify(flew) + '）');
   }
   /* 攻擊型道具的選目標介面、走到自己的地的蓋房詢問、自製卷軸 */
   {
@@ -193,7 +198,11 @@ async function solo(browser, base) {
     await page.click('.mc .it-chip[data-item="steal"]');
     ok((await page.$$eval('.mc .tgt-btn', e => e.length)) >= 1, '偷錢卡：出現選對手的按鈕');
     const c0 = await page.evaluate(() => Solo._debug.state.seats.find(x => x.id === 'me').cash);
-    await page.click('.mc .tgt-btn');
+    await page.click('.mc .tgt-btn:not([disabled])');
+    await page.waitForSelector('.mc [data-confirm]', { timeout: 3000 });
+    ok(await page.isVisible('.mc [data-confirm]') && (await page.textContent('.mc [data-confirm]')).includes('偷'), '選中對手後出現「偷他的錢」確認鈕（不會一點就用掉）');
+    ok(await page.$('.mc .tgt-btn.sel'), '選中的對手有標示');
+    await page.click('.mc [data-confirm]');
     await page.waitForTimeout(300);
     const c1 = await page.evaluate(() => Solo._debug.state.seats.find(x => x.id === 'me').cash);
     ok(c1 > c0, '偷錢成功：現金增加（' + c0 + '→' + c1 + '）');
@@ -210,11 +219,11 @@ async function solo(browser, base) {
     await page.click('.mc [data-a="build"]');
     await page.waitForTimeout(400);
     ok(await page.evaluate(() => Solo._debug.state.props[6].houses) === 1, '按「蓋」：多一棟房子');
-    /* 我的地產：不能直接蓋、不能主動抵押、沒有收購 */
+    /* 我的地產：不能直接蓋、沒有抵押、沒有收購 */
     await page.evaluate(() => { const g = Solo._debug; Solo.board.openManage(document.body); });
     await page.waitForSelector('#manage-modal', { state: 'visible', timeout: 3000 }).catch(() => {});
     const mtxt = await page.evaluate(() => document.querySelector('#manage-body').innerText);
-    ok(!/蓋房 −|抵押 \+|收購 −/.test(mtxt), '「我的地產」沒有蓋房、抵押、收購按鈕');
+    ok(!/蓋房 −|抵押|贖回|收購 −/.test(mtxt), '「我的地產」沒有蓋房、抵押、收購按鈕');
     await page.keyboard.press('Escape');
   }
   /* 3D 骰子：擲完要停平、朝上的點數要跟結果一樣 */
@@ -293,8 +302,15 @@ async function online(browser, base) {
   const link = await A.page.inputValue('#invite-url');
   ok(/invite=/.test(link), '邀請連結帶有 token');
   await A.page.click('[data-act="add-ai"]');
-  await A.page.waitForSelector('.seat-row .tag.ai, .seat-row .ai-diff-seg');
+  await A.page.waitForSelector('.seat-row .tag.ai, .seat-row .ai-dd');
   ok(true, '房主加了一個電腦');
+  ok(!(await A.page.$('#screen-room select')), '房間裡沒有瀏覽器原生下拉選單');
+  await A.page.click('.seat-row .ai-dd');
+  await A.page.waitForSelector('.dd-menu .dd-opt');
+  ok((await A.page.$$('.dd-menu .dd-opt')).length === 4 && await A.page.getAttribute('.seat-row .ai-dd', 'aria-expanded') === 'true', '自製下拉選單展開，有 4 種難度');
+  await A.page.click('.dd-menu .dd-opt[data-val="hard"]');
+  await A.page.waitForFunction(() => { const b = document.querySelector('.seat-row .ai-dd'); return b && b.dataset.val === 'hard'; }, null, { timeout: 5000 });
+  ok(!(await A.page.$('.dd-menu')), '選完難度：選單收起，電腦難度改成困難');
   await A.page.click('[data-set="roundLimit"][data-val="20"]');
   await A.page.screenshot({ path: path.join(OUT, '平板橫向-房間.png') });
 

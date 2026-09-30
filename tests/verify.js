@@ -74,8 +74,8 @@ section('擲骰、買地、過路費');
   A(st, 'endTurn');
   eq(st.turn, 1, '換下一位');
   roll(st, 1, 2);
-  eq(st.seats[1].cash, R.START_CASH - 4, '別人踩到蘭嶼：付過路費 4');
-  eq(st.seats[0].cash, R.START_CASH - 60 + 4, '收租的人拿到 4');
+  eq(st.seats[1].cash, R.START_CASH - 6, '別人踩到蘭嶼：付過路費 6');
+  eq(st.seats[0].cash, R.START_CASH - 60 + 6, '收租的人拿到 6');
   ok(st.phase === 'manage', '付完租進入整理階段');
   A(st, 'endTurn');
   /* 不買 */
@@ -151,9 +151,7 @@ section('連棟加乘');
   give(st, 0, 9); st.props[9].houses = 1;
   eq(R.rowLen(st, 8), 2, '8、9 號都有房子＝2 連棟');
   eq(R.rentOf(st, 8, [1, 2]), Math.round(base * 1.5), '2 連棟：租金 ×1.5');
-  st.props[9].mortgaged = true;
-  eq(R.rowLen(st, 8), 1, '鄰格抵押就不算連棟');
-  st.props[9].mortgaged = false; st.props[9].houses = 0;
+  st.props[9].houses = 0;
   eq(R.rowLen(st, 8), 1, '沒蓋房的格子會斷開連棟');
   eq(R.rentOf(st, 8, [1, 2]), base, '沒有連棟：租金不加乘');
   eq(R.MAX_HOUSES, 5, '每塊地最多加蓋 5 次（含旅店）');
@@ -165,13 +163,12 @@ section('同色整組、蓋房、抵押');
   const st = mk(2);
   give(st, 0, 1); give(st, 0, 3);
   st.phase = 'manage';
-  eq(R.rentOf(st, 1, [1, 2]), 4, '整組沒有房子：租金加倍（2→4）');
+  eq(R.rentOf(st, 1, [1, 2]), 6, '整組沒有房子：租金加倍（3→6）');
   ok(!A(st, 'build', { tile: 1 }).ok, '不在「走到自己的地」時不能蓋房（我的地產不能直接蓋）');
   ok(B(st, 1).ok && st.props[1].houses === 1, '走到自己的地：蓋第 1 棟');
-  eq(R.rentOf(st, 1, [1, 2]), 10, '1 棟房子租金 10');
+  eq(R.rentOf(st, 1, [1, 2]), 15, '1 棟房子租金 15');
   ok(!B(st, 1).ok, '蓋房要平均：另一格還沒蓋不能再蓋這格');
   ok(B(st, 3).ok, '另一格蓋 1 棟');
-  ok(!A(st, 'mortgage', { tile: 1 }).ok, '同組有房子不能抵押');
   for (let i = 0; i < 3; i++) { B(st, 1); B(st, 3); }
   eq(st.props[1].houses, 4, '各蓋到 4 棟');
   ok(B(st, 1).ok && st.props[1].houses === 5, '升級成旅店（5）');
@@ -185,16 +182,11 @@ section('同色整組、蓋房、抵押');
   ok(B(st2, 6).ok && st2.props[6].houses === 1, '沒湊齊整組也能單格升級（1 級）');
   ok(B(st2, 6).ok && st2.props[6].houses === 2, '單格升到 2 級');
   ok(!B(st2, 6).ok, '沒湊齊整組：單格最高 2 級');
-  ok(!A(st2, 'mortgage', { tile: 6 }).ok, '有房子的地不能抵押');
   st2.phase = 'manage'; st2.pending = null;
   ok(A(st2, 'sell', { tile: 6 }).ok && A(st2, 'sell', { tile: 6 }).ok && st2.props[6].houses === 0, '沒湊齊整組可以隨時賣掉自己的房子（不用平均）');
   st2.phase = 'manage';
-  ok(!A(st2, 'mortgage', { tile: 6 }).ok, '不能主動抵押（只有欠錢時才行）');
-  ok(R.options(st2, 'p0').mortgage.length === 0 && R.options(st2, 'p0').build.length === 0, '整理階段的 options 沒有抵押與蓋房');
-  st2.props[6].mortgaged = true; st2.seats[0].cash += 50;
-  const c1 = st2.seats[0].cash;
-  eq(R.rentOf(st2, 6, [1, 2]), 0, '抵押中的地不收租');
-  ok(A(st2, 'unmortgage', { tile: 6 }).ok && !st2.props[6].mortgaged && st2.seats[0].cash === c1 - 55, '贖回：付一半地價再加 10%（55）');
+  ok(!A(st2, 'mortgage', { tile: 6 }).ok && !A(st2, 'unmortgage', { tile: 6 }).ok, '沒有抵押功能：抵押與贖回都會被拒絕');
+  ok(R.options(st2, 'p0').build.length === 0 && !('mortgage' in R.options(st2, 'p0')), '整理階段的 options 沒有蓋房，也沒有抵押');
   ok(!A(st2, 'buy').ok, '不在買地階段不能買');
   /* 走到自己的地才會跳出詢問 */
   const st3 = mk(2);
@@ -224,13 +216,13 @@ section('車站與公司');
 {
   const st = mk(2);
   give(st, 0, 5); give(st, 0, 15);
-  eq(R.rentOf(st, 5, [1, 2]), 50, '2 個車站租金 50');
+  eq(R.rentOf(st, 5, [1, 2]), 80, '2 個車站租金 80');
   give(st, 0, 25); give(st, 0, 35);
-  eq(R.rentOf(st, 5, [1, 2]), 200, '4 個車站租金 200');
+  eq(R.rentOf(st, 5, [1, 2]), 320, '4 個車站租金 320');
   give(st, 0, 12);
-  eq(R.rentOf(st, 12, [3, 4]), 28, '1 間公司：骰子點數 ×4（7×4）');
+  eq(R.rentOf(st, 12, [3, 4]), 42, '1 間公司：骰子點數 ×6（7×6）');
   give(st, 0, 28);
-  eq(R.rentOf(st, 12, [3, 4]), 70, '2 間公司：骰子點數 ×10');
+  eq(R.rentOf(st, 12, [3, 4]), 105, '2 間公司：骰子點數 ×15（7×15）');
 }
 
 /* ---------- 機會、命運 ---------- */
@@ -254,9 +246,9 @@ section('機會與命運');
   st = withCard('chance', 11, 4); roll(st, 1, 2);
   eq(st.seats[0].pos, 4, '機會：後退 3 格（7→4）');
   st = withCard('chance', 4, 4); give(st, 1, 15); roll(st, 1, 2);
-  ok(st.seats[0].pos === 15 && st.seats[0].cash === R.START_CASH - 50 && st.seats[1].cash === R.START_CASH + 50, '最近車站：有主人租金加倍（1 站 25→50）');
+  ok(st.seats[0].pos === 15 && st.seats[0].cash === R.START_CASH - 80 && st.seats[1].cash === R.START_CASH + 80, '最近車站：有主人租金加倍（1 站 40→80）');
   st = withCard('chance', 6, 4); give(st, 1, 12); roll(st, 1, 2);
-  ok(st.seats[0].pos === 12 && st.seats[0].cash === R.START_CASH - 30 * 1 && st.seats[1].cash === R.START_CASH + 30, '最近公司：付骰子 10 倍（3×10）');
+  ok(st.seats[0].pos === 12 && st.seats[0].cash === R.START_CASH - 45 && st.seats[1].cash === R.START_CASH + 45, '最近公司：付骰子 15 倍（3×15）');
   st = withCard('chance', 0, 4); roll(st, 1, 2);
   ok(st.seats[0].pos === 0 && st.seats[0].cash === R.START_CASH + 200, '前進到起點領 200');
   st = withCard('chance', 15, 4); roll(st, 1, 2);
@@ -289,21 +281,21 @@ section('還債與破產');
   ok(st2.seats[1].bankrupt && st2.phase === 'over' && st2.winner === 0, '資產全部加起來都不夠 → 直接破產，只剩一人 → 遊戲結束');
   ok(st2.props[1].owner === 0 && st2.props[3].owner === 0 && st2.seats[0].cash > R.START_CASH, '破產者的財產與現金全給債主');
   eq(st2.ranking[0], 0, '名次：贏家第一');
-  /* 湊得到：抵押賣房後付清 */
+  /* 湊得到：賣房子後付清 */
   const s3 = mk(2);
-  give(s3, 0, 39, 3);                            /* 台北101 3 棟房：rent[3]=1400 */
+  give(s3, 0, 39, 3);                            /* 台北101 3 棟房：rent[3]=2100 */
   give(s3, 0, 37, 3);
-  give(s3, 1, 11); give(s3, 1, 13); give(s3, 1, 14);
-  s3.seats[1].cash = 1200; s3.turn = 1; s3.phase = 'roll'; s3.seats[1].pos = 36;
+  give(s3, 1, 11, 4); give(s3, 1, 13, 4); give(s3, 1, 14, 4);
+  s3.seats[1].cash = 1900; s3.turn = 1; s3.phase = 'roll'; s3.seats[1].pos = 36;
   roll(s3, 1, 2);                                 /* 36+3=39 */
-  ok(s3.seats[1].pos === 39 && s3.phase === 'debt' && s3.pending.amount === 1400, '欠 1400、現金 1200 → 還債階段');
+  ok(s3.seats[1].pos === 39 && s3.phase === 'debt' && s3.pending.amount === 2100, '欠 2100、現金 1900 → 還債階段');
   ok(R.options(s3, 'p1').bankrupt && !R.options(s3, 'p1').settle, '還沒湊夠：不能結清、隨時可宣告破產');
+  ok(R.options(s3, 'p1').sell.length > 0, '還債時可以賣房子');
   ok(!A(s3, 'settle').ok, '現金不夠不能結清');
-  ok(A(s3, 'mortgage', { tile: 11 }).ok, '抵押一塊地（+70）');
-  ok(A(s3, 'mortgage', { tile: 13 }).ok, '再抵押（+70）');
-  ok(A(s3, 'mortgage', { tile: 14 }).ok, '再抵押（+80）→ 現金 1420');
+  for (let g = 0; g < 40 && !R.options(s3, 'p1').settle; g++) A(s3, 'sell', { tile: R.options(s3, 'p1').sell[0] });
+  ok(R.options(s3, 'p1').settle, '賣了幾棟房子後湊夠了');
   ok(!A(s3, 'build', { tile: 1 }).ok, '還債時不能蓋房');
-  ok(A(s3, 'settle').ok && s3.seats[1].cash === 20 && s3.seats[0].cash === R.START_CASH + 1400, '湊夠了就結清，債主收到錢');
+  ok(A(s3, 'settle').ok && s3.seats[1].cash >= 0 && s3.seats[0].cash === R.START_CASH + 2100, '湊夠了就結清，債主收到錢');
   ok(s3.phase === 'manage' || s3.phase === 'roll', '還完債回到正常流程');
   /* 稅 */
   const s4 = mk(2); s4.seats[0].pos = 1; roll(s4, 1, 2);
@@ -435,7 +427,7 @@ function sim(seed, levels, opts) {
   const players = levels.map((l, i) => ({ id: 'p' + i, name: 'P' + i + l, char: 'otter', ai: l }));
   const st = R.create(players, Object.assign({ seed }, opts || {}));
   const drv = AI.createDriver(seed);
-  const stats = { build: {}, buyout: {}, buy: {}, mortgage: {} };
+  const stats = { build: {}, buyout: {}, buy: {} };
   let now = 0, steps = 0, rejected = 0;
   while (st.phase !== 'over' && steps++ < 400000) {
     now += 50;
@@ -692,7 +684,7 @@ section('多張地圖與道具商店');
   }
   /* 每張地圖電腦互打：打得完、沒有被拒絕的動作 */
   M.LIST.forEach(m => {
-    const { st, rejected } = sim('mapsim-' + m.id, ['hard', 'normal', 'easy', 'normal'], { roundLimit: 25, map: m.id });
+    const { st, rejected } = sim('mapsim-' + m.id, ['hard', 'normal', 'easy', 'normal'], { roundLimit: 30, map: m.id });
     ok(st.phase === 'over' && rejected === 0, m.id + '：電腦互打打得完（' + st.round + ' 回合），沒有被拒絕的動作（' + rejected + '）');
   });
 }

@@ -59,7 +59,9 @@ async function scrollProblems(page) {
         else {
           const rr = el.getBoundingClientRect(), hit = document.elementFromPoint(Math.min(innerWidth - 2, rr.right - 8), Math.min(innerHeight - 2, Math.max(1, rr.top + Math.min(rr.height, innerHeight - rr.top) / 2)));
           const covered = !hit || !el.contains(hit) && !hit.closest('#cs-layer');
-          if (!covered && ![...document.querySelectorAll('.cs-track')].some(t => t.style.display === 'block')) out.push(id + ' 看不到自製卷軸');
+          const shown = () => [...document.querySelectorAll('.cs-track')].some(t => t.style.display === 'block');
+          for (let k = 0; k < 6 && !covered && !shown(); k++) await new Promise(r => setTimeout(r, 80));   /* 卷軸是下一個影格才更新，慢的機器多等一下 */
+          if (!covered && !shown()) out.push(id + ' 看不到自製卷軸');
         }
       } else if (oy === 'hidden' || oy === 'clip') {
         /* 文字省略號（單行）不算；其他被裁掉的才算 */
@@ -113,7 +115,7 @@ async function scrollProblems(page) {
     await check('線上大廳');
     await page.click('#lobby-create'); await page.waitForSelector('#screen-room:not([hidden])');
     for (let i = 0; i < 7; i++) await page.click('[data-act="add-ai"]').catch(() => {});
-    await page.click('[data-set="max"][data-val="8"]').catch(() => {});
+    await page.click('[data-set="roundLimit"][data-val="30"]').catch(() => {});
     for (let i = 0; i < 7; i++) await page.click('[data-act="add-ai"]').catch(() => {});
     await page.waitForTimeout(400);
     await check('房間等待室（8 人）');

@@ -280,11 +280,10 @@
       v.props.forEach((p, i) => {
         const o = tileObjs[i], t = T[i];
         if (!t.price) return;
-        const key = p.owner + ':' + p.houses + ':' + p.mortgaged;
+        const key = p.owner + ':' + p.houses;
         if (o.key === key) return;
         o.key = key;
         o.houses.clear(); o.mark.clear();
-        o.topMat.color.setScalar(p.mortgaged ? 0.5 : 1);
         const at = (a, b) => [o.inn[0] * a + o.tan[0] * b, o.inn[1] * a + o.tan[1] * b];   /* a：往中央；b：沿格子橫向 */
         const bandA = CW / 2 - 0.15;
         if (t.type === 'prop') {
@@ -324,7 +323,6 @@
             face.scale.set(0.78, 0.78, 1); face.position.set(at(0.1, 0)[0], 0.62, at(0.1, 0)[1]); face.renderOrder = 5;
             o.mark.add(face);
           }
-          if (p.mortgaged) { const x = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.03, 0.1), std('#4A3B2C')); x.position.set(0, 0.04, 0); x.rotation.y = 0.6; o.mark.add(x); const x2 = x.clone(); x2.rotation.y = -0.6; o.mark.add(x2); }
         }
       });
     }
@@ -345,10 +343,21 @@
       c.fillText(t.name + price, 256, 66, 460);
       labelTex.needsUpdate = true;
     }
+    /* 選道具目標時，可選的格子用淡綠色發亮 */
+    const TARGET_GLOW = 0x1F6A3A, targets = new Set();
+    function setTargets(list) {
+      const next = new Set(list || []);
+      let same = next.size === targets.size; if (same) for (const i of next) if (!targets.has(i)) { same = false; break; }
+      if (same) return;
+      targets.forEach(i => { if (i !== curTile && tileObjs[i]) tileObjs[i].topMat.emissive.setHex(0x000000); });
+      targets.clear();
+      next.forEach(i => { if (tileObjs[i]) { targets.add(i); if (i !== curTile) tileObjs[i].topMat.emissive.setHex(TARGET_GLOW); } });
+      dirty = true;
+    }
     function highlight(tile) {
       if (curTile === tile) return;
       dirty = true;
-      if (curTile >= 0) { tileObjs[curTile].topMat.emissive.setHex(0x000000); tileObjs[curTile].grp.position.y = 0; }
+      if (curTile >= 0) { tileObjs[curTile].topMat.emissive.setHex(targets.has(curTile) ? TARGET_GLOW : 0x000000); tileObjs[curTile].grp.position.y = 0; }
       curTile = tile;
       if (tile >= 0) {
         tileObjs[tile].topMat.emissive.setHex(0x6A5510); tileObjs[tile].grp.position.y = 0.08;
@@ -492,8 +501,8 @@
     }
     /* 拋擲：從棋子手邊高處丟出 → 拋物線落下 → 三次遞減彈跳並滑到定位 → 剛好停在骰面上。
        回傳每次撞擊的時間（毫秒，相對於開始），讓音效對得上落地瞬間 */
-    const BOUNCE = [[0.27, 1.0], [0.19, 0.45], [0.14, 0.16]];
-    const FLY = 0.40;
+    const BOUNCE = [[0.22, 1.0], [0.17, 0.45], [0.15, 0.16]];
+    const FLY = 0.46;
     function rollBegin(isSingle, values, durMs) {
       dirty = true;
       single = !!isSingle;
@@ -515,7 +524,7 @@
         const K = () => (2 + Math.floor(Math.random() * 2)) * (Math.random() < 0.5 ? -1 : 1);
         d.plan = {
           t0: rollStart, D, delay,
-          sx: px - dz * side * 0.5, sz: pz + dx * side * 0.5,
+          sx: px - dz * side * 0.35, sz: pz + dx * side * 0.35,
           lx: d.x - dx * 1.0, lz: d.z - dz * 1.0,
           goal, K: { x: K(), y: K(), z: K() }
         };
@@ -535,7 +544,8 @@
       if (p < FLY) {
         const u = p / FLY;
         x = pl.sx + (pl.lx - pl.sx) * u; z = pl.sz + (pl.lz - pl.sz) * u;
-        y = base + 2.3 * (1 - u) * (1 - u) + 0.7 * Math.sin(Math.PI * u) * (1 - u * 0.3);
+        /* 先從手邊往上拋到最高點，再落下：起點在棋子手邊（離地 0.5），最高約 3.2 */
+        y = base + 0.5 * (1 - u) + 2.7 * 4 * u * (1 - u);
       } else {
         let q = p - FLY, i = 0;
         while (i < BOUNCE.length - 1 && q > BOUNCE[i][0]) { q -= BOUNCE[i][0]; i++; }
@@ -549,6 +559,12 @@
       ['x', 'y', 'z'].forEach(ax => { d.mesh.rotation[ax] = pl.goal[ax] + pl.K[ax] * T2 * f; });
       /* 尚未出手的那顆先藏在手邊 */
       d.mesh.visible = !(single && d.mesh === dice[1].mesh) && (now - pl.t0) / pl.D >= pl.delay;
+    }
+    /* 相機是否已經滑到輪到的棋子身上（擲骰前要等它到位） */
+    function camReady() {
+      const ft = toks[activeSeat];
+      const gx = follow && ft ? ft.grp.position.x : 0, gz = follow && ft ? ft.grp.position.z : 0.4;
+      return Math.abs(gx - cam.target.x) + Math.abs(gz - cam.target.z) < 0.6 && Math.abs(zoomGoal - cam.zoom) < 0.04 * zoomGoal;
     }
     function rollEnd(d0, d1) {
       dirty = true;
@@ -725,7 +741,7 @@
 
     return {
       refreshPrices() { tileObjs.forEach(o => o.repaint && o.repaint()); dirty = true; },
-      setTiles, highlight, pop, setSeats, setActive, setFollow, setTok, hideTok, rollBegin, rollEnd, showDice, setView,
+      setTiles, highlight, pop, setSeats, setActive, setFollow, setTok, hideTok, setTargets, rollBegin, rollEnd, camReady, showDice, setView,
       get rolling() { return rolling; },
       /** 格子在畫面上的位置（給飄字用），單位 px，相對於棋盤容器左上角 */
       project(tile, ox, oz, y) {

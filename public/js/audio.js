@@ -98,8 +98,6 @@
     god_good(t) { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, t + i * 0.09, 0.28, 'sine', 0.1)); tone(392, t, 0.6, 'triangle', 0.08); },
     god_bad(t) { tone(110, t, 0.55, 'sawtooth', 0.1, null, 82); tone(117, t, 0.55, 'sawtooth', 0.08, null, 87); noise(t, 0.3, 0.25, 250); },
     hotel(t) { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, t + i * 0.07, 0.16, 'triangle', 0.14)); },
-    mortgage(t) { tone(330, t, 0.07, 'square', 0.09); tone(247, t + 0.08, 0.14, 'square', 0.09); },
-    unmortgage(t) { tone(247, t, 0.07, 'square', 0.09); tone(392, t + 0.08, 0.14, 'triangle', 0.11); },
     join(t) { tone(660, t, 0.08, 'sine', 0.12); tone(880, t + 0.08, 0.12, 'sine', 0.12); },
     leave(t) { tone(880, t, 0.08, 'sine', 0.1); tone(587, t + 0.08, 0.14, 'sine', 0.1); },
     error(t) { tone(200, t, 0.09, 'square', 0.1); tone(160, t + 0.1, 0.14, 'square', 0.1); },

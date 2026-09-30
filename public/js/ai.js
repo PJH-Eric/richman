@@ -3,11 +3,11 @@
  * 電腦跟真人一樣只看公開資訊，動作也全部走 Rules.act 這個合法入口。
  * 四段難度的差別是「會不會做決定」，不只是名字不同：
  *
- *   幼幼班：沒什麼策略——看到地有六成機率買、不蓋房、不贖回抵押；想很久，方便小朋友跟上
- *   簡單　：現金夠會買，偶爾才蓋房；不太會規劃湊整組，也不會贖回抵押
- *   普通　：留一筆預備金再買；買齊整組就蓋房、有錢就贖回；有出獄許可證就用
+ *   幼幼班：沒什麼策略——看到地有六成機率買、不蓋房；想很久，方便小朋友跟上
+ *   簡單　：現金夠會買，偶爾才蓋房；不太會規劃湊整組
+ *   普通　：留一筆預備金再買；買齊整組就蓋房；有出獄許可證就用
  *   困難　：搶湊同色整組、會擋對手的整組；車站優先；依對手最貴的過路費決定預備金；
- *          蓋房挑投資報酬率最高的組，必要時抵押閒置地產換錢買關鍵地；後期寧可待在監獄
+ *          蓋房挑投資報酬率最高的組；後期寧可待在監獄
  *
  * 驅動器 createDriver() 只負責「什麼時候做什麼」：等 Rules 的 readyAt（讓人看完動畫）再加一小段思考時間。
  */
@@ -51,7 +51,7 @@
     let worst = 0;
     for (const i of R.OWNABLE) {
       const o = owner(state, i);
-      if (o < 0 || o === si || state.props[i].mortgaged) continue;
+      if (o < 0 || o === si) continue;
       worst = Math.max(worst, R.rentOf(state, i, [3, 4]));
     }
     return worst;
@@ -91,47 +91,13 @@
     return after >= need ? { type: 'buy' } : { type: 'decline' };
   }
 
-  /** 沒在湊整組、沒有房子的地，可以先抵押換現金 */
-  function idleMortgageList(state, si, exceptTile) {
-    const list = [];
-    for (const i of R.ownedBy(state, si)) {
-      if (i === exceptTile) continue;
-      const t = T[i], p = state.props[i];
-      if (p.mortgaged || p.houses > 0) continue;
-      if (R.canMortgageAt(state, si, i)) continue;
-      if (t.type === 'prop') {
-        const mine = R.GROUP_TILES[t.group].filter(k => owner(state, k) === si).length;
-        if (mine * 2 > R.GROUP_TILES[t.group].length) continue;   /* 已經湊到一半以上的組不抵押 */
-      }
-      if (t.type === 'station') continue;
-      list.push(i);
-    }
-    return list;
-  }
-  function idleMortgageGain(state, si) { return idleMortgageList(state, si, -1).reduce((a, i) => a + R.mortgageValue(T[i]), 0); }
-  function pickIdleMortgage(state, si, exceptTile) {
-    const list = idleMortgageList(state, si, exceptTile).sort((a, b) => T[b].price - T[a].price);
-    return list.length ? list[0] : null;
-  }
-
-  /* ---------- 蓋房、贖回 ---------- */
+  /* ---------- 蓋房 ---------- */
 
   function decideManage(state, si, level, rng, opt) {
     const s = state.seats[si];
     if (level === 'kid') return null;
     const reserve = reserveFor(level, state, si);
     /* 收購與蓋房都在這裡決定 */
-
-    /* 贖回抵押：普通看預備金，困難更積極（先贖回整組的） */
-    if (level !== 'easy' && opt.unmortgage.length) {
-      const list = opt.unmortgage.slice().sort((a, b) => {
-        const sa = ownsAllOthers(state, si, a) ? 0 : 1, sb = ownsAllOthers(state, si, b) ? 0 : 1;
-        return sa - sb || T[b].price - T[a].price;
-      });
-      for (const i of list) {
-        if (s.cash - R.unmortgageCost(T[i]) >= reserve + (level === 'hard' ? 60 : 150)) return { type: 'unmortgage', tile: i };
-      }
-    }
 
     return null;
   }
@@ -173,13 +139,6 @@
     const need = state.pending.amount;
     if (s.cash >= need) return { type: 'settle' };
     const cands = [];
-    for (const i of opt.mortgage) {
-      const t = T[i];
-      let score = R.mortgageValue(t) * -1;                 /* 換到越多錢越好 */
-      score += ownsAllOthers(state, si, i) || (t.type === 'prop' && R.groupOwned(state, si, t.group)) ? 800 : 0;   /* 整組先留著 */
-      score += t.type === 'station' ? 250 : 0;
-      cands.push({ a: { type: 'mortgage', tile: i }, score });
-    }
     for (const i of opt.sell) {
       const t = T[i], p = state.props[i];
       /* 賣房：租金高的組留到最後 */
@@ -225,7 +184,6 @@
       if (t.type === 'station') v += 40;
       return v;
     }
-    if (p.mortgaged) return 0;
     let rent = R.rentOf(state, ti, [3, 4]);
     if (s.items.includes('free')) rent = Math.round(rent * 0.3);
     return -rent;

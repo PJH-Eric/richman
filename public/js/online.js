@@ -4,7 +4,6 @@
 
   const { $, $$, esc, toast, show } = root.UI;
   const Art = root.Art;
-  const PACE_SHORT = { slow: '悠閒', normal: '普通', fast: '緊張' };
   const limitName = n => n ? n + ' 回合' : '不限回合';
   const DIFF_NAME = root.Board.DIFF_NAME;
 
@@ -50,10 +49,48 @@
       else root.Net.send({ type: 'join', roomId: b.dataset.join, as: b.dataset.as });
     });
     $('#screen-room').addEventListener('click', onRoomClick);
+    /* 自製下拉選單（不用瀏覽器原生 select）：選單掛在 body 上、用 fixed 定位，不會被捲動容器裁掉 */
+    let ddMenu = null, ddBtn = null;
+    const ddClose = (focusBack) => {
+      if (ddMenu) { ddMenu.remove(); ddMenu = null; }
+      if (ddBtn) { ddBtn.setAttribute('aria-expanded', 'false'); if (focusBack && ddBtn.isConnected) ddBtn.focus(); ddBtn = null; }
+    };
+    const ddOpen = (btn) => {
+      ddClose();
+      ddBtn = btn; btn.setAttribute('aria-expanded', 'true');
+      const keys = Object.keys(DIFF_NAME), cur = btn.dataset.val;
+      const m = document.createElement('div');
+      m.className = 'dd-menu'; m.setAttribute('role', 'listbox'); m.tabIndex = -1;
+      m.innerHTML = keys.map(k => '<button type="button" role="option" class="dd-opt" data-val="' + k + '" aria-selected="' + (k === cur) + '">' + DIFF_NAME[k] + '</button>').join('');
+      document.body.appendChild(m); ddMenu = m;
+      const r = btn.getBoundingClientRect(), mw = Math.max(r.width, 120), mh = m.offsetHeight;
+      const below = window.innerHeight - r.bottom - 8 >= mh || r.top < mh + 8;
+      m.style.minWidth = mw + 'px';
+      m.style.left = Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + 'px';
+      m.style.top = (below ? r.bottom + 6 : r.top - mh - 6) + 'px';
+      const opts = [...m.querySelectorAll('.dd-opt')];
+      (opts.find(o => o.dataset.val === cur) || opts[0]).focus();
+      m.addEventListener('click', ev => {
+        const o = ev.target.closest('.dd-opt'); if (!o) return;
+        const id = btn.dataset.dd, v = o.dataset.val;
+        ddClose(true);
+        if (v !== cur) root.Net.send({ type: 'aiDiff', id, diff: v });
+      });
+      m.addEventListener('keydown', ev => {
+        const i = opts.indexOf(document.activeElement);
+        if (ev.key === 'ArrowDown') { ev.preventDefault(); opts[(i + 1) % opts.length].focus(); }
+        else if (ev.key === 'ArrowUp') { ev.preventDefault(); opts[(i - 1 + opts.length) % opts.length].focus(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); ddClose(true); }
+        else if (ev.key === 'Tab') { ev.preventDefault(); ddClose(true); }
+      });
+    };
     $('#screen-room').addEventListener('click', e => {
-      const sel = e.target.closest('[data-ai-diff]');
-      if (sel) root.Net.send({ type: 'aiDiff', id: sel.dataset.aiDiff, diff: sel.dataset.val });
+      const b = e.target.closest('[data-dd]');
+      if (b) { if (ddBtn === b) ddClose(); else ddOpen(b); }
     });
+    document.addEventListener('pointerdown', e => { if (ddMenu && !ddMenu.contains(e.target) && !e.target.closest('[data-dd]')) ddClose(); });
+    window.addEventListener('resize', () => ddClose());
+
     $('#lobby-name').addEventListener('change', saveProfile);
   }
 
@@ -141,7 +178,7 @@
         return '<li class="room-row"><div class="room-meta"><b>' + esc(r.name) + '</b>' +
           '<span class="code">' + r.id + '</span>' +
           '<span class="pill ' + (r.playing ? 'playing' : 'waiting') + '">' + (r.playing ? '對局中' : '等待中') + '</span>' +
-          '<small>玩家 ' + r.players + '/' + r.max + '・觀戰 ' + r.specs + '・' + esc(root.Rules.MAPS.get(r.map).name) + '・思考時間' + (PACE_SHORT[r.pace] || '') + '・' + limitName(r.roundLimit) + '</small></div>' +
+          '<small>玩家 ' + r.players + '/' + r.max + '・觀戰 ' + r.specs + '・' + esc(root.Rules.MAPS.get(r.map).name) + '・' + limitName(r.roundLimit) + '</small></div>' +
           '<div class="room-btns">' +
           '<button type="button" class="btn3d coral small" data-join="' + r.id + '" data-as="player"' + (r.playing || full ? ' disabled' : '') + '>' + (full ? '已滿' : '加入遊戲') + '</button>' +
           '<button type="button" class="btn3d sea small" data-join="' + r.id + '" data-as="spectator">觀戰</button></div></li>';
@@ -220,8 +257,7 @@
       if (s.id === room.hostId) tags.push('<i class="tag host">房主</i>');
       if (s.kind === 'ai' && me.host) {
         /* 房主可以替每個電腦各自選難度 */
-        tags.push('<div class="seg small ai-diff-seg" role="radiogroup" aria-label="' + esc(s.name) + ' 的難度">' +
-          Object.keys(DIFF_NAME).map(k => '<button type="button" role="radio" aria-checked="' + (k === s.diff) + '" data-ai-diff="' + s.id + '" data-val="' + k + '">' + DIFF_NAME[k] + '</button>').join('') + '</div>');
+        tags.push('<button type="button" class="ai-dd" data-dd="' + s.id + '" data-val="' + s.diff + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + esc(s.name) + ' 的難度：' + DIFF_NAME[s.diff] + '"><span>' + DIFF_NAME[s.diff] + '</span><i class="ai-dd-caret" aria-hidden="true"></i></button>');
       } else if (s.kind === 'ai') tags.push('<i class="tag ai">電腦・' + DIFF_NAME[s.diff] + '</i>');
       else if (!s.online) tags.push('<i class="tag off">離線</i>');
       else if (s.id === room.hostId) tags.push('<i class="tag ready">開局者</i>');
@@ -266,11 +302,8 @@
     $('#room-host').innerHTML = me.host
       ? '<h4>房間設定（房主）</h4>' +
         '<div class="set-line stack"><span>地圖</span>' + root.UI.mapCards(room.map, 'data-set="map"') + '</div>' +
-        '<div class="set-line"><span>人數上限</span>' + seg('max', [[2, '2 人'], [3, '3 人'], [4, '4 人'], [5, '5 人'], [6, '6 人'], [7, '7 人'], [8, '8 人']], room.max) + '</div>' +
-        '<div class="set-line"><span>每回合思考時間</span>' + seg('pace', [['slow', '90 秒'], ['normal', '60 秒'], ['fast', '40 秒']], room.pace) + '</div>' +
-        '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[20, '20'], [30, '30'], [40, '40'], [0, '不限']], room.roundLimit) + '</div>' +
-        '<div class="set-line"><span>新電腦預設</span>' + seg('aiDiff', Object.keys(DIFF_NAME).map(k => [k, DIFF_NAME[k]]), room.aiDiff) + '</div>'
-      : '<p class="host-info">地圖「' + esc(root.Rules.MAPS.get(room.map).name) + '」（' + root.Rules.MAPS.get(room.map).size + ' 格）・人數上限 ' + room.max + ' 人・思考時間 ' + PACE_SHORT[room.pace] + '・' + limitName(room.roundLimit) + '（房主決定）</p>';
+        '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[20, '20'], [30, '30'], [40, '40'], [0, '不限']], room.roundLimit) + '</div>'
+      : '<p class="host-info">地圖「' + esc(root.Rules.MAPS.get(room.map).name) + '」（' + root.Rules.MAPS.get(room.map).size + ' 格）・' + limitName(room.roundLimit) + '（房主決定）</p>';
 
     /* 邀請連結 */
     const link = room.invite.active ? inviteLink(room.invite.token) : '';
