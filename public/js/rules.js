@@ -757,6 +757,20 @@
 
   function doRoll(state, si, now, count) {
     const s = state.seats[si];
+    /* 在牢裡不能擲骰子：這個動作只是「待在牢裡」；第 3 回合免罰金出獄，出獄後才能照常擲骰 */
+    if (s.jail) {
+      if (s.jailTurns >= 2) {
+        s.jail = false; s.jailTurns = 0;
+        say(state, s.name + ' 關滿 3 回合，免罰金出獄！');
+        state.readyAt = now + holdFor(state, 'roll', 500);
+        return;
+      }
+      s.jailTurns++;
+      say(state, s.name + ' 留在牢裡（第 ' + s.jailTurns + '／3 回合），不能擲骰子');
+      state.phase = 'manage';
+      state.readyAt = now + holdFor(state, 'roll', 500);
+      return;
+    }
     const n0 = state.eventSeq;
     const rng = state._rng;
     const cnt = Number(count) === 1 ? 1 : 2;
@@ -764,28 +778,12 @@
     state.dice = [a, b]; state.diceKind = cnt === 1 ? 'one' : 'two';
     ev(state, { t: 'roll', seat: si, dice: [a, b], single: cnt === 1 });
     const total = a + b;
-    let steps = 0;
-    let moved = true;
-    if (s.jail) {
-      s.jailTurns++;
-      say(state, s.name + ' 留在牢裡（第 ' + s.jailTurns + '／3 回合）');
-      if (s.jailTurns >= 3) {
-        s.jail = false; s.jailTurns = 0;
-        say(state, s.name + ' 關滿 3 回合，免罰金出獄，並照骰子前進 ' + total + ' 步');
-        steps = total;
-        moveBy(state, si, (s.pos + steps) % BOARD, true, {});
-      } else {
-        state.phase = 'manage';
-        moved = false;
-      }
-    } else {
-      say(state, s.name + (cnt === 1 ? ' 擲 1 顆骰子：' + a : ' 擲出 ' + a + '+' + b + ' = ' + total));
-      steps = total;
-      moveBy(state, si, (s.pos + steps) % BOARD, true, {});
-    }
-    if (moved) afterResolve(state, si);
+    say(state, s.name + (cnt === 1 ? ' 擲 1 顆骰子：' + a : ' 擲出 ' + a + '+' + b + ' = ' + total));
+    const steps = total;
+    moveBy(state, si, (s.pos + steps) % BOARD, true, {});
+    afterResolve(state, si);
     const drew = state.events.some(e => e.n > n0 && e.t === 'card');
-    state.readyAt = now + holdFor(state, 'roll', steps * 182 + (drew ? 1300 : 0) + (moved ? 0 : 500));
+    state.readyAt = now + holdFor(state, 'roll', steps * 182 + (drew ? 1300 : 0));
   }
 
   function checkTileOwn(state, si, ti) {

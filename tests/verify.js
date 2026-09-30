@@ -146,8 +146,9 @@ section('起點、監獄（沒有雙骰機制）');
   /* 監獄裡擲骰：不會出獄，只是待著 */
   const s5 = mk(2);
   s5.seats[0].pos = 27; roll(s5, 1, 2); A(s5, 'endTurn'); endTurn(s5);
-  roll(s5, 4, 4);
-  ok(s5.seats[0].jail && s5.seats[0].pos === 10, '監獄裡擲雙骰也不能出獄（待在牢裡）');
+  const nEv = s5.events.length; roll(s5, 4, 4);
+  ok(s5.seats[0].jail && s5.seats[0].pos === 10, '監獄裡不能擲骰，也不能靠骰子出獄（待在牢裡）');
+  ok(!s5.events.slice(nEv).some(e => e.t === 'roll') && s5.seats[0].jailTurns === 1, '在牢裡沒有擲骰事件，只累計回合數');
   eq(s5.phase, 'manage', '待在牢裡後進入整理階段');
   /* 待滿三回合免罰金 */
   const s6 = mk(2);
@@ -156,8 +157,9 @@ section('起點、監獄（沒有雙骰機制）');
   roll(s6, 1, 3); A(s6, 'endTurn'); endTurn(s6);
   const cash0 = s6.seats[0].cash;
   roll(s6, 1, 4);
-  ok(!s6.seats[0].jail && s6.seats[0].cash === cash0, '第三回合：免罰金自動出獄（現金不變）');
-  eq(s6.seats[0].pos, 15, '並照骰子前進（10+5＝台中車站）');
+  ok(!s6.seats[0].jail && s6.seats[0].cash === cash0, '第三回合：免罰金出獄（現金不變）');
+  eq(s6.seats[0].pos, 10, '出獄那一下不擲骰、不移動'); eq(s6.phase, 'roll', '出獄後還是擲骰階段，可以照常擲骰');
+  roll(s6, 1, 4); eq(s6.seats[0].pos, 15, '出獄後照常擲骰前進（10+5＝台中車站）');
 }
 
 section('起始現金與起點薪水依地圖大小倍率');

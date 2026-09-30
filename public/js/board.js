@@ -276,8 +276,8 @@
         const dis = B.sent ? ' disabled' : '';
         if (v.phase === 'roll') {
           if (cur.jail) {
-            out += '<p class="mc-prompt">你在監獄裡（第 ' + (cur.jailTurns + 1) + '／3 回合）：' + (cur.jailTurns >= 2 ? '關滿了，這回合免罰金出獄' : '可以繳罰款 ' + opts.jailFine + ' 元（依總資產）、用出獄許可證，或待在牢裡') + '</p>';
-            out += '<div class="mc-actions">' + btn('roll', 'coral', 'dice', cur.jailTurns >= 2 ? '出獄並前進' : '待在牢裡', dis) +
+            out += '<p class="mc-prompt">你在監獄裡（第 ' + (cur.jailTurns + 1) + '／3 回合）：' + (cur.jailTurns >= 2 ? '關滿了，免罰金出獄後就能擲骰子' : '在牢裡不能擲骰子；可以繳罰款 ' + opts.jailFine + ' 元（依總資產）、用出獄許可證，或待在牢裡') + '</p>';
+            out += '<div class="mc-actions">' + btn('roll', 'coral', 'jail', cur.jailTurns >= 2 ? '免罰金出獄' : '待在牢裡', dis) +
               (opts.payJail ? btn('payJail', 'sand small', 'coin', '繳 ' + opts.jailFine + ' 元出獄', dis) : '') +
               (opts.useCard ? btn('useCard', 'sea small', 'cards', '用出獄許可證', dis) : '') + '</div>';
           } else {
