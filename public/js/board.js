@@ -521,7 +521,7 @@
 
     /* ---------- 動畫 ---------- */
 
-    function stepMs() { return reduce() ? 0 : st().fastAnim ? 80 : 150; }
+    function stepMs() { return reduce() ? 0 : st().fastAnim ? 104 : 195; }
 
     async function animRoll(e) {
       const v = B.shown;

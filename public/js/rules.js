@@ -706,7 +706,7 @@
     }
     if (moved) afterResolve(state, si);
     const drew = state.events.some(e => e.n > n0 && e.t === 'card');
-    state.readyAt = now + holdFor(state, 'roll', steps * 140 + (drew ? 1300 : 0) + (moved ? 0 : 500));
+    state.readyAt = now + holdFor(state, 'roll', steps * 182 + (drew ? 1300 : 0) + (moved ? 0 : 500));
   }
 
   function checkTileOwn(state, si, ti) {
@@ -854,7 +854,7 @@
         }
         afterResolve(state, si);
         const drew = state.events.some(e => e.n > n0 && e.t === 'card');
-        state.readyAt = now + holdFor(state, 'roll', (id === 'dice' ? arg * 140 : 700) + (drew ? 1300 : 0));
+        state.readyAt = now + holdFor(state, 'roll', (id === 'dice' ? arg * 182 : 700) + (drew ? 1300 : 0));
         hold = null;
         break;
       }
