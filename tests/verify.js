@@ -160,6 +160,26 @@ section('起點、監獄（沒有雙骰機制）');
   eq(s6.seats[0].pos, 15, '並照骰子前進（10+5＝台中車站）');
 }
 
+section('起始現金與起點薪水依地圖大小倍率');
+{
+  const mult = { 48: 1.2, 64: 1.4, 80: 1.6, 96: 1.8, 120: 2 };
+  Object.keys(mult).forEach(n => {
+    [25, 40, 50, 0].forEach(rl => {
+      const want = Math.round((rl || 100) * 200 * mult[n]);
+      eq(R.startCashFor(rl, Number(n)), want, n + ' 格・' + (rl || '不限') + ' 回合：起始現金 ' + want);
+      const st = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'c' + n + rl, mapSize: Number(n), roundLimit: rl });
+      ok(st.tiles.length === Number(n) && st.seats.every(q => q.cash === want), '開局每人現金＝' + want);
+    });
+    eq(R.goSalaryFor(Number(n)), Math.round(500 * mult[n]), n + ' 格：起點薪水 ' + Math.round(500 * mult[n]));
+    const st = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'g' + n, mapSize: Number(n) });
+    eq(R.salaryOf(st), Math.round(500 * mult[n]), n + ' 格：salaryOf');
+    const me = st.seats[st.turn], c0 = me.cash; me.pos = Number(n) - 1; me.items = ['dice'];
+    const r = R.act(st, me.id, { type: 'useItem', item: 'dice', n: 2 }, 0);
+    ok(r.ok && st.events.some(e => e.t === 'cash' && e.reason === 'go' && e.amount === Math.round(500 * mult[n])), n + ' 格：經過起點實際領到 ' + Math.round(500 * mult[n]));
+  });
+  eq(R.startCashFor(0, 40), 10000, '經典 40 格（測試用）維持舊制 10000'); eq(R.goSalaryFor(40), 200, '經典 40 格薪水 200');
+}
+
 /* ---------- 連棟加乘、最多加蓋 5 次 ---------- */
 section('連棟：整串過路費加總');
 {
@@ -386,7 +406,7 @@ section('想太久');
 section('道具');
 {
   const IL = R.ITEM_LIST;
-  ok(IL.length === 16 && ['dice', 'fly', 'free', 'cat', 'taxfree', 'guard', 'steal', 'swap', 'bomb', 'loan', 'half', 'gobonus', 'bail', 'coupon', 'freeze', 'upgrade'].every(k => IL.includes(k)), '16 種道具');
+  ok(IL.length === 22 && ['dice', 'fly', 'free', 'cat', 'taxfree', 'guard', 'steal', 'swap', 'bomb', 'loan', 'half', 'gobonus', 'bail', 'coupon', 'freeze', 'upgrade', 'chest', 'cure', 'god', 'salary', 'repair', 'rebate'].every(k => IL.includes(k)), '22 種道具');
   ok(IL.every(k => R.ITEMS[k].pts >= 10 && R.ITEMS[k].pts <= 50 && R.ITEMS[k].pts % 10 === 0), '每種道具 10～50 點');
   ok(IL.every(k => R.stockFor(k, 4) >= 1) && R.stockFor('upgrade', 4) < R.stockFor('taxfree', 4) && R.stockFor('bomb', 4) <= R.stockFor('dice', 4), '越貴的道具庫存越少');
   let st = mk(2);

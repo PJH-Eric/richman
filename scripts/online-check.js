@@ -130,7 +130,7 @@ async function liveTest() {
   const g = await host.wait(c => c.room && c.room.game);
   ok(!!g, '全員準備好 → 開局');
   const game = host.room.game;
-  ok(game.seats.length === 3 && game.seats.every(s => s.cash === Rules.startCashFor(host.room.roundLimit) && s.pos === 0), '3 人各拿起始現金（回合上限×100）、站在起點');
+  ok(game.seats.length === 3 && game.seats.every(s => s.cash === Rules.startCashFor(host.room.roundLimit, game.tiles.length) && s.pos === 0), '3 人各拿起始現金（依地圖大小倍率）、站在起點');
   ok(game.props.length === 64 && game.props.every(p => p.owner === -1), '預設 64 格、地都還沒有主人');
   ok(!JSON.stringify(host.room).includes('seed') && !JSON.stringify(host.room).includes('_decks'), '送到瀏覽器的資料沒有 seed 與牌堆');
   ok(spec.room.game && spec.room.you.role === 'spectator', '觀戰者也看到棋盤');

@@ -14,7 +14,7 @@
  *   over    —— 只剩一人（或到回合上限）
  *
  * 已確認的規則（簡易版；不做交易與拍賣）：
- *   - 40 格；起點領 200；起始現金＝回合上限×100（不限回合 10000）；2～8 人；系統隨機決定座位順序。
+ *   - 40 格；起點領 200；起始現金＝回合上限×200×地圖倍率（不限回合當 100）；2～8 人；系統隨機決定座位順序。
  *   - 沒人買的地不拍賣，留在原地，下次有人停到還能買。
  *   - 同色整組都是自己的才能蓋房；每格最多 4 棟房，再升級成 1 間旅店；蓋房要平均。
  *   - 強制收購（簡易版取代交易）：自己的回合可以用 2 倍地價，向對手買下「一塊」能讓你湊齊整組的地
@@ -37,8 +37,18 @@
   const MAX_PLAYERS = 8;
   const SOLO_MAX_LEVEL = 2;       /* 沒湊齊同色整組時，單格最高能升到幾級 */
   const START_CASH = 10000;        /* 不限回合的起始現金 */
-  /** 起始現金：回合上限 × 100（20／30／40 回合＝2000／3000／4000），不限回合＝10000 */
-  function startCashFor(limit) { return Number(limit) > 0 ? Number(limit) * 100 : START_CASH; }
+  /* 起始現金＝回合上限（不限回合當 100）× 200 × 地圖大小倍率；起點薪水＝500 × 同一倍率。
+   * 倍率：48／64／80／96／120 格＝1.2／1.4／1.6／1.8／2。其他格數（測試用經典 40 格）沿用舊制：回合×100（不限 10000）、薪水 200 */
+  const CASH_MULT = { 48: 1.2, 64: 1.4, 80: 1.6, 96: 1.8, 120: 2 };
+  function startCashFor(limit, size) {
+    const m = CASH_MULT[Number(size)], n = Number(limit) > 0 ? Number(limit) : 0;
+    if (m == null) return n > 0 ? n * 100 : START_CASH;
+    return Math.round((n > 0 ? n : 100) * 200 * m);
+  }
+  function goSalaryFor(size) { const m = CASH_MULT[Number(size)]; return m == null ? GO_SALARY : Math.round(500 * m); }
+  function salaryOf(state) { return goSalaryFor(tl(state).length); }
+  /** 偷錢卡上限：起點薪水的 2 倍（1200／1400／1600／1800／2000）；經典 40 格＝300 */
+  function stealCap(state) { return CASH_MULT[tl(state).length] == null ? 300 : salaryOf(state) * 2; }
   const GO_SALARY = 200;
   const JAIL_FINE = 50;            /* 最低罰金；實際罰金依個人資產：總資產 10%（取 10 的倍數），最少 50、最多 500 */
   const JAIL_FINE_MAX = 500;
@@ -144,7 +154,7 @@
 
   const CHANCE = [];
   const CHANCE_BASE = [
-    { t: 'moveTo', to: 0, text: '前進到起點，領 200 元' },
+    { t: 'moveTo', to: 0, text: '前進到起點，領起點薪水' },
     { t: 'moveTo', to: 39, text: '前往台北101，看看跨年煙火' },
     { t: 'moveTo', to: 6, text: '週末衝墾丁！前進到墾丁' },
     { t: 'moveTo', to: 5, text: '搭高鐵到台北車站' },
@@ -168,7 +178,7 @@
   ];
   const CHEST = [];
   const CHEST_BASE = [
-    { t: 'moveTo', to: 0, text: '前進到起點，領 200 元' },
+    { t: 'moveTo', to: 0, text: '前進到起點，領起點薪水' },
     { t: 'collect', n: 200, text: '銀行算錯帳，剛好對你有利，領 200 元' },
     { t: 'pay', n: 50, text: '看醫生，付 50 元' },
     { t: 'collect', n: 50, text: '賣掉股票，賺 50 元' },
@@ -207,12 +217,18 @@
     bail:   { name: '保釋券', pts: 20, active: false, desc: '下一次被抓去坐牢時自動用掉，直接免關' },
     free:   { name: '免租券', pts: 30, active: false, desc: '下一次要付過路費時自動用掉，這次不用付' },
     cat:    { name: '招財貓', pts: 30, active: false, desc: '下一次有人付你過路費時，租金加倍（用掉）' },
-    steal:  { name: '偷錢卡', pts: 30, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，偷走他 20% 的現金（最多 300 元）' },
+    steal:  { name: '偷錢卡', pts: 30, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，偷走他 20% 的現金（有上限，依地圖大小：1200～2000 元）' },
     fly:    { name: '機票', pts: 30, active: true, desc: '擲骰前使用：直接飛到棋盤上任何一格（不會領起點薪水，落點照常處理）' },
     coupon: { name: '購地折價券', pts: 30, active: false, desc: '下一次買無主的地時自動用掉，地價打 7 折' },
     guard:  { name: '護身符', pts: 40, active: false, desc: '別人對你使用偷錢卡、換位卡、冰凍卡或炸彈時自動擋下（用掉）' },
     bomb:   { name: '炸彈', pts: 40, active: true, target: 'tile', desc: '擲骰前使用：炸掉指定對手的一間房子（旅店降回 4 間房）' },
     freeze: { name: '冰凍卡', pts: 40, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，他的下一個回合直接跳過' },
+    chest:  { name: '福袋', pts: 20, active: true, direct: true, desc: '擲骰前使用：打開福袋，立刻隨機獲得 1 個其他道具' },
+    cure:   { name: '驅神符', pts: 10, active: true, direct: true, desc: '擲骰前使用：送走身上的窮神或衰神（沒有壞神附身就用不了）' },
+    god:    { name: '求神符', pts: 30, active: true, direct: true, desc: '擲骰前使用：隨機請來福神或財神附身 4 個回合（身上已有神就用不了）' },
+    salary: { name: '領薪券', pts: 30, active: true, direct: true, desc: '擲骰前使用：立刻領一次起點薪水（依地圖大小），不用走到起點' },
+    repair: { name: '修繕券', pts: 40, active: false, desc: '自己的房子被炸彈炸到時自動用掉，房子完好如初（不能擋偷錢、換位、冰凍）' },
+    rebate: { name: '建材券', pts: 30, active: false, desc: '下一次自己加蓋房子時自動用掉，蓋房費用只要一半（現金要夠付原價）' },
     upgrade:{ name: '加蓋券', pts: 50, active: true, target: 'tile', desc: '擲骰前使用：免費幫自己的一塊地加蓋一間房子（照一般升級規則，不必站在那格）' }
   };
   const STOCK_BASE = { 10: 10, 20: 8, 30: 6, 40: 4, 50: 3 };
@@ -247,7 +263,7 @@
     const order = rng.shuffle(players.slice());
     const seats = order.map(p => ({
       id: p.id, name: p.name, char: p.char, ai: p.ai || null,
-      cash: o.startCash || startCashFor(ROUND_LIMITS.includes(Number(o.roundLimit)) ? Number(o.roundLimit) : 0), points: startPointsFor(ROUND_LIMITS.includes(Number(o.roundLimit)) ? Number(o.roundLimit) : 0), frozen: false, pos: 0, jail: false, jailTurns: 0, getOut: 0, items: [], god: null,
+      cash: o.startCash || startCashFor(ROUND_LIMITS.includes(Number(o.roundLimit)) ? Number(o.roundLimit) : 0, TILES.length), points: startPointsFor(ROUND_LIMITS.includes(Number(o.roundLimit)) ? Number(o.roundLimit) : 0), frozen: false, pos: 0, jail: false, jailTurns: 0, getOut: 0, items: [], god: null,
       bankrupt: false, auto: false, timeouts: 0, afk: false
     }));
     const props = TILES.map(() => ({ owner: -1, houses: 0 }));
@@ -382,6 +398,8 @@
     if (!ITEMS[id] || !ITEMS[id].active) return '這個道具不能主動使用';
     if (!s.items.includes(id)) return '你沒有這個道具';
     if (id === 'dice' && !(Number.isInteger(arg) && arg >= 1 && arg <= 12)) return '請選 1～12 步';
+    if (id === 'cure' && !(s.god && !GODS[s.god.k].good)) return '身上沒有窮神或衰神';
+    if (id === 'god' && s.god) return '身上已經有神了';
     if (id === 'steal' || id === 'swap' || id === 'freeze') {
       const o = Number.isInteger(arg) ? state.seats[arg] : null;
       if (!o || arg === si || o.bankrupt) return '請選一位對手';
@@ -532,7 +550,7 @@
     s.pos = to;
     ev(state, { t: 'move', seat: si, from, to, teleport: !forward, forward: !!forward });
     if (passGo) {
-      let sal = GO_SALARY;
+      let sal = salaryOf(state);
       if (hasItem(state, si, 'gobonus')) { useUp(state, si, 'gobonus'); sal *= 2; say(state, s.name + ' 用掉「起點加碼券」，薪水加倍！'); }
       s.cash += sal;
       ev(state, { t: 'cash', seat: si, to: -2, amount: sal, reason: 'go' });
@@ -868,7 +886,7 @@
         break;
       case 'useItem': {
         const id = action.item;
-        const arg = id === 'dice' ? Number(action.n) : (id === 'steal' || id === 'swap' || id === 'freeze') ? Number(action.target) : id === 'loan' ? 0 : Number(action.tile);
+        const arg = id === 'dice' ? Number(action.n) : (id === 'steal' || id === 'swap' || id === 'freeze') ? Number(action.target) : (ITEMS[id] && ITEMS[id].direct) || id === 'loan' ? 0 : Number(action.tile);
         const err = canUseItem(state, si, id, arg);
         if (err) return { ok: false, reason: 'illegal', text: err };
         const n0 = state.eventSeq;
@@ -878,6 +896,27 @@
           ev(state, { t: 'cash', seat: si, to: -2, amount: 200, reason: 'item' });
           say(state, s.name + ' 用「提款卡」領了 ' + money(200));
           state.readyAt = now + holdFor(state, 'roll', 500); hold = null; break;
+        }
+        if (id === 'chest') {
+          const pool = ITEM_LIST.filter(k => k !== 'chest'), got = pool[state._rng.int(0, pool.length - 1)];
+          s.items.push(got);
+          ev(state, { t: 'item', seat: si, item: got, gain: true });
+          say(state, s.name + ' 打開「福袋」，獲得「' + ITEMS[got].name + '」');
+          state.readyAt = now + holdFor(state, 'roll', 700); hold = null; break;
+        }
+        if (id === 'salary') {
+          const sal = salaryOf(state);
+          s.cash += sal;
+          ev(state, { t: 'cash', seat: si, to: -2, amount: sal, reason: 'go' });
+          say(state, s.name + ' 用「領薪券」領了 ' + money(sal) + ' 薪水');
+          state.readyAt = now + holdFor(state, 'roll', 600); hold = null; break;
+        }
+        if (id === 'god') { giveGod(state, si, true); state.readyAt = now + holdFor(state, 'roll', 900); hold = null; break; }
+        if (id === 'cure') {
+          const k = s.god.k; s.god = null;
+          ev(state, { t: 'god', seat: si, god: k, on: false });
+          say(state, s.name + ' 用「驅神符」送走了' + GODS[k].name);
+          state.readyAt = now + holdFor(state, 'roll', 800); hold = null; break;
         }
         if (id === 'upgrade') {
           state.props[arg].houses++;
@@ -890,7 +929,7 @@
           say(state, s.name + ' 對 ' + state.seats[to].name + ' 使用了「' + ITEMS[id].name + '」');
           if (guarded(state, si, to, id, id === 'bomb' ? arg : -1)) { state.readyAt = now + holdFor(state, 'roll', 900); hold = null; break; }
           if (id === 'steal') {
-            const o = state.seats[to], amt = Math.min(300, Math.max(1, Math.floor(o.cash * 0.2)));
+            const o = state.seats[to], amt = Math.min(stealCap(state), Math.max(1, Math.floor(o.cash * 0.2)));
             o.cash -= amt; s.cash += amt;
             ev(state, { t: 'attack', kind: 'steal', from: si, to, amount: amt });
             say(state, s.name + ' 從 ' + o.name + ' 身上偷走 ' + money(amt));
@@ -900,6 +939,12 @@
             state.seats[to].frozen = true;
             ev(state, { t: 'attack', kind: 'freeze', from: si, to });
             say(state, state.seats[to].name + ' 被冰凍了，下一個回合會被跳過');
+            state.readyAt = now + holdFor(state, 'roll', 900); hold = null; break;
+          }
+          if (id === 'bomb' && hasItem(state, to, 'repair')) {
+            useUp(state, to, 'repair');
+            ev(state, { t: 'attack', kind: 'bomb', from: si, to, tile: arg, blocked: true });
+            say(state, state.seats[to].name + ' 的「修繕券」自動修好了被炸的房子！');
             state.readyAt = now + holdFor(state, 'roll', 900); hold = null; break;
           }
           if (id === 'bomb') {
@@ -995,7 +1040,9 @@
         if (err) return { ok: false, reason: 'illegal', text: err };
         const t = tl(state)[ti], p = state.props[ti];
         if (type === 'build') {
-          s.cash -= t.house; p.houses++;
+          let cost = t.house;
+          if (hasItem(state, si, 'rebate')) { useUp(state, si, 'rebate'); cost = Math.ceil(cost / 2); say(state, s.name + ' 用掉「建材券」，蓋房只付 ' + money(cost)); }
+          s.cash -= cost; p.houses++;
           ev(state, { t: 'build', seat: si, tile: ti, houses: p.houses });
           say(state, s.name + ' 在 ' + t.name + (p.houses === MAX_HOUSES ? ' 蓋了旅店' : ' 蓋了第 ' + p.houses + ' 棟房子'));
           state.pending = null; state.phase = 'roll';
@@ -1067,7 +1114,7 @@
   function options(state, id) {
     const si = indexOfId(state, id);
     const out = { roll: false, payJail: false, useCard: false, buy: false, decline: false, settle: false, bankrupt: false, endTurn: false,
-      build: [], sell: [], buyout: [], shop: [], liquidity: 0, dice: false, fly: false, steal: false, swap: false, bomb: false, freeze: false, upgrade: false, loan: false };
+      build: [], sell: [], buyout: [], shop: [], liquidity: 0, dice: false, fly: false, steal: false, swap: false, bomb: false, freeze: false, upgrade: false, loan: false, chest: false, cure: false, god: false, salary: false };
     if (si < 0 || state.phase === 'over' || si !== state.turn) return out;
     const s = state.seats[si], ph = state.phase;
     out.liquidity = liquidity(state, si);
@@ -1076,6 +1123,7 @@
       out.dice = !canUseItem(state, si, 'dice', 1);
       out.fly = !canUseItem(state, si, 'fly', (s.pos + 1) % BOARD);
       out.loan = !canUseItem(state, si, 'loan', 0);
+      ['chest', 'cure', 'god', 'salary'].forEach(k => { out[k] = s.items.includes(k) && !canUseItem(state, si, k, 0); });
       ['steal', 'swap', 'bomb', 'freeze', 'upgrade'].forEach(k => { out[k] = s.items.includes(k) && !s.jail && itemTargets(state, si, k).length > 0; });
       if (s.jail) { out.jailFine = jailFine(state, si); out.payJail = s.cash >= out.jailFine; out.useCard = s.getOut > 0; }
     }
@@ -1128,7 +1176,7 @@
   const inMap = fn => function (state) { if (state && state.map) useMap(state.map); return fn.apply(null, arguments); };
   useMap(Maps.DEFAULT);
   const api = {
-    MIN_PLAYERS, MAX_PLAYERS, START_CASH, startCashFor, START_POINTS, startPointsFor, sellPrice, stockFor, SHOP_OFFER_MIN, SHOP_OFFER_MAX, GO_SALARY, JAIL_FINE, JAIL_FINE_MAX, jailFine, MAX_HOUSES, SOLO_MAX_LEVEL,
+    MIN_PLAYERS, MAX_PLAYERS, START_CASH, CASH_MULT, startCashFor, goSalaryFor, salaryOf: inMap(salaryOf), stealCap: inMap(stealCap), START_POINTS, startPointsFor, sellPrice, stockFor, SHOP_OFFER_MIN, SHOP_OFFER_MAX, GO_SALARY, JAIL_FINE, JAIL_FINE_MAX, jailFine, MAX_HOUSES, SOLO_MAX_LEVEL,
     DIFFICULTY_LIST, DIFFICULTIES, PACES, ROUND_LIMITS, PLAYER_COLORS,
     GODS, TILES, GROUPS, GROUP_TILES, OWNABLE, CHANCE, CHEST, ITEMS, ITEM_LIST, MAX_ITEMS,
     MAPS: Maps, useMap, tl, genTiles, applyTiles, create,

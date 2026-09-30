@@ -1,5 +1,5 @@
 /* ===== tests/items.js — 每一種道具的專屬測試案例（node tests/items.js） =====
- * 16 種道具＋商店（道具點數、庫存、買賣）＋道具欄上限，每個都測：正常效果、每個參數的邊界、
+ * 22 種道具＋商店（道具點數、庫存、買賣）＋道具欄上限，每個都測：正常效果、每個參數的邊界、
  * 不能用的情況、護身符互動、用掉／不用掉、各張地圖的每一格。
  * 純規則、種子亂數，不需要瀏覽器，幾秒鐘跑完。
  */
@@ -27,7 +27,7 @@ function roll1(st, a) { dice(st, a, 0); return R.act(st, st.seats[st.turn].id, {
 function use(st, item, arg, who) {
   const si = who == null ? st.turn : who;
   const a = { type: 'useItem', item };
-  if (item === 'dice') a.n = arg; else if (item === 'steal' || item === 'swap' || item === 'freeze') a.target = arg; else if (item !== 'loan') a.tile = arg;
+  if (item === 'dice') a.n = arg; else if (item === 'steal' || item === 'swap' || item === 'freeze') a.target = arg; else if (!['loan', 'chest', 'cure', 'god', 'salary'].includes(item)) a.tile = arg;
   return R.act(st, st.seats[si].id, a, 0);
 }
 function own(st, si, ti, houses) { st.props[ti].owner = si; st.props[ti].houses = houses || 0; }
@@ -532,8 +532,8 @@ R.ITEM_LIST.forEach(k => {
   const it = R.ITEMS[k];
   ok(it.name && it.desc && it.pts >= 10 && it.pts <= 50 && it.pts % 10 === 0, k + ' 有名稱、說明、10～50 點');
 });
-ok(R.ITEM_LIST.filter(k => R.ITEMS[k].active).sort().join() === 'bomb,dice,fly,freeze,loan,steal,swap,upgrade', '主動道具是 dice/fly/steal/swap/bomb/freeze/loan/upgrade');
-ok(R.ITEM_LIST.filter(k => !R.ITEMS[k].active).sort().join() === 'bail,cat,coupon,free,gobonus,guard,half,taxfree', '被動道具是 free/cat/taxfree/guard/half/gobonus/bail/coupon');
+ok(R.ITEM_LIST.filter(k => R.ITEMS[k].active).sort().join() === 'bomb,chest,cure,dice,fly,freeze,god,loan,salary,steal,swap,upgrade', '主動道具是 dice/fly/steal/swap/bomb/freeze/loan/upgrade/chest/cure/god/salary');
+ok(R.ITEM_LIST.filter(k => !R.ITEMS[k].active).sort().join() === 'bail,cat,coupon,free,gobonus,guard,half,rebate,repair,taxfree', '被動道具是 free/cat/taxfree/guard/half/gobonus/bail/coupon/repair/rebate');
 ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'seat').sort().join() === 'freeze,steal,swap', '選人道具 steal/swap/freeze');
 ok(R.ITEM_LIST.filter(k => R.ITEMS[k].target === 'tile').sort().join() === 'bomb,upgrade', '選地道具 bomb/upgrade');
 ok(R.ITEM_LIST.every((k, i) => R.stockFor(k, 4) >= 1) && ['taxfree', 'loan'].every(k => R.stockFor(k, 4) > R.stockFor('upgrade', 4)), '越貴庫存越少');
@@ -553,6 +553,69 @@ ok(R.ITEM_LIST.reduce((a, k) => a.add(R.ITEMS[k].pts), new Set()).size === 5, '�
     eq(st.seats[0].items[0], k, '休息站可抽到 ' + k); st.seats[0].items.forEach(x => got.add(x));
   });
   eq(got.size, R.ITEM_LIST.length, R.ITEM_LIST.length + ' 種道具都抽得到');
+}
+/* ---------- 新增 6 種：福袋、驅神符、求神符、領薪券、修繕券、建材券 ---------- */
+section('福袋 chest');
+{
+  const st = mk(2); st.seats[0].items = ['chest'];
+  ok(use(st, 'chest').ok, 'chest 可用'); eq(st.seats[0].items.length, 1, '用掉福袋、得到 1 個新道具'); ok(!has(st, 0, 'chest'), '不會再開出福袋');
+  ok(st.events.some(e => e.t === 'item' && e.gain), '有獲得道具事件');
+  const s2 = mk(2); s2.seats[0].items = ['chest'].concat(new Array(R.MAX_ITEMS - 1).fill('loan')); ok(use(s2, 'chest').ok && s2.seats[0].items.length === R.MAX_ITEMS, '道具庫滿時：福袋用掉後剛好有空位');
+  ok(!use(mk(2), 'chest').ok, '沒有福袋不能用');
+  const s3 = mk(2); s3.seats[0].items = ['chest']; s3.seats[0].jail = true; ok(!use(s3, 'chest').ok, '坐牢中不能用');
+}
+section('領薪券 salary');
+{
+  const st = mk(2); st.seats[0].items = ['salary']; const c = st.seats[0].cash, p = st.seats[0].pos;
+  ok(use(st, 'salary').ok, 'salary 可用'); eq(st.seats[0].cash, c + R.GO_SALARY, '領到起點薪水'); eq(st.seats[0].pos, p, '位置不變'); ok(!has(st, 0, 'salary'), '用掉'); eq(st.phase, 'roll', '用完還是擲骰階段');
+  const s2 = mk(2); s2.seats[0].items = ['salary', 'gobonus']; use(s2, 'salary'); ok(has(s2, 0, 'gobonus'), '領薪券不會吃掉起點加碼券');
+}
+section('求神符 god / 驅神符 cure');
+{
+  const st = mk(2); st.seats[0].items = ['god'];
+  ok(use(st, 'god').ok && st.seats[0].god && R.GODS[st.seats[0].god.k].good, 'god：請來福神或財神'); eq(st.seats[0].god.turns, 4, '附身 4 回合'); ok(!has(st, 0, 'god'), '用掉');
+  const s2 = mk(2); s2.seats[0].items = ['god']; s2.seats[0].god = { k: 'wealth', turns: 2 }; ok(!use(s2, 'god').ok && has(s2, 0, 'god'), '已有神：不能用、不消耗');
+  const s3 = mk(2); s3.seats[0].items = ['cure']; ok(!use(s3, 'cure').ok && has(s3, 0, 'cure'), '沒有壞神：驅神符不能用');
+  const s4 = mk(2); s4.seats[0].items = ['cure']; s4.seats[0].god = { k: 'wealth', turns: 3 }; ok(!use(s4, 'cure').ok, '好神附身：驅神符不能用（不會趕走福神財神）');
+  for (const k of ['poor', 'unlucky']) { const s5 = mk(2); s5.seats[0].items = ['cure']; s5.seats[0].god = { k, turns: 3 }; ok(use(s5, 'cure').ok && !s5.seats[0].god && !has(s5, 0, 'cure'), 'cure：送走' + k); ok(s5.events.some(e => e.t === 'god' && e.on === false), '有離開事件'); }
+  const s6 = mk(2); s6.seats[0].items = ['cure']; s6.seats[0].god = { k: 'poor', turns: 3 }; use(s6, 'cure'); s6.seats[0].items = ['god']; ok(use(s6, 'god').ok, '驅走後可以再求神');
+}
+section('修繕券 repair');
+{
+  const st = mk(2); own(st, 1, 3, 2); st.seats[0].items = ['bomb']; st.seats[1].items = ['repair'];
+  use(st, 'bomb', 3); eq(st.props[3].houses, 2, '修繕券：房子沒被炸'); ok(!has(st, 1, 'repair') && !has(st, 0, 'bomb'), '雙方道具都用掉');
+  const s2 = mk(2); own(s2, 1, 3, 2); s2.seats[0].items = ['steal']; s2.seats[1].items = ['repair']; s2.seats[1].cash = 1000; use(s2, 'steal', 1);
+  ok(has(s2, 1, 'repair'), '修繕券擋不了偷錢'); ok(s2.seats[1].cash < 1000, '偷錢成功');
+  const s3 = mk(3); own(s3, 1, 3, 2); s3.seats[0].items = ['bomb']; s3.seats[2].items = ['repair']; use(s3, 'bomb', 3); eq(s3.props[3].houses, 1, '別人的修繕券不管用'); ok(has(s3, 2, 'repair'), '別人的修繕券不受影響');
+  const s4 = mk(2); own(s4, 1, 3, 2); s4.seats[0].items = ['bomb']; s4.seats[1].items = ['guard', 'repair']; use(s4, 'bomb', 3);
+  ok(!has(s4, 1, 'guard') && has(s4, 1, 'repair') && s4.props[3].houses === 2, '護身符先擋下，修繕券留著');
+}
+section('偷錢卡上限依地圖大小');
+{
+  const cap = { 48: 1200, 64: 1400, 80: 1600, 96: 1800, 120: 2000 };
+  Object.keys(cap).forEach(n => {
+    const st = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'sc' + n, mapSize: Number(n) });
+    st.turn = 0; st.seats[0].items = ['steal']; st.seats[1].cash = 100000; const c1 = st.seats[0].cash;
+    eq(R.stealCap(st), cap[n], n + ' 格偷錢上限 ' + cap[n]);
+    ok(R.act(st, st.seats[0].id, { type: 'useItem', item: 'steal', target: 1 }, 0).ok && st.seats[0].cash === c1 + cap[n] && st.seats[1].cash === 100000 - cap[n], n + ' 格：偷 20% 但最多 ' + cap[n]);
+  });
+  const s2 = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'sc', mapSize: 80 }); s2.turn = 0; s2.seats[0].items = ['steal']; s2.seats[1].cash = 2000;
+  R.act(s2, s2.seats[0].id, { type: 'useItem', item: 'steal', target: 1 }, 0); eq(s2.seats[1].cash, 1600, '2000 × 20% = 400（沒到上限就照 20%）');
+}
+section('建材券 rebate');
+{
+  const st = mk(2); own(st, 0, 1, 0); st.seats[0].items = ['rebate']; roll1(st, 1);
+  eq(st.phase, 'build', '走到自己的地：問要不要蓋房'); const c = st.seats[0].cash;
+  ok(R.act(st, 'p0', { type: 'build', tile: 1 }, 0).ok, '蓋房'); eq(st.seats[0].cash, c - Math.ceil(R.TILES[1].house / 2), '建材券：蓋房費用一半'); ok(!has(st, 0, 'rebate'), '用掉');
+  const s2 = mk(2); own(s2, 0, 1, 0); s2.seats[0].items = ['rebate']; roll1(s2, 1); R.act(s2, 'p0', { type: 'decline' }, 0);
+  ok(has(s2, 0, 'rebate'), '不蓋房就不會用掉建材券');
+  const s3 = mk(2); own(s3, 0, 1, 0); s3.seats[0].items = ['rebate', 'upgrade']; use(s3, 'upgrade', 1); ok(has(s3, 0, 'rebate'), '加蓋券（免費）不會用掉建材券');
+}
+section('新道具：選項與 AI');
+{
+  const st = mk(2); st.seats[0].items = ['chest', 'salary', 'god', 'cure']; st.seats[0].god = { k: 'poor', turns: 3 };
+  const o = R.options(st, 'p0'); ok(o.chest && o.salary && !o.god && o.cure, 'options：chest/salary/cure 可用、god 因已有神不可用');
+  ['chest', 'salary', 'god', 'cure', 'repair', 'rebate'].forEach(k => ok(R.ITEMS[k] && R.ITEMS[k].pts >= 10 && R.stockFor(k, 4) >= 1 && R.sellPrice(k) >= 5, k + ' 有定價、庫存與賣價'));
 }
 console.log('\n道具測試：通過 ' + pass + '、失敗 ' + fail);
 process.exit(fail ? 1 : 0);

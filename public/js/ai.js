@@ -109,7 +109,7 @@
     if (level === 'kid' || !opt.shop || s.items.length >= 6) return leave;
     const can = (opt.shop || []).filter(x => x.can);
     if (!can.length || (level === 'easy' && rng.chance(0.4))) return leave;
-    const pref = { upgrade: 5, guard: 4, free: 3, cat: 3, fly: 3, freeze: 3, coupon: 3, half: 3, steal: 2, bomb: 2, gobonus: 2, bail: 2, taxfree: 2, loan: 2, dice: 2, swap: 1 };
+    const pref = { upgrade: 5, guard: 4, free: 3, cat: 3, fly: 3, freeze: 3, coupon: 3, half: 3, steal: 2, bomb: 2, gobonus: 2, bail: 2, taxfree: 2, loan: 2, dice: 2, swap: 1, repair: 3, rebate: 2, salary: 3, god: 3, chest: 2, cure: 1 };
     can.sort((a, b) => (pref[b.item] || 0) - (pref[a.item] || 0) || rng.next() - 0.5);
     const pick = level === 'hard' ? can[0] : can[Math.floor(rng.next() * Math.min(3, can.length))];
     return { type: 'shopBuy', item: pick.item };
@@ -219,6 +219,12 @@
       let f = null;
       R.itemTargets(state, si, 'swap').forEach(i => { const v = tileScore(state, si, state.seats[i].pos, level) - 40; if (!f || v > f.v) f = { v, a: { type: 'useItem', item: 'swap', target: i } }; });
       if (f && f.v >= (level === 'hard' ? 200 : 300)) return f.a;
+    }
+    if (level !== 'easy' || rng.chance(0.5)) {
+      if (opt.cure && s.items.includes('cure')) return { type: 'useItem', item: 'cure' };
+      if (opt.god && s.items.includes('god')) return { type: 'useItem', item: 'god' };
+      if (opt.salary && s.items.includes('salary')) return { type: 'useItem', item: 'salary' };
+      if (opt.chest && s.items.includes('chest') && s.items.length < R.MAX_ITEMS) return { type: 'useItem', item: 'chest' };
     }
     if (opt.loan && s.items.includes('loan') && level !== 'easy' && s.cash < 500) return { type: 'useItem', item: 'loan' };
     if (opt.upgrade && s.items.includes('upgrade') && (level !== 'easy' || rng.chance(0.5))) {

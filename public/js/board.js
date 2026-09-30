@@ -200,8 +200,8 @@
         const steal = B.pick === 'steal';
         const others = v.seats.map((o, i) => i).filter(i => i !== me && !v.seats[i].bankrupt);
         const sel = B.sel != null ? v.seats[B.sel] : null;
-        const stealAmt = o => Math.min(300, Math.max(1, Math.floor(o.cash * 0.2)));
-        out += '<div class="mc-pick"><p class="mc-prompt strong">' + R.ITEMS[B.pick].name + '：選一位對手' + (steal ? '（偷 20% 現金，最多 300）' : B.pick === 'freeze' ? '（他的下一回合跳過）' : '（和他交換位置）') + '</p><div class="pcards" role="group" aria-label="對手">' +
+        const stealAmt = o => Math.min(R.stealCap(v), Math.max(1, Math.floor(o.cash * 0.2)));
+        out += '<div class="mc-pick"><p class="mc-prompt strong">' + R.ITEMS[B.pick].name + '：選一位對手' + (steal ? '（偷 20% 現金，最多 ' + R.stealCap(v) + '）' : B.pick === 'freeze' ? '（他的下一回合跳過）' : '（和他交換位置）') + '</p><div class="pcards" role="group" aria-label="對手">' +
           others.map(i => {
             const o = v.seats[i], why = R.canUseItem(v, me, B.pick, i), n = R.ownedBy(v, i).length;
             const tags = (o.jail ? '<i class="pc-tag bad">坐牢中</i>' : '') + (o.items && o.items.includes('guard') ? '<i class="pc-tag guard">有護身符</i>' : '') + (o.auto || o.afk ? '<i class="pc-tag">離線</i>' : '');
@@ -574,7 +574,7 @@
       const owner = p && p.owner >= 0 ? v.seats[p.owner] : null;
       let h = '<div class="ti-head" style="--gc:' + (t.type === 'prop' ? R.GROUPS[t.group].color : '#8896A8') + '"><span class="ti-gl">' +
         Art.glyph(t.glyph || (t.type === 'go' ? 'go' : t.type)) + '</span><div><h3>' + esc(t.name) + '</h3><small>' +
-        ({ prop: R.GROUPS[t.group] ? R.GROUPS[t.group].name + '色組' : '', station: '車站', utility: '公司', go: '每次經過起點領 ' + R.GO_SALARY + ' 元', jail: '路過只是探監；被抓來才要坐牢', park: '什麼都不會發生，安心泡腳', gotojail: '停在這裡會被直接送進監獄', chance: '抽一張機會卡', chest: '抽一張命運卡', tax: '要繳 ' + t.tax + ' 元', shop: '停在這裡可以用道具點數買道具，也能把道具半價賣回去（道具欄最多 ' + R.MAX_ITEMS + ' 個）' }[t.type] || '') + '</small></div></div>';
+        ({ prop: R.GROUPS[t.group] ? R.GROUPS[t.group].name + '色組' : '', station: '車站', utility: '公司', go: '每次經過起點領 ' + R.salaryOf(v) + ' 元', jail: '路過只是探監；被抓來才要坐牢', park: '什麼都不會發生，安心泡腳', gotojail: '停在這裡會被直接送進監獄', chance: '抽一張機會卡', chest: '抽一張命運卡', tax: '要繳 ' + t.tax + ' 元', shop: '停在這裡可以用道具點數買道具，也能把道具半價賣回去（道具欄最多 ' + R.MAX_ITEMS + ' 個）' }[t.type] || '') + '</small></div></div>';
       if (t.price) {
         h += '<p class="ti-line">地價 <b>' + t.price + '</b> 元' + (t.house ? '・蓋一棟房 ' + t.house + ' 元' : '') + '</p>';
         h += '<p class="ti-line">' + (owner ? '<span class="own-chip" style="--c:' + COLORS[p.owner] + '">' + shapeSvg(p.owner, COLORS[p.owner]) + esc(owner.name) + ' 擁有</span>' : '目前沒有主人') +
@@ -697,7 +697,7 @@
     async function animCash(e) {
       const v = B.shown;
       if (!v) return;
-      if (e.reason === 'go') { floatText(0, '+' + R.GO_SALARY, true); root.Sound.sfx('pass'); return; }
+      if (e.reason === 'go') { floatText(0, '+' + e.amount, true); root.Sound.sfx('pass'); return; }
       const pos = B.pos[e.seat] != null ? B.pos[e.seat] : v.seats[e.seat].pos;
       if (e.to === -2) { floatText(pos, '+' + money(e.amount), true); root.Sound.sfx(e.reason === 'god' ? 'god_good' : 'coin'); return; }
       floatText(pos, '−' + money(e.amount), false);
@@ -927,7 +927,7 @@
       const b = ev.target.closest('[data-invuse]');
       if (!b || b.disabled) return;
       opt.tile.modal.close();
-      if (b.dataset.invuse === 'loan') { B.pick = null; send({ type: 'useItem', item: 'loan' }); return; }
+      if (b.dataset.invuse === 'loan' || (R.ITEMS[b.dataset.invuse] && R.ITEMS[b.dataset.invuse].direct)) { B.pick = null; send({ type: 'useItem', item: b.dataset.invuse }); return; }
       B.pick = b.dataset.invuse; B.sel = null;
       drawCenter(B.shown);
     });
