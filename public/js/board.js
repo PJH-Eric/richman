@@ -858,15 +858,47 @@
     const w = v.seats[v.winner];
     const won = me >= 0 && me === v.winner;
     const title = me < 0 ? w.name + ' 獲勝！' : won ? '你贏了！' : w.name + ' 獲勝';
-    let h = '<div class="result-card"><div class="result-hero" style="--seat:' + COLORS[v.winner] + '">' + Art.animalSvg(w.char) + '</div>' +
+    const stat = i => {
+      const owned = v.props.filter(p => p.owner === i);
+      return { lands: owned.length, houses: owned.reduce((a, p) => a + (p.houses > 0 && p.houses < 5 ? p.houses : 0), 0), hotels: owned.filter(p => p.houses === 5).length };
+    };
+    const st = v.seats.map((s, i) => stat(i));
+    const maxWorth = Math.max(1, ...v.seats.map(s => s.bankrupt ? 0 : s.worth));
+    const alive = v.seats.filter(s => !s.bankrupt).length;
+    /* 小獎項：只頒給真的有東西的人，並列時取排名較前的 */
+    const best = (score) => {
+      let bi = -1, bv = 0;
+      v.ranking.forEach(i => { if (v.seats[i].bankrupt) return; const x = score(i); if (x > bv) { bv = x; bi = i; } });
+      return bi < 0 ? null : { i: bi, v: bv };
+    };
+    const awards = [
+      ['地產大王', best(i => st[i].lands), n => n + ' 塊地'],
+      ['建築大師', best(i => st[i].houses + st[i].hotels * 5), n => n + ' 棟房'],
+      ['現金滿滿', best(i => v.seats[i].cash), n => money(n)]
+    ].filter(a => a[1]);
+    const confetti = [];
+    for (let k = 0; k < 24; k++) {
+      confetti.push('<i style="--x:' + ((k * 37) % 100) + '%;--d:' + ((k * 0.23) % 2.6).toFixed(2) + 's;--t:' + (3.2 + (k % 5) * 0.5).toFixed(1) + 's;--c:' + COLORS[k % COLORS.length] + ';--r:' + ((k * 47) % 360) + 'deg"></i>');
+    }
+    let h = '<div class="confetti' + (won || me < 0 ? '' : ' soft') + '" aria-hidden="true">' + confetti.join('') + '</div>' +
+      '<div class="result-card" style="--seat:' + COLORS[v.winner] + '">' +
+      '<div class="result-top"><span class="result-badge">' + (v.reason === 'roundLimit' ? '回合到了' : '最後一位倖存者') + '</span>' +
+      '<div class="hero-wrap"><svg class="crown" viewBox="0 0 48 28" aria-hidden="true"><path d="M4 24 L8 6 L18 16 L24 3 L30 16 L40 6 L44 24 Z" fill="#FFD447" stroke="#E0A800" stroke-width="3" stroke-linejoin="round"/><circle cx="8" cy="6" r="3" fill="#FF8FA3"/><circle cx="24" cy="3" r="3" fill="#7FD8E0"/><circle cx="40" cy="6" r="3" fill="#FF8FA3"/></svg><div class="result-hero">' + Art.animalSvg(w.char) + '</div></div></div>' +
       '<h2 id="result-title">' + esc(title) + '</h2>' +
-      '<p class="result-sub">' + (v.reason === 'roundLimit' ? '回合數到了，比誰的總資產最多' : '其他人都破產了') + '</p>' +
+      '<p class="result-sub">' + (v.reason === 'roundLimit' ? '比一比誰的總資產最多' : '其他人都破產了') + '</p>' +
+      '<div class="result-tiles"><div><b>' + v.round + '</b><span>回合</span></div><div><b>' + alive + '/' + v.seats.length + '</b><span>存活</span></div><div><b>' + money(w.worth) + '</b><span>冠軍總資產</span></div></div>' +
+      (awards.length ? '<div class="result-awards">' + awards.map(a => '<span class="award" style="--seat:' + COLORS[a[1].i] + '"><em>' + a[0] + '</em>' + esc(v.seats[a[1].i].name) + '<small>' + a[2](a[1].v) + '</small></span>').join('') + '</div>' : '') +
       '<ol class="rank-list">';
     v.ranking.forEach((si, k) => {
-      const s = v.seats[si];
-      h += '<li class="' + (si === me ? 'me' : '') + '"><span class="no">' + (k + 1) + '</span><span class="mini">' + Art.animalSvg(s.char) + '</span>' +
-        '<span class="nm">' + shapeSvg(si, COLORS[si], 'sh-inline') + esc(s.name) + (si === me ? '（你）' : '') + '</span>' +
-        '<span class="sc">' + (s.bankrupt ? '破產' : '總資產 ' + money(s.worth)) + '</span></li>';
+      const s = v.seats[si], t = st[si];
+      const tot = s.bankrupt ? 0 : Math.max(0, s.worth);
+      const pct = Math.round(tot / maxWorth * 100), cashPct = tot ? Math.round(Math.max(0, Math.min(tot, s.cash)) / tot * 100) : 0;
+      h += '<li class="' + (si === me ? 'me ' : '') + (s.bankrupt ? 'out ' : '') + (k === 0 ? 'first' : '') + '" style="--seat:' + COLORS[si] + '"><span class="no">' + (k + 1) + '</span><span class="mini">' + Art.animalSvg(s.char) + '</span>' +
+        '<span class="nm">' + shapeSvg(si, COLORS[si], 'sh-inline') + '<span class="nt">' + esc(s.name) + (si === me ? '（你）' : '') + '</span></span>' +
+        '<span class="sc">' + (s.bankrupt ? '破產' : money(s.worth)) + '</span>' +
+        (s.bankrupt ? '' : '<span class="bar" title="現金與地產"><span class="fill" style="width:' + pct + '%"><span class="cash" style="width:' + cashPct + '%"></span></span></span>' +
+          '<span class="chips"><span>現金 <b>' + money(s.cash) + '</b></span><span>地 <b>' + t.lands + '</b></span><span>房 <b>' + t.houses + '</b></span><span>旅店 <b>' + t.hotels + '</b></span></span>') +
+        '</li>';
     });
     h += '</ol><p class="result-stats">' + esc(sub || '') + '</p><div class="result-actions" id="result-actions"></div></div>';
     return h;

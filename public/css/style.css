@@ -735,3 +735,63 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 .sum-pane, .pcards { scroll-padding-right: 20px; }
 .sum-pane { padding-right: 14px; }
 .summary { padding-right: 4px; }
+
+/* ===== 結算畫面（豐富版）：皇冠、彩帶、統計方塊、小獎項、資產長條 ===== */
+.result-card { position: relative; width: min(500px, 100%); }
+.result-top { position: relative; display: grid; justify-items: center; gap: 4px; }
+.result-badge { display: inline-block; padding: 2px 12px; border-radius: 999px; background: #FFE9A8; color: #7A4E2A; font-weight: 900; font-size: .8rem; border: 2px solid #E0A800; }
+.hero-wrap { position: relative; width: fit-content; margin: 0 auto; }
+.hero-wrap .crown { position: absolute; left: 50%; top: -22px; width: 54px; height: 32px; transform: translateX(-50%) rotate(-6deg); z-index: 2; animation: bounce 1.6s ease-in-out infinite; filter: drop-shadow(0 2px 0 rgba(122,78,42,.35)); }
+.result-hero { margin-top: 6px; box-shadow: 0 0 0 6px rgba(255,212,71,.35), 0 0 0 12px rgba(255,212,71,.15); }
+.result-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 10px; }
+.result-tiles div { background: #fff; border: 2px solid #F1E3C8; border-radius: 14px; padding: 6px 4px; display: grid; min-width: 0; }
+.result-tiles b { font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-tiles span { font-size: .72rem; color: var(--ink-soft); font-weight: 800; }
+.result-awards { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 10px; }
+.award { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: center; padding: 3px 10px; border-radius: 999px; background: #fff; border: 2px solid var(--seat, #F1E3C8); font-weight: 800; font-size: .78rem; min-width: 0; }
+.award em { font-style: normal; background: var(--seat, #F1E3C8); color: #fff; border-radius: 999px; padding: 0 7px; text-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.award small { color: var(--ink-soft); font-weight: 800; }
+.rank-list li { display: grid; grid-template-columns: 30px 38px minmax(0, 1fr) auto; column-gap: 8px; row-gap: 3px; align-items: center; padding: 5px 10px 6px 5px; }
+.rank-list li.first { border-color: #FFD447; background: linear-gradient(#FFFBEA, #fff); }
+.rank-list li.out { opacity: .65; }
+.rank-list .nm { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.rank-list .nm .nt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-list .sc { font-weight: 900; white-space: nowrap; }
+.rank-list .bar { grid-column: 3 / -1; height: 9px; border-radius: 999px; background: #F1E3C8; overflow: hidden; }
+.rank-list .bar .fill { display: block; height: 100%; border-radius: 999px; background: var(--seat, #999); min-width: 6px; overflow: hidden; }
+.rank-list .bar .cash { display: block; height: 100%; background: rgba(255,255,255,.55); }
+.rank-list .chips { grid-column: 3 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: .74rem; color: var(--ink-soft); font-weight: 700; }
+.rank-list .chips b { color: var(--ink); }
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.confetti.soft { opacity: .4; }
+.confetti i { position: absolute; top: -12px; left: var(--x); width: 9px; height: 14px; background: var(--c); border-radius: 2px; transform: rotate(var(--r)); animation: confetti-fall var(--t) linear var(--d) infinite; }
+.result-card { z-index: 1; }
+@keyframes confetti-fall { to { transform: translateY(105dvh) rotate(calc(var(--r) + 540deg)); } }
+@media (max-width: 380px) {
+  .result-tiles b { font-size: .95rem; }
+  .rank-list li { grid-template-columns: 26px 32px minmax(0, 1fr) auto; column-gap: 6px; }
+  .rank-list .mini { width: 32px; height: 32px; }
+}
+@media (max-height: 560px) {
+  .result-tiles, .rank-list .chips { display: none; }
+  .hero-wrap .crown { width: 36px; height: 22px; top: -14px; }
+  .result-awards { margin-bottom: 6px; }
+}
+@media (max-height: 560px) and (min-width: 600px) {
+  .result-card { width: min(640px, 100%); grid-template-columns: auto 1fr; }
+  .result-top { grid-row: span 2; }
+  .result-awards { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (min-height: 900px) and (min-width: 700px) {
+  .result-card { width: min(600px, 100%); padding: 24px; }
+  .result-hero { width: 150px; height: 150px; }
+  .rank-list .chips { font-size: .82rem; }
+}
+.result-top { padding-top: 14px; }
+@media (max-height: 560px) and (min-width: 600px) {
+  .result-top { padding-top: 10px; }
+  .result-card .result-sub { grid-column: 2; margin: 0 0 4px; }
+  .result-card h2 { grid-column: 2; }
+}
+.result-badge { margin-bottom: 20px; }
+@media (max-height: 560px) { .result-badge { margin-bottom: 12px; } }
