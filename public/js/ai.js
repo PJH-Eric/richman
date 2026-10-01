@@ -109,7 +109,7 @@
     if (level === 'kid' || !opt.shop || s.items.length >= 6) return leave;
     const can = (opt.shop || []).filter(x => x.can);
     if (!can.length || (level === 'easy' && rng.chance(0.4))) return leave;
-    const pref = { upgrade: 5, guard: 4, free: 3, cat: 3, fly: 3, freeze: 3, coupon: 3, half: 3, steal: 2, bomb: 2, gobonus: 2, bail: 2, taxfree: 2, loan: 2, dice: 2, swap: 1, repair: 3, rebate: 2, salary: 3, god: 3, chest: 2, cure: 1 };
+    const pref = { upgrade: 5, seize: 5, guard: 4, reflect: 4, free: 3, cat: 3, freeze: 3, coupon: 3, grab: 3, again: 3, collect: 3, salary: 3, god: 3, steal: 2, bomb: 2, frame: 2, surge: 2, equal: 2, gobonus: 2, bail: 2, dice: 2, chest: 2, swap: 1, cure: 1 };
     can.sort((a, b) => (pref[b.item] || 0) - (pref[a.item] || 0) || rng.next() - 0.5);
     const pick = level === 'hard' ? can[0] : can[Math.floor(rng.next() * Math.min(3, can.length))];
     return { type: 'shopBuy', item: pick.item };
@@ -208,7 +208,7 @@
     const BOARD = T.length;
     /* 攻擊型道具：偷錢、炸房、換位（簡單難度偶爾才用，困難更精打細算） */
     if (opt.steal && s.items.includes('steal')) {
-      const c = R.itemTargets(state, si, 'steal').filter(i => state.seats[i].cash >= (level === 'hard' ? 250 : 350)).sort((a, b) => state.seats[b].cash - state.seats[a].cash)[0];
+      const c = R.itemTargets(state, si, 'steal').filter(i => state.seats[i].cash >= (level === 'hard' ? 250 : 350) * (state.econ || 1)).sort((a, b) => state.seats[b].cash - state.seats[a].cash)[0];
       if (c != null && (level !== 'easy' || rng.chance(0.4))) return { type: 'useItem', item: 'steal', target: c };
     }
     if (opt.bomb && s.items.includes('bomb') && level !== 'easy') {
@@ -226,7 +226,25 @@
       if (opt.salary && s.items.includes('salary')) return { type: 'useItem', item: 'salary' };
       if (opt.chest && s.items.includes('chest') && s.items.length < R.MAX_ITEMS) return { type: 'useItem', item: 'chest' };
     }
-    if (opt.loan && s.items.includes('loan') && level !== 'easy' && s.cash < 500) return { type: 'useItem', item: 'loan' };
+    /* 新道具：收租、加骰、漲價、搶奪、陷害、均富 */
+    if (opt.collect && s.items.includes('collect') && level !== 'easy') return { type: 'useItem', item: 'collect' };
+    if (opt.again && s.items.includes('again') && level !== 'easy') return { type: 'useItem', item: 'again' };
+    if (opt.surge && s.items.includes('surge') && level !== 'easy') {
+      const c = R.itemTargets(state, si, 'surge').sort((a, b) => R.rentOf(state, b, [3, 4]) - R.rentOf(state, a, [3, 4]))[0];
+      if (c != null) return { type: 'useItem', item: 'surge', tile: c };
+    }
+    if (opt.grab && s.items.includes('grab') && level !== 'easy' && s.items.length < R.MAX_ITEMS) {
+      const c = R.itemTargets(state, si, 'grab').sort((a, b) => state.seats[b].items.length - state.seats[a].items.length)[0];
+      if (c != null && state.seats[c].items.length >= 2) return { type: 'useItem', item: 'grab', target: c };
+    }
+    if (opt.frame && s.items.includes('frame') && level === 'hard') {
+      const c = R.itemTargets(state, si, 'frame').sort((a, b) => ownedWorth(state, b) - ownedWorth(state, a))[0];
+      if (c != null) return { type: 'useItem', item: 'frame', target: c };
+    }
+    if (opt.equal && s.items.includes('equal') && level !== 'easy') {
+      const c = R.itemTargets(state, si, 'equal').filter(i => state.seats[i].cash > s.cash * 1.6 + 100).sort((a, b) => state.seats[b].cash - state.seats[a].cash)[0];
+      if (c != null) return { type: 'useItem', item: 'equal', target: c };
+    }
     if (opt.upgrade && s.items.includes('upgrade') && (level !== 'easy' || rng.chance(0.5))) {
       const c = R.itemTargets(state, si, 'upgrade').sort((a, b) => T[b].house - T[a].house)[0];
       if (c != null) return { type: 'useItem', item: 'upgrade', tile: c };
@@ -241,16 +259,6 @@
         const v = tileScore(state, si, (s.pos + n) % BOARD, level) + ((s.pos + n >= BOARD) ? 60 : 0);
         if (!best || v > best.v) best = { v, a: { type: 'useItem', item: 'dice', n } };
       }
-    }
-    if (opt.fly && s.items.includes('fly') && level !== 'easy') {
-      let f = null;
-      for (let i = 0; i < BOARD; i++) {
-        if (i === s.pos || T[i].type === 'gotojail') continue;
-        const v = tileScore(state, si, i, level) - 40;
-        if (!f || v > f.v) f = { v, a: { type: 'useItem', item: 'fly', tile: i } };
-      }
-      /* 機票很珍貴：只在真的划算時才用 */
-      if (f && f.v >= (level === 'hard' ? 220 : 300) && (!best || f.v > best.v + 60)) best = f;
     }
     if (!best) return null;
     if (level === 'easy') return best.v >= 100 && rng.chance(0.5) ? best.a : null;

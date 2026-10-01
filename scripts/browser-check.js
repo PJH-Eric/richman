@@ -167,7 +167,7 @@ async function solo(browser, base) {
   } else ok(false, '找不到「我的地產」按鈕');
   /* 道具：遙控骰選點數、機票點 3D 棋盤 */
   if (await mineTurn()) {
-    await page.evaluate(() => { const g = Solo._debug; const me0 = g.state.seats[g.state.turn]; me0.items = ['dice', 'fly', 'cat']; me0.jail = false; me0.jailTurns = 0; Solo.board.render(Rules.publicView(g.state, g.clock)); });
+    await page.evaluate(() => { const g = Solo._debug; const me0 = g.state.seats[g.state.turn]; me0.items = ['dice', 'surge', 'cat']; me0.jail = false; me0.jailTurns = 0; Solo.board.render(Rules.publicView(g.state, g.clock)); });
     await page.waitForSelector('.mc-ihead', { timeout: 3000 }).catch(() => {});
     ok(/3／/.test(await page.$eval('.mc-ihead', e => e.textContent)), '右下角只顯示道具庫與數量（3 個道具）');
     ok(await invUse(page, 'dice'), '道具庫裡按「使用」→ 接著在面板選遙控骰步數');
@@ -177,26 +177,16 @@ async function solo(browser, base) {
     ok(await page.evaluate(() => Solo.board._debug.pick === 'dice' && !Solo.board._debug.sent), '預覽時尚未使用道具');
     await page.click('.mc [data-pickcancel]');
     ok(!(await page.$('.mc .pick-btn')), '「先不用」收起選單');
-    ok(await invUse(page, 'fly'), '道具庫裡按「使用」→ 接著在面板選機票目的地');
-    ok((await page.$$eval('.mc .tchip', e => e.length)) > 20, '機票：面板列出可飛的格子清單');
-    await page.click('.mc [data-fflt="spec"]');
-    ok((await page.$$eval('.mc .tchip', e => e.length)) < 20 && (await page.$$eval('.mc .fly-f.on', e => e.length)) === 1, '機票：切到「特別格」只剩特別格');
-    await page.click('.mc [data-fflt="all"]');
-    await page.click('.mc [data-fsel="12"]');
-    ok(!!(await page.$('.mc [data-confirm]')) && (await page.textContent('.mc')).includes(await page.evaluate(() => Rules.TILES[12].name)), '機票：點清單的格子會選取並出現確認鈕');
-    ok(await page.evaluate(() => !Solo.board._debug.sent), '選取時還沒送出');
-    await page.evaluate(() => Solo.board.v3.setFollow(false));
-    await page.waitForTimeout(1200);
-    const bx = await page.evaluate(() => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const p = Solo.board.v3.project(12, 0, 0, 0.3); return { x: r.left + p.x - c.offsetLeft, y: r.top + p.y - c.offsetTop }; });
-    await page.mouse.click(bx.x, bx.y);
-    if (!(await page.waitForSelector('.mc [data-confirm]', { timeout: 1500 }).catch(() => null))) await page.evaluate(() => Solo.board.tileClick(12));
+    await page.evaluate(() => { const g = Solo._debug, st = g.state, i = st.seats.findIndex(x => x.id === 'me'); st.seats[i].items = ['dice', 'surge', 'cat']; st.props[6].owner = i; st.props[6].houses = 1; Solo.board.render(Rules.publicView(st, g.clock)); });
+    ok(await invUse(page, 'surge'), '道具庫裡按「使用」→ 接著選漲價的地');
+    await page.waitForFunction(() => Solo.board._debug.pick === 'surge', null, { timeout: 3000 }).catch(() => {});
+    await page.evaluate(() => Solo.board.tileClick(6));
     await page.waitForSelector('.mc [data-confirm]', { timeout: 3000 });
-    const before = await page.evaluate(() => { const g = Solo._debug; return g.state.seats.find(x => x.id === 'me').pos; });
-    ok(before !== 12, '機票：點格子只是選目的地，還沒飛（要按確認）');
+    ok(await page.evaluate(() => !Solo.board._debug.sent), '漲價卡：點地只是選取，還沒送出（要按確認）');
     await page.click('.mc [data-confirm]');
     await page.waitForTimeout(400);
-    const flew = await page.evaluate(() => { const g = Solo._debug; const i = g.state.seats.findIndex(x => x.id === 'me'); return { pos: g.state.seats[i].pos, items: g.state.seats[i].items.join(',') }; });
-    ok(flew.pos === 12 && flew.items === 'dice,cat', '機票：按確認才飛過去並用掉（' + JSON.stringify(flew) + '）');
+    const flew = await page.evaluate(() => { const g = Solo._debug; const i = g.state.seats.findIndex(x => x.id === 'me'); return { s: g.state.props[6].surge, items: g.state.seats[i].items.join(',') }; });
+    ok(flew.s > 0 && flew.items === 'dice,cat', '漲價卡：按確認才生效並用掉（' + JSON.stringify(flew) + '）');
   }
   /* 攻擊型道具的選目標介面、走到自己的地的蓋房詢問、自製卷軸 */
   {

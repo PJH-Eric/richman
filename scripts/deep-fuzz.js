@@ -50,14 +50,14 @@ for (let g = 0; g < SEEDS; g++) {
     ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].forEach(k => { if (o[k]) acts.push(k === 'roll' ? { type: 'roll', dice: rand() < 0.5 ? 1 : 2 } : { type: k }); });
     ['build', 'sell', 'buyout'].forEach(k => o[k].forEach(t => acts.push({ type: k, tile: t })));
     if (o.dice) for (let k = 1; k <= 12; k++) acts.push({ type: 'useItem', item: 'dice', n: k });
-    if (o.loan) acts.push({ type: 'useItem', item: 'loan' });
+    ['again', 'collect', 'chest', 'cure', 'god', 'salary'].forEach(k => { if (o[k]) acts.push({ type: 'useItem', item: k }); });
     if (o.upgrade) R.itemTargets(st, si, 'upgrade').forEach(t => acts.push({ type: 'useItem', item: 'upgrade', tile: t }));
     if (o.sellItems) o.sellItems.forEach(x => acts.push({ type: 'shopSell', item: x.item }));
-    if (o.fly) R.itemTargets(st, si, 'fly').forEach(t => acts.push({ type: 'useItem', item: 'fly', tile: t }));
-    ['steal', 'swap', 'freeze'].forEach(k => { if (o[k]) R.itemTargets(st, si, k).forEach(t => acts.push({ type: 'useItem', item: k, target: t })); });
+    if (o.surge) R.itemTargets(st, si, 'surge').forEach(t => acts.push({ type: 'useItem', item: 'surge', tile: t }));
+    ['steal', 'swap', 'freeze', 'grab', 'frame', 'equal'].forEach(k => { if (o[k]) R.itemTargets(st, si, k).forEach(t => acts.push({ type: 'useItem', item: k, target: t })); });
     if (o.shop && o.shop.length) o.shop.forEach(x => { if (x.can) acts.push({ type: 'shopBuy', item: x.item }); });
     if (o.bomb) R.itemTargets(st, si, 'bomb').forEach(t => acts.push({ type: 'useItem', item: 'bomb', tile: t }));
-    ['free', 'cat', 'taxfree', 'guard'].forEach(k => { if (s.items.includes(k) && R.canUseItem && !R.canUseItem(st, si, k)) acts.push({ type: 'useItem', item: k }); });
+    ['free', 'cat', 'guard', 'reflect', 'seize', 'coupon'].forEach(k => { if (s.items.includes(k) && R.canUseItem && !R.canUseItem(st, si, k)) acts.push({ type: 'useItem', item: k }); });
     const main = acts.filter(a => !['sell', 'buyout', 'useItem', 'shopBuy', 'shopSell', 'bankrupt'].includes(a.type) || (a.type === 'bankrupt' && rand() < 0.3));
     if (!(o.roll || o.decline || o.buy || o.settle || o.bankrupt || o.endTurn)) { fail('卡死：局' + g + ' 階段 ' + st.phase + ' 沒有主要動作'); break; }
     const side = acts.filter(a => !main.includes(a));

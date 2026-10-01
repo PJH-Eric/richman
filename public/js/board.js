@@ -183,12 +183,15 @@
       if (!B.pick) B.sel = null;
       const cancel = '<button type="button" class="link-btn" data-pickcancel="1">先不用</button>';
       const confirmBtn = label => '<button type="button" class="btn3d coral" data-confirm="1"' + (B.sent ? ' disabled' : '') + '>' + label + '</button>';
-      if (canItem && (B.pick === 'steal' || B.pick === 'swap' || B.pick === 'freeze')) {
+      if (canItem && (B.pick === 'steal' || B.pick === 'swap' || B.pick === 'freeze' || B.pick === 'grab' || B.pick === 'frame' || B.pick === 'equal')) {
         const steal = B.pick === 'steal';
         const others = v.seats.map((o, i) => i).filter(i => i !== me && !v.seats[i].bankrupt);
         const sel = B.sel != null ? v.seats[B.sel] : null;
-        const stealAmt = o => Math.min(R.stealCap(v), Math.max(1, Math.floor(o.cash * 0.2)));
-        out += '<div class="mc-pick"><p class="mc-prompt strong">' + R.ITEMS[B.pick].name + '：選一位對手' + (steal ? '（偷 20% 現金，最多 ' + R.stealCap(v) + '）' : B.pick === 'freeze' ? '（他的下一回合跳過）' : '（和他交換位置）') + '</p><div class="pcards" role="group" aria-label="對手">' +
+        const stealAmt = o => Math.min(R.stealCap(v), Math.max(1, Math.floor(o.cash * 0.1)));
+        const PROMPT = { steal: '（偷 10% 現金，最多 ' + R.stealCap(v) + '）', freeze: '（他的下一回合跳過）', swap: '（和他交換位置）', grab: '（隨機搶走他 1 個道具）', frame: '（讓他直接去坐牢）', equal: '（你和他的現金平分）' };
+        const EFF = { steal: o => '可偷約 ' + money(stealAmt(o)) + ' 元', freeze: () => '他下一回合會被跳過', swap: o => '你會換到「' + tileShort(o.pos) + '」', grab: o => '他有 ' + ((o.items || []).length) + ' 個道具，隨機搶 1 個', frame: () => '他會直接被關進監獄', equal: o => '各得約 ' + money(Math.floor((o.cash + v.seats[me].cash) / 2)) + ' 元' };
+        const BTN = { steal: n => '偷 ' + n + ' 的錢！', freeze: n => '冰凍 ' + n + '！', swap: n => '和 ' + n + ' 換位！', grab: n => '搶 ' + n + ' 的道具！', frame: n => '陷害 ' + n + '！', equal: n => '和 ' + n + ' 平分現金！' };
+        out += '<div class="mc-pick"><p class="mc-prompt strong">' + R.ITEMS[B.pick].name + '：選一位對手' + PROMPT[B.pick] + '</p><div class="pcards" role="group" aria-label="對手">' +
           others.map(i => {
             const o = v.seats[i], why = R.canUseItem(v, me, B.pick, i), n = R.ownedBy(v, i).length;
             const tags = (o.jail ? '<i class="pc-tag bad">坐牢中</i>' : '') + (o.items && o.items.includes('guard') ? '<i class="pc-tag guard">有護身符</i>' : '') + (o.auto || o.afk ? '<i class="pc-tag">離線</i>' : '');
@@ -196,9 +199,9 @@
               '<span class="pc-head"><span class="mini">' + Art.animalSvg(o.char) + '</span><b>' + esc(o.name) + '</b></span>' +
               '<span class="pc-stats"><span>現金 <b>' + money(o.cash) + '</b></span><span>在 <b>' + tileShort(o.pos) + '</b></span><span><b>' + n + '</b> 塊地</span></span>' +
               (tags ? '<span class="pc-tags">' + tags + '</span>' : '') +
-              '<span class="pc-eff' + (why ? ' why' : '') + '">' + (why ? esc(why) : steal ? '可偷約 ' + money(stealAmt(o)) + ' 元' : B.pick === 'freeze' ? '他下一回合會被跳過' : '你會換到「' + tileShort(o.pos) + '」') + '</span></button>';
+              '<span class="pc-eff' + (why ? ' why' : '') + '">' + (why ? esc(why) : EFF[B.pick](o)) + '</span></button>';
           }).join('') + '</div>' +
-          (sel ? confirmBtn(steal ? '偷 ' + esc(sel.name) + ' 的錢！' : B.pick === 'freeze' ? '冰凍 ' + esc(sel.name) + '！' : '和 ' + esc(sel.name) + ' 換位！') : '<p class="mc-prompt dim">點一位對手，棋盤上會標出他的位置</p>') + cancel + '</div>';
+          (sel ? confirmBtn(BTN[B.pick](esc(sel.name))) : '<p class="mc-prompt dim">點一位對手，棋盤上會標出他的位置</p>') + cancel + '</div>';
         return out;
       }
       if (canItem && B.pick === 'bomb') {
@@ -215,42 +218,17 @@
           (B.sel != null ? confirmBtn('炸掉「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">點一間房子，棋盤上會標出位置</p>') + cancel + '</div>';
         return out;
       }
-      if (canItem && B.pick === 'upgrade') {
-        const list = R.itemTargets(v, me, 'upgrade');
-        out += '<div class="mc-pick"><p class="mc-prompt strong">加蓋券：選一塊自己的地，免費蓋 1 間（也可以點棋盤上發亮的地）</p><div class="pcards tilegrid" role="group" aria-label="可以加蓋的地">' +
+      if (canItem && (B.pick === 'upgrade' || B.pick === 'surge')) {
+        const surge = B.pick === 'surge';
+        const list = R.itemTargets(v, me, B.pick);
+        out += '<div class="mc-pick"><p class="mc-prompt strong">' + (surge ? '漲價卡：選一塊自己的地，過路費 ×1.5、持續 3 個回合（也可以點棋盤上發亮的地）' : '加蓋券：選一塊自己的地，免費蓋 1 間（也可以點棋盤上發亮的地）') + '</p><div class="pcards tilegrid" role="group" aria-label="可以加蓋的地">' +
           list.map(i => {
             const t = T[i], h = v.props[i].houses, col = R.GROUPS[t.group] ? R.GROUPS[t.group].color : '#D9B25C';
-            return '<button type="button" class="tgt-btn tchip' + (B.sel === i ? ' sel' : '') + '" data-tsel="' + i + '" aria-pressed="' + (B.sel === i) + '" style="--band:' + col + '"><i class="tc-band"></i><span class="tc-gl">' + Art.glyph(t.glyph) + '</span><span class="tc-tx"><b>' + esc(t.name) + '</b><small>' + (h === 4 ? '升級成旅店' : h + ' 棟 → ' + (h + 1) + ' 棟') + '</small></span></button>';
+            return '<button type="button" class="tgt-btn tchip' + (B.sel === i ? ' sel' : '') + '" data-tsel="' + i + '" aria-pressed="' + (B.sel === i) + '" style="--band:' + col + '"><i class="tc-band"></i><span class="tc-gl">' + Art.glyph(t.glyph) + '</span><span class="tc-tx"><b>' + esc(t.name) + '</b><small>' + (surge ? '租金 ' + money(R.rentOf(v, i, v.dice)) + ' → ' + money(Math.round(R.rentOf(v, i, v.dice) * 1.5)) : h === 4 ? '升級成旅店' : h + ' 棟 → ' + (h + 1) + ' 棟') + '</small></span></button>';
           }).join('') + '</div>' +
-          (B.sel != null ? confirmBtn('加蓋「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">點一塊地</p>') + cancel + '</div>';
+          (B.sel != null ? confirmBtn((surge ? '漲價「' : '加蓋「') + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">點一塊地</p>') + cancel + '</div>';
         return out;
       }
-      if (canItem && B.pick === 'fly') {
-        /* 機票：在面板裡直接挑格子（分類篩選＋清單），也可以點棋盤上發亮的格子 */
-        const cats = [['all', '全部'], ['buy', '空地'], ['mine', '我的地'], ['foe', '對手的地'], ['spec', '特別格']];
-        const kindOf = i => {
-          const t = T[i], p = v.props[i];
-          if (t.type === 'prop' || t.type === 'station' || t.type === 'utility') return p.owner < 0 ? 'buy' : p.owner === me ? 'mine' : 'foe';
-          return 'spec';
-        };
-        const reach = [];
-        for (let k = 1; k < T.length; k++) { const i = (cur.pos + k) % T.length; if (!R.canUseItem(v, me, 'fly', i)) reach.push(i); }
-        const cnt = {}; reach.forEach(i => { const c = kindOf(i); cnt[c] = (cnt[c] || 0) + 1; });
-        let flt = B.flyFilter || 'all';
-        if (flt !== 'all' && !cnt[flt]) flt = 'all';
-        const list = reach.filter(i => flt === 'all' || kindOf(i) === flt);
-        out += '<div class="mc-pick"><p class="mc-prompt strong">機票：選要飛去的格子</p>' +
-          '<div class="fly-filter" role="tablist" aria-label="格子分類">' + cats.filter(c => c[0] === 'all' || cnt[c[0]]).map(c =>
-            '<button type="button" role="tab" class="fly-f' + (flt === c[0] ? ' on' : '') + '" data-fflt="' + c[0] + '" aria-selected="' + (flt === c[0]) + '">' + c[1] + (c[0] === 'all' ? '' : ' ' + cnt[c[0]]) + '</button>').join('') + '</div>' +
-          '<div class="pcards tilegrid" role="group" aria-label="可以飛去的格子">' + list.map(i => {
-            const t = T[i], h = landHint(v, me, i), col = t.type === 'prop' ? R.GROUPS[t.group].color : '#D9B25C';
-            return '<button type="button" class="tgt-btn tchip' + (B.sel === i ? ' sel' : '') + '" data-fsel="' + i + '" aria-pressed="' + (B.sel === i) + '" style="--band:' + col + '">' +
-              '<i class="tc-band"></i><span class="tc-gl">' + Art.glyph(t.glyph) + '</span><span class="tc-tx"><b>' + esc(t.name) + '</b><small class="' + h[1] + '">' + esc(h[0]) + '</small></span></button>';
-          }).join('') + '</div>' +
-          (B.sel != null ? confirmBtn('飛去「' + esc(T[B.sel].name) + '」！') : '<p class="mc-prompt dim">點清單或棋盤上發亮的格子；點兩次可看詳細資料</p>') + cancel + '</div>';
-        return out;
-      }
-
       if (v.phase === 'over') {
         out += '<p class="mc-prompt strong">遊戲結束</p>';
       } else if (B.busy) {
@@ -400,11 +378,10 @@
         const me2 = meIndex(v);
         let tg = [];
         if (me2 >= 0 && me2 === v.turn && v.phase === 'roll') {
-          if (B.pick === 'bomb' || B.pick === 'upgrade') tg = R.itemTargets(v, me2, B.pick);
-          else if (B.pick === 'fly') for (let i = 0; i < T.length; i++) if (!R.canUseItem(v, me2, 'fly', i)) tg.push(i);
+          if (B.pick === 'bomb' || B.pick === 'upgrade' || B.pick === 'surge') tg = R.itemTargets(v, me2, B.pick);
         }
         B.v3.setTargets(tg);
-        if (B.pick && B.sel != null) B.v3.highlight((B.pick === 'steal' || B.pick === 'swap' || B.pick === 'freeze') ? v.seats[B.sel].pos : B.pick === 'dice' ? (v.seats[me2].pos + B.sel) % T.length : B.sel);
+        if (B.pick && B.sel != null) B.v3.highlight(('steal,swap,freeze,grab,frame,equal'.split(',').includes(B.pick)) ? v.seats[B.sel].pos : B.pick === 'dice' ? (v.seats[me2].pos + B.sel) % T.length : B.sel);
         else if (!B.busy && B.hiPick) B.v3.highlight(-1);
         B.hiPick = !!(B.pick && B.sel != null);
       }
@@ -740,8 +717,8 @@
         case 'item': {
           const v = B.shown, nm = R.ITEMS[e.item] ? R.ITEMS[e.item].name : '';
           const pos = v ? (B.pos[e.seat] != null ? B.pos[e.seat] : v.seats[e.seat].pos) : 0;
-          if (e.gain) { root.Sound.sfx('pickup'); floatText(pos, e.cash ? '道具滿了 +50' : '獲得「' + nm + '」', true); }
-          else if (e.use) { root.Sound.sfx(e.item === 'fly' ? 'fly' : e.item === 'guard' ? 'block' : e.item === 'free' || e.item === 'taxfree' ? 'free' : e.item === 'cat' ? 'earn' : 'click'); floatText(pos, '「' + nm + '」', true); }
+          if (e.gain) { root.Sound.sfx('pickup'); floatText(pos, e.cash ? '道具滿了' : '獲得「' + nm + '」', true); }
+          else if (e.use) { root.Sound.sfx(e.item === 'guard' ? 'block' : e.item === 'free' || e.item === 'coupon' ? 'free' : e.item === 'cat' ? 'earn' : 'click'); floatText(pos, '「' + nm + '」', true); }
           return wait(reduce() ? 0 : 500);
         }
         case 'attack': {
@@ -766,6 +743,14 @@
           } else if (e.kind === 'swap') {
             root.Sound.sfx('swap'); floatText(pos, '被換位', false);
             if (mineHit) root.UI.vibrate(50);
+          } else if (e.kind === 'grab') {
+            root.Sound.sfx('steal'); floatText(pos, '道具被搶！', false);
+            if (mineHit) root.UI.vibrate(60);
+          } else if (e.kind === 'frame') {
+            root.Sound.sfx('hurt'); floatText(pos, '被陷害！', false);
+            if (mineHit) root.UI.vibrate([60, 40, 60]);
+          } else if (e.kind === 'equal') {
+            root.Sound.sfx('swap'); floatText(pos, '現金平分', false);
           }
           return wait(reduce() ? 0 : 600);
         }
@@ -835,24 +820,14 @@
     boardEl.addEventListener('click', ev => {
       const inv = ev.target.closest('[data-inv]');
       if (inv) { B.openInv(inv); return; }
-      const ff = ev.target.closest('[data-fflt]');
-      if (ff && B.pick === 'fly') { B.flyFilter = ff.dataset.fflt; drawCenter(B.shown); return; }
-      const fs = ev.target.closest('[data-fsel]');
-      if (fs && !B.sent && B.pick === 'fly') {
-        const i = Number(fs.dataset.fsel);
-        if (B.sel === i) { B.openTile(i, fs); return; }
-        B.sel = i; drawCenter(B.shown);
-        const on = mc.querySelector('.tchip.sel'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
-        return;
-      }
       const tg = ev.target.closest('[data-tgt]');
-      if (tg && !tg.disabled && !B.sent && (B.pick === 'steal' || B.pick === 'swap' || B.pick === 'freeze')) { B.sel = Number(tg.dataset.tgt); drawCenter(B.shown); return; }
+      if (tg && !tg.disabled && !B.sent && 'steal,swap,freeze,grab,frame,equal'.split(',').includes(B.pick)) { B.sel = Number(tg.dataset.tgt); drawCenter(B.shown); return; }
       const ts = ev.target.closest('[data-tsel]');
-      if (ts && !B.sent && (B.pick === 'bomb' || B.pick === 'upgrade')) { B.sel = Number(ts.dataset.tsel); drawCenter(B.shown); return; }
+      if (ts && !B.sent && (B.pick === 'bomb' || B.pick === 'upgrade' || B.pick === 'surge')) { B.sel = Number(ts.dataset.tsel); drawCenter(B.shown); return; }
       if (ev.target.closest('[data-confirm]') && !B.sent && B.pick && B.sel != null) {
         const id = B.pick, sel = B.sel; B.pick = null; B.sel = null;
         if (id === 'dice') send({ type: 'useItem', item: 'dice', n: sel });
-        else if (id === 'steal' || id === 'swap' || id === 'freeze') send({ type: 'useItem', item: id, target: sel });
+        else if (R.ITEMS[id] && R.ITEMS[id].target === 'seat') send({ type: 'useItem', item: id, target: sel });
         else send({ type: 'useItem', item: id, tile: sel });
         return;
       }
@@ -914,7 +889,7 @@
       const b = ev.target.closest('[data-invuse]');
       if (!b || b.disabled) return;
       opt.tile.modal.close();
-      if (b.dataset.invuse === 'loan' || (R.ITEMS[b.dataset.invuse] && R.ITEMS[b.dataset.invuse].direct)) { B.pick = null; send({ type: 'useItem', item: b.dataset.invuse }); return; }
+      if ((R.ITEMS[b.dataset.invuse] && R.ITEMS[b.dataset.invuse].direct)) { B.pick = null; send({ type: 'useItem', item: b.dataset.invuse }); return; }
       B.pick = b.dataset.invuse; B.sel = null;
       drawCenter(B.shown);
     });
@@ -924,11 +899,11 @@
       opt.manage.modal.open(from);
       opt.manage.body.innerHTML = manageHtml(B.shown);
     };
-    /** 點 3D 棋盤上的格子：機票選目的地時＝飛過去，否則看格子說明 */
+    /** 點 3D 棋盤上的格子：選炸彈／加蓋／漲價目標時＝選那一格，否則看格子說明 */
     B.tileClick = function (i) {
       const v = B.shown;
-      if ((B.pick === 'fly' || B.pick === 'bomb' || B.pick === 'upgrade') && v && (B.busy || B.sent)) return;   /* 動畫中點格子：先忽略，不要跳出說明擋住畫面 */
-      if ((B.pick === 'fly' || B.pick === 'bomb' || B.pick === 'upgrade') && v && !B.busy && !B.sent) {
+      if ((B.pick === 'bomb' || B.pick === 'upgrade' || B.pick === 'surge') && v && (B.busy || B.sent)) return;   /* 動畫中點格子：先忽略，不要跳出說明擋住畫面 */
+      if ((B.pick === 'bomb' || B.pick === 'upgrade' || B.pick === 'surge') && v && !B.busy && !B.sent) {
         const me = meIndex(v), kind = B.pick;
         const err = me >= 0 && me === v.turn ? R.canUseItem(v, me, kind, i) : '現在不能用';
         if (err) {

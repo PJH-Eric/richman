@@ -175,10 +175,11 @@ section('起始現金與起點薪水依地圖大小倍率');
     });
     eq(R.goSalaryFor(Number(n)), Math.round(500 * mult[n]), n + ' 格：起點薪水 ' + Math.round(500 * mult[n]));
     const st = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'g' + n, mapSize: Number(n) });
-    eq(R.salaryOf(st), Math.round(500 * mult[n]), n + ' 格：salaryOf');
+    const sal = Math.round(Math.round(500 * mult[n]) * st.econ / 10) * 10;
+    eq(R.salaryOf(st), sal, n + ' 格：salaryOf');
     const me = st.seats[st.turn], c0 = me.cash; me.pos = Number(n) - 1; me.items = ['dice'];
     const r = R.act(st, me.id, { type: 'useItem', item: 'dice', n: 2 }, 0);
-    ok(r.ok && st.events.some(e => e.t === 'cash' && e.reason === 'go' && e.amount === Math.round(500 * mult[n])), n + ' 格：經過起點實際領到 ' + Math.round(500 * mult[n]));
+    ok(r.ok && st.events.some(e => e.t === 'cash' && e.reason === 'go' && e.amount === sal), n + ' 格：經過起點實際領到 ' + sal);
   });
   eq(R.startCashFor(0, 40), 10000, '經典 40 格（測試用）維持舊制 10000'); eq(R.goSalaryFor(40), 200, '經典 40 格薪水 200');
 }
@@ -409,9 +410,9 @@ section('想太久');
 section('道具');
 {
   const IL = R.ITEM_LIST;
-  ok(IL.length === 22 && ['dice', 'fly', 'free', 'cat', 'taxfree', 'guard', 'steal', 'swap', 'bomb', 'loan', 'half', 'gobonus', 'bail', 'coupon', 'freeze', 'upgrade', 'chest', 'cure', 'god', 'salary', 'repair', 'rebate'].every(k => IL.includes(k)), '22 種道具');
-  ok(IL.every(k => R.ITEMS[k].pts >= 10 && R.ITEMS[k].pts <= 50 && R.ITEMS[k].pts % 10 === 0), '每種道具 10～50 點');
-  ok(IL.every(k => R.stockFor(k, 4) >= 1) && R.stockFor('upgrade', 4) < R.stockFor('taxfree', 4) && R.stockFor('bomb', 4) <= R.stockFor('dice', 4), '越貴的道具庫存越少');
+  ok(IL.length === 24 && ['dice', 'free', 'cat', 'guard', 'steal', 'swap', 'bomb', 'gobonus', 'bail', 'coupon', 'freeze', 'upgrade', 'chest', 'cure', 'god', 'salary', 'again', 'reflect', 'surge', 'seize', 'grab', 'frame', 'collect', 'equal'].every(k => IL.includes(k)) && ['fly', 'loan', 'half', 'rebate', 'taxfree', 'repair'].every(k => !IL.includes(k)), '24 種道具（機票、提款卡、減租券、建材券、免稅券、修繕券已移除）');
+  ok(IL.every(k => R.ITEMS[k].pts >= 10 && R.ITEMS[k].pts <= 100 && R.ITEMS[k].pts % 10 === 0) && R.ITEMS.equal.pts === 100 && R.ITEMS.seize.pts === 50, '每種道具 10～100 點（均富卡 100、強制購地券 50）');
+  ok(IL.every(k => R.stockFor(k, 4) >= 1) && R.stockFor('upgrade', 4) < R.stockFor('cure', 4) && R.stockFor('bomb', 4) <= R.stockFor('dice', 4), '越貴的道具庫存越少');
   let st = mk(2);
   ok(st.seats.every(s => Array.isArray(s.items) && s.items.length === 0), '開局沒有道具');
   /* 遙控骰 */
@@ -426,24 +427,15 @@ section('道具');
   const cash0 = st.seats[0].cash;
   A(st, 'useItem', { item: 'dice', n: 3 });
   ok(st.seats[0].pos === 1 && st.seats[0].cash === cash0 + 200, '遙控骰經過起點照領薪水');
-  /* 機票 */
-  st = mk(2); st.seats[0].items = ['fly'];
-  ok(!A(st, 'useItem', { item: 'fly', tile: 30 }).ok, '機票：不能飛去「去坐牢」');
-  ok(!A(st, 'useItem', { item: 'fly', tile: 0 }).ok, '機票：不能飛去原地');
-  r = A(st, 'useItem', { item: 'fly', tile: 12 });
-  ok(r.ok && st.seats[0].pos === 12 && st.seats[0].items.length === 0, '機票：飛到指定格子並用掉');
-  st = mk(2); st.seats[0].items = ['fly']; st.seats[0].pos = 35;
-  const c1 = st.seats[0].cash; A(st, 'useItem', { item: 'fly', tile: 5 });
-  eq(st.seats[0].cash, c1, '機票倒著飛過起點不領薪水');
   /* 監獄中不能用 */
-  st = mk(2); st.seats[0].items = ['fly', 'dice']; st.seats[0].jail = 1;
-  ok(!A(st, 'useItem', { item: 'fly', tile: 5 }).ok && !A(st, 'useItem', { item: 'dice', n: 2 }).ok, '在監獄裡不能用道具');
+  st = mk(2); st.seats[0].items = ['dice', 'again']; st.seats[0].jail = 1;
+  ok(!A(st, 'useItem', { item: 'again' }).ok && !A(st, 'useItem', { item: 'dice', n: 2 }).ok, '在監獄裡不能用道具');
   /* 沒有的道具 */
   st = mk(2);
   ok(!A(st, 'useItem', { item: 'dice', n: 2 }).ok, '沒有道具就不能用');
   /* options */
   st.seats[0].items = ['dice']; let o = R.options(st, st.seats[0].id);
-  ok(o.dice === true && o.fly === false, 'options：只有持有的主動道具會亮');
+  ok(o.dice === true && o.steal === false && o.again === false, 'options：只有持有的主動道具會亮');
   /* 免租券 */
   st = mk(2); give(st, 1, 1, 0); st.seats[0].items = ['free'];
   st = mk(2); give(st, 1, 3, 0); st.seats[0].items = ['free'];
@@ -470,7 +462,7 @@ section('道具');
   st = mk(2); st.seats[1].items = ['guard'];
   ok(R.publicView(st, 0).seats[1].items[0] === 'guard', 'publicView 帶著道具（大家都看得到）');
   /* AI：幼幼班絕不用；普通會為了整組用遙控骰 */
-  st = mk(2); st.seats[0].items = ['dice', 'fly'];
+  st = mk(2); st.seats[0].items = ['dice', 'again'];
   ok(AI.decide(st, 0, 'kid', RNG.create('k')).type !== 'useItem', '幼幼班不會用道具');
   st = mk(2); give(st, 0, 1, 0); st.seats[0].pos = 37; st.seats[0].items = ['dice'];
   st.props[3].owner = -1;
@@ -547,7 +539,7 @@ section('攻擊型道具與命運之神');
   let st = mk(3);
   st.seats[0].items = ['steal']; st.seats[1].cash = 1000;
   let r = use(st, 'steal', { target: 1 });
-  ok(r.ok && st.seats[1].cash === 800 && st.seats[0].cash === R.START_CASH + 200 && !st.seats[0].items.length, '偷錢卡：偷走對手 20% 現金並用掉');
+  ok(r.ok && st.seats[1].cash === 900 && st.seats[0].cash === R.START_CASH + 100 && !st.seats[0].items.length, '偷錢卡：偷走對手 10% 現金並用掉');
   ok(st.phase === 'roll' && st.turn === 0, '偷錢後還是可以擲骰');
   st = mk(3); st.seats[0].items = ['steal']; st.seats[1].cash = 5000;
   use(st, 'steal', { target: 1 });
@@ -575,10 +567,6 @@ section('攻擊型道具與命運之神');
   st = mk(3); st.seats[0].items = ['steal', 'swap', 'bomb']; st.seats[1].pos = 5;
   const o = R.options(st, 'p0');
   ok(o.steal && o.swap && !o.bomb, 'options 標出哪些攻擊道具現在有目標');
-  /* 免稅券 */
-  st = mk(2); st.seats[0].items = ['taxfree']; st.seats[0].pos = 2;
-  roll(st, 1, 1);
-  ok(st.seats[0].cash === R.START_CASH && !st.seats[0].items.length, '免稅券：踩到稅金格不用繳、用掉');
   /* 命運之神 */
   st = mk(2); st.seats[1].god = { k: 'wealth', turns: 1 }; st.phase = 'manage';
   A(st, 'endTurn');
@@ -666,7 +654,7 @@ section('隨機地圖與道具商店');
     ok(t.filter(x => x.type === 'station').length >= 4 && m.theme && m.theme.title.length === 2, tag + '：有車站、有主題外觀');
     const st = R.create(['a', 'b', 'c'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'm-' + m.id, map: m.id });
     ok(st.map === m.id && st.tiles.length === n && st.props.length === n, tag + '：開局的地價表與地產資料都是 ' + n + ' 格');
-    ok(st.tiles.every(x => x.type !== 'prop' || (Number.isInteger(x.price) && Math.abs(x.price / t[x.i].price - 1) <= 0.36)), tag + '：隨機地價都是整數、在原價 ±30% 附近');
+    ok(st.tiles.every(x => x.type !== 'prop' || (Number.isInteger(x.price) && Math.abs(x.price / (t[x.i].price * st.econ) - 1) <= 0.4)), tag + '：隨機地價都是整數、在原價 ±30% 附近');
     const view = R.publicView(st, 0);
     ok(view.map === m.id && view.tiles.length === n, tag + '：公開資料帶有地圖代號與地價表');
   });
@@ -698,14 +686,10 @@ section('隨機地圖與道具商店');
   /* 監獄位置跟著地圖：去坐牢會被送到 N/4 */
   [M.genId(80, 'j1'), M.genId(48, 'j2'), M.genId(120, 'j3')].forEach(id => {
     const m = M.get(id), st = mk2(id, 'j-' + id), me = st.seats[st.turn], id0 = me.id;
-    me.items = ['fly']; me.pos = 1;
     const gj = m.tiles.findIndex(x => x.type === 'gotojail');
-    const r = R.act(st, id0, { type: 'useItem', item: 'fly', tile: gj }, now);
-    ok(!r.ok, id + '：不能飛去「去坐牢」');
-    me.pos = m.size - 2;
-    st.dice = [1, 1];
-    const g2 = R.act(st, id0, { type: 'useItem', item: 'fly', tile: m.size - 1 }, now);
-    ok(g2.ok && me.pos === m.size - 1, id + '：機票可以飛到最後一格');
+    me.items = ['dice']; me.pos = gj - 1;
+    const r = R.act(st, id0, { type: 'useItem', item: 'dice', n: 1 }, now);
+    ok(r.ok && me.jail && me.pos === m.size / 4, id + '：走到「去坐牢」被送到監獄（第 ' + m.size / 4 + ' 格）');
   });
   /* 經過起點：大棋盤繞一圈也領薪水 */
   {
@@ -719,9 +703,9 @@ section('隨機地圖與道具商店');
   const shopTile = (m) => m.tiles.findIndex(x => x.type === 'shop');
   const enterShop = (id, seed, setup) => {
     const m = M.get(id), si = shopTile(m), st = mk2(id, seed), me = st.seats[st.turn];
-    me.items = ['fly']; me.pos = si === 1 ? 2 : 1;
+    me.items = ['dice']; me.pos = (si - 1 + m.size) % m.size;
     if (setup) setup(st, me);
-    R.act(st, me.id, { type: 'useItem', item: 'fly', tile: si }, now);
+    R.act(st, me.id, { type: 'useItem', item: 'dice', n: 1 }, now);
     return { st, me, m, si };
   };
   M.SIZES.forEach(n => {
@@ -730,7 +714,7 @@ section('隨機地圖與道具商店');
     const id0 = me.id;
     ok(st.phase === 'shop' && st.pending && st.pending.kind === 'shop', n + ' 格：停在道具商店 → 進入商店階段');
     const o = R.options(st, id0);
-    ok(o.decline && o.shop.length >= R.SHOP_OFFER_MIN && o.shop.length <= R.SHOP_OFFER_MAX && o.shop.every(x => x.pts >= 10 && x.pts <= 50) && !o.roll && !o.endTurn, n + ' 格：商店上架 3～6 樣、只能買、賣或離開');
+    ok(o.decline && o.shop.length >= R.SHOP_OFFER_MIN && o.shop.length <= R.SHOP_OFFER_MAX && o.shop.every(x => x.pts >= 10 && x.pts <= 100) && !o.roll && !o.endTurn, n + ' 格：商店上架 3～6 樣、只能買、賣或離開');
     const pick = o.shop.find(x => x.can), before = me.points;
     ok(!!pick && R.act(st, id0, { type: 'shopBuy', item: pick.item }, now).ok && me.points === before - pick.pts && me.items.includes(pick.item), n + ' 格：買「' + (pick && R.ITEMS[pick.item].name) + '」−' + (pick && pick.pts) + ' 點，道具進背包');
     ok(!R.act(st, id0, { type: 'shopBuy', item: pick.item }, now).ok, n + ' 格：同一次同樣商品只能買 1 件');
@@ -754,30 +738,30 @@ section('隨機地圖與道具商店');
     /* 賣完就不能買 */
     const E2 = enterShop(pid, 'stock2', (s0b, m0) => { m0.points = 500; Object.keys(s0b.stock).forEach(k => { s0b.stock[k] = 0; }); s0b.stock.bomb = 0; });
     ok(E2.st.phase !== 'shop' || E2.st.pending.offer.every(k => E2.st.stock[k] < 1) === false || true, '庫存清空的處理不會出錯');
-    const E2b = enterShop(pid, 'stock3', (s0b, m0) => { m0.points = 500; m0.items = ['fly', 'cat']; Object.keys(s0b.stock).forEach(k => { s0b.stock[k] = 0; }); });
+    const E2b = enterShop(pid, 'stock3', (s0b, m0) => { m0.points = 500; m0.items = ['dice', 'cat']; Object.keys(s0b.stock).forEach(k => { s0b.stock[k] = 0; }); });
     ok(E2b.st.phase === 'shop', '沒有庫存但身上有道具：還是能進商店賣道具');
     ok(!R.act(E2b.st, E2b.me.id, { type: 'shopBuy', item: 'dice' }, now).ok, '賣完了：不能買');
     /* 點數不夠 */
-    const E3 = enterShop(pid, 'poor', (s0b, m0) => { m0.points = 5; m0.items = ['fly']; });
+    const E3 = enterShop(pid, 'poor', (s0b, m0) => { m0.points = 5; m0.items = ['dice']; });
     ok(E3.st.phase !== 'shop' || R.options(E3.st, E3.me.id).shop.every(x => !x.can), '點數不夠：買不了任何東西');
     const E4 = enterShop(pid, 'poor2', (s0b, m0) => { m0.points = 15; });
     const c4 = R.options(E4.st, E4.me.id);
     ok(E4.st.phase !== 'shop' || c4.shop.filter(x => x.can).every(x => x.pts <= 15), '點數不夠的商品不能買');
     /* 道具欄滿了 */
-    const E5 = enterShop(pid, 'full', (s0b, m0) => { m0.points = 500; m0.items = ['fly'].concat(new Array(R.MAX_ITEMS).fill('cat')); });
+    const E5 = enterShop(pid, 'full', (s0b, m0) => { m0.points = 500; m0.items = ['dice'].concat(new Array(R.MAX_ITEMS).fill('cat')); });
     ok(E5.st.phase === 'shop' && R.options(E5.st, E5.me.id).shop.every(x => !x.can) && !R.act(E5.st, E5.me.id, { type: 'shopBuy', item: E5.st.pending.offer[0] }, now).ok, '道具欄滿了（' + R.MAX_ITEMS + ' 個）：不能再買');
     /* 賣出：半價、庫存 +1；可以連續賣 */
-    const E6 = enterShop(pid, 'sell', (s0b, m0) => { m0.points = 100; m0.items = ['fly', 'bomb', 'loan']; });
+    const E6 = enterShop(pid, 'sell', (s0b, m0) => { m0.points = 100; m0.items = ['dice', 'bomb', 'cat']; });
     const me6 = E6.me, o6 = R.options(E6.st, me6.id);
     ok(E6.st.phase === 'shop' && o6.sellItems.length === 2 && o6.sellItems.find(x => x.item === 'bomb').back === R.ITEMS.bomb.pts / 2, '商店可賣出身上的道具，價格＝半價（炸彈 ' + R.ITEMS.bomb.pts + ' → ' + R.ITEMS.bomb.pts / 2 + '）');
     const sb = E6.st.stock.bomb, pb = me6.points;
     ok(R.act(E6.st, me6.id, { type: 'shopSell', item: 'bomb' }, now).ok && me6.points === pb + R.ITEMS.bomb.pts / 2 && !me6.items.includes('bomb') && E6.st.stock.bomb === sb + 1, '賣出炸彈：點數 +' + R.ITEMS.bomb.pts / 2 + '、庫存 +1、道具移除');
     ok(!R.act(E6.st, me6.id, { type: 'shopSell', item: 'bomb' }, now).ok, '沒有的道具不能賣');
-    ok(R.act(E6.st, me6.id, { type: 'shopSell', item: 'loan' }, now).ok && me6.points === pb + R.ITEMS.bomb.pts / 2 + R.ITEMS.loan.pts / 2 && E6.st.phase === 'shop', '可以連續賣；賣完仍在商店');
-    ok(!R.act(mk2(pid, 'nosell'), 'a', { type: 'shopSell', item: 'loan' }, now).ok, '不在商店裡不能賣道具');
+    ok(R.act(E6.st, me6.id, { type: 'shopSell', item: 'cat' }, now).ok && me6.points === pb + R.ITEMS.bomb.pts / 2 + R.ITEMS.cat.pts / 2 && E6.st.phase === 'shop', '可以連續賣；賣完仍在商店');
+    ok(!R.act(mk2(pid, 'nosell'), 'a', { type: 'shopSell', item: 'cat' }, now).ok, '不在商店裡不能賣道具');
     ok(R.act(E6.st, me6.id, { type: 'decline' }, now).ok && E6.st.phase !== 'shop', '賣完離開商店');
     /* 賣道具騰出空位可以再買 */
-    const E7 = enterShop(pid, 'swapbuy', (s0b, m0) => { m0.points = 300; m0.items = ['fly'].concat(new Array(R.MAX_ITEMS).fill('cat')); });
+    const E7 = enterShop(pid, 'swapbuy', (s0b, m0) => { m0.points = 300; m0.items = ['dice'].concat(new Array(R.MAX_ITEMS).fill('cat')); });
     R.act(E7.st, E7.me.id, { type: 'shopSell', item: 'cat' }, now);
     ok(R.options(E7.st, E7.me.id).shop.some(x => x.can), '賣掉一個道具，騰出空位就能再買');
     /* 機會／命運送點數 */
@@ -786,8 +770,8 @@ section('隨機地圖與道具商店');
       const idx = list.findIndex(c => c.t === 'points');
       st._decks[dk].unshift(idx);
       const p0 = me.points, tile = M.get(pid).tiles.findIndex(x => x.type === dk);
-      me.items = ['fly'];
-      R.act(st, me.id, { type: 'useItem', item: 'fly', tile }, now);
+      me.items = ['dice']; me.pos = tile - 1;
+      R.act(st, me.id, { type: 'useItem', item: 'dice', n: 1 }, now);
       ok(me.points === p0 + list[idx].n, dk === 'chance' ? '抽到機會卡：獲得道具點數 +' + list[idx].n : '抽到命運卡：獲得道具點數 +' + list[idx].n);
     });
   }

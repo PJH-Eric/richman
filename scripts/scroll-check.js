@@ -107,7 +107,7 @@ async function scrollProblems(page) {
     await page.waitForTimeout(800);
     await check('對局畫面（6 人）');
     if (await page.isVisible('#side-open')) { await page.click('#side-open'); await page.waitForTimeout(400); await check('對局：資訊抽屜'); await page.click('#side-close'); await page.waitForTimeout(400); }
-    await page.evaluate(() => { const g = Solo._debug; g.state.seats.find(s => s.id === 'me').items = ['dice', 'fly', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
+    await page.evaluate(() => { const g = Solo._debug; g.state.seats.find(s => s.id === 'me').items = ['dice', 'surge', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
     if (await page.isVisible('#menu-modal')) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
     if (await page.isVisible('.mc .mc-props')) { await page.click('.mc .mc-props'); await page.waitForSelector('#manage-modal', { state: 'visible' }); await check('我的地產視窗'); await page.keyboard.press('Escape'); }
     await page.evaluate(() => Solo.fastForward(1200000, true));

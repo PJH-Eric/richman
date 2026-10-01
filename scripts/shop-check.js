@@ -27,14 +27,14 @@ const VIEWS = [['手機直向', 390, 844], ['手機橫向', 844, 390], ['平板�
     else if (ph === 'manage') await page.click('.mc [data-a="endTurn"]', { timeout: 3000 }).catch(() => {});
     await page.waitForTimeout(250);
   }
-  /* 把自己放在商店前面，用機票飛進商店 */
+  /* 把自己放在商店前面，用遙控骰走進商店 */
   const shopIdx = await page.evaluate(() => {
     const g = Solo._debug, st = g.state, i = st.turn, me = st.seats[i], si = st.tiles.findIndex(t => t.type === 'shop');
-    me.items = ['fly', 'cat', 'bomb']; me.points = 300; me.pos = si === 1 ? 2 : 1; me.jail = false;
+    me.items = ['dice', 'cat', 'bomb']; me.points = 300; me.pos = (si - 1 + st.tiles.length) % st.tiles.length; me.jail = false;
     Solo.board.render(Rules.publicView(st, g.clock)); return si;
   });
-  await page.click('.mc [data-inv]'); await page.click('#tile-body [data-invuse="fly"]');
-  await page.click('.mc [data-fsel="' + shopIdx + '"]', { timeout: 4000 });
+  await page.click('.mc [data-inv]'); await page.click('#tile-body [data-invuse="dice"]');
+  await page.click('.mc [data-n="1"]', { timeout: 4000 });
   await page.click('.mc [data-confirm]');
   await page.waitForSelector('.shop-ov:not([hidden]) .so-item', { timeout: 6000 });
   ok(true, '踩到道具商店：自動打開商店疊層');

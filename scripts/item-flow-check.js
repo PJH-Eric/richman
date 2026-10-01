@@ -9,11 +9,7 @@ const { createServer } = require('../server.js');
 let pass = 0, fail = 0;
 const ok = (v, n) => { v ? pass++ : fail++; console.log((v ? '  ✔ ' : '  ✘ ') + n); };
 const ONLY = process.env.ITEM_ONLY, ARGS = process.env.ITEM_ARGS ? process.env.ITEM_ARGS.split(',').map(Number) : null;
-const CASES = [ ['fly', 8, '空地（買地）'], ['fly', 16, '對手的地（付租金）'],
-  ['fly', 4, '所得稅'], ['fly', 7, '機會'], ['fly', 2, '命運'], ['fly', 10, '監獄探監'], ['fly', 20, '溫泉休息站'],
-  ['fly', 30, '（去坐牢不可飛）'], ['fly', 5, '車站'], ['fly', 12, '公司'], ['fly', 0, '起點'], ['fly', 6, '自己的地（蓋房）'],
-  ['swap', 0, '換位'], ['steal', 0, '偷錢'], ['bomb', 0, '炸彈'], ['dice', 3, '遙控骰']
-];
+const CASES = [ ['swap', 0, '換位'], ['steal', 0, '偷錢'], ['grab', 0, '搶奪卡'], ['frame', 0, '陷害卡'], ['equal', 0, '均富卡'], ['bomb', 0, '炸彈'], ['surge', 0, '漲價卡'], ['dice', 3, '遙控骰'], ['dice', 8, '遙控骰（走到對手的地）'], ['dice', 4, '遙控骰（走到稅格）'] ];
 (async () => {
   process.env.RICHMAN_TEST_MAP = 'classic40';
   const app = createServer(); app.start(); await new Promise(r => app.server.listen(0, r));
@@ -51,7 +47,7 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
       const g = Solo._debug, st = g.state, i = st.turn, me = st.seats[i];
       me.items = [item]; me.cash = extra && extra.cash != null ? extra.cash : 3000; me.pos = 3; me.jail = false;
       st.props[6].owner = i; st.props[6].houses = 0;
-      st.seats.forEach((x, k) => { if (k !== i) { x.pos = 14 + k; x.cash = 1500; x.jail = false; } });
+      st.seats.forEach((x, k) => { if (k !== i) { x.pos = 14 + k; x.cash = 1500; x.jail = false; x.items = ['cat']; } });
       st.props[16].owner = st.seats.findIndex((x, k) => k !== i); st.props[16].houses = 2;
       Solo.board.render(Rules.publicView(st, g.clock));
     }, [item, arg, extra || null]);
@@ -63,19 +59,13 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
       await page.waitForTimeout(300);
       await invUse(page, item);
     }
-    if (item === 'fly') {
-      /* 機票：從面板清單挑格子（不必點 3D 棋盤） */
-      if (arg === 30) { ok(!(await page.$('.mc [data-fsel="30"]')), '去坐牢：清單裡沒有這格'); await page.click('.mc [data-pickcancel]').catch(() => {}); continue; }
-      await page.click('.mc [data-fsel="' + arg + '"]', { timeout: 4000 });
-      await page.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await page.click('.mc [data-confirm]');
-    } else if (item === 'bomb') {
+    if (item === 'bomb' || item === 'surge') {
       await page.waitForTimeout(300);
-      const tile = item === 'bomb' ? 16 : arg;
+      const tile = item === 'bomb' ? 16 : 6;
       await page.evaluate(() => Solo.board.v3.setFollow(false));
       await page.waitForTimeout(700);
       const bx = await page.evaluate(t => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const p = Solo.board.v3.project(t, 0, 0, 0.3); return { x: r.left + p.x - c.offsetLeft, y: r.top + p.y - c.offsetTop }; }, tile);
       await page.mouse.click(bx.x, bx.y);
-      if (item === 'fly' && arg === 30) { await page.click('.mc [data-pickcancel]').catch(() => {}); ok(true, '去坐牢：不能飛（已取消）'); continue; }
       /* 起點附近的格子可能被操作面板蓋住點不到：沒選到就改用程式選（真人可以拖動鏡頭或點面板上的清單） */
       if (!(await page.waitForSelector('.mc [data-confirm]', { timeout: 1500 }).catch(() => null))) {
         /* 滑鼠沒點到（被面板或鏡頭按鈕擋住，或剛好被重繪吃掉）：關掉彈窗、確認還在選目標狀態，再用程式選 */

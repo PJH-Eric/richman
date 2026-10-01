@@ -9,7 +9,7 @@ require('./_fast.js')(pw);
 const { createServer } = require('../server.js');
 let pass = 0, fail = 0;
 const ok = (v, n) => { v ? pass++ : fail++; console.log((v ? '  ✔ ' : '  ✘ ') + n); };
-const CASES = [['fly', 8, '飛到空地'], ['fly', 16, '飛到對手的地'], ['fly', 7, '飛到機會'], ['fly', 6, '飛到自己的地'], ['steal', 0, '偷錢'], ['swap', 0, '換位'], ['bomb', 0, '炸彈'], ['dice', 4, '遙控骰'], ['fly', 5, '飛到車站'], ['fly', 4, '飛到所得稅']];
+const CASES = [['steal', 0, '偷錢'], ['swap', 0, '換位'], ['grab', 0, '搶奪卡'], ['frame', 0, '陷害卡'], ['equal', 0, '均富卡'], ['bomb', 0, '炸彈'], ['surge', 0, '漲價卡'], ['dice', 4, '遙控骰'], ['dice', 2, '遙控骰（車站前）']];
 (async () => {
   process.env.RICHMAN_TEST_MAP = 'classic40';
   const app = createServer(); app.start(); await new Promise(r => app.server.listen(0, r));
@@ -59,18 +59,15 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
     const okRoll = await settle(); if (!okRoll) { ok(false, label + '：開始前流程就停住 ' + gs.phase); break; }
     const i = gs.turn, other = 1 - i, me = gs.seats[i], p = pageOf(i), q = pageOf(other);
     me.items = [item]; me.cash = 3000; me.pos = 3; me.jail = false;
-    gs.seats[other].pos = 14; gs.seats[other].cash = 1500; gs.seats[other].jail = false; gs.seats[other].god = null; gs.seats[other].items = [];
+    gs.seats[other].pos = 14; gs.seats[other].cash = 1500; gs.seats[other].jail = false; gs.seats[other].god = null; gs.seats[other].items = ['cat'];
     gs.props.forEach(pr => { if (pr.owner !== -1 && pr.owner !== other) { } });
     gs.props[6].owner = i; gs.props[6].houses = 0; gs.props[16].owner = other; gs.props[16].houses = 2; gs.props[8].owner = -1;
     gs.version++; room.changed = true; app.flush();
     await p.waitForSelector('.mc .mc-ihead', { timeout: 6000 }).catch(() => {});
     if (!(await invUse(p, item))) { ok(false, label + '：道具庫裡的「使用」按鈕沒出現'); continue; }
-    if (item === 'fly') {
-      await p.click('.mc [data-fsel="' + arg + '"]', { timeout: 4000 });
-      await p.waitForSelector('.mc [data-confirm]', { timeout: 4000 }); await p.click('.mc [data-confirm]');
-    } else if (item === 'bomb') {
+    if (item === 'bomb' || item === 'surge') {
       await p.waitForTimeout(300); await p.evaluate(() => Online.board.v3.setFollow(false)); await p.waitForTimeout(600);
-      const tile = item === 'bomb' ? 16 : arg;
+      const tile = item === 'bomb' ? 16 : 6;
       const bx = await p.evaluate(t => { const c = document.querySelector('.b3d'); const r = c.getBoundingClientRect(); const pr = Online.board.v3.project(t, 0, 0, 0.3); return { x: r.left + pr.x - c.offsetLeft, y: r.top + pr.y - c.offsetTop }; }, tile);
       await p.mouse.click(bx.x, bx.y);
       for (let r = 0; r < 3; r++) {   /* 3D 點選偶爾點在鏡頭按鈕上：沒反應就再點一次 */
@@ -106,9 +103,9 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
   {
     await settle();
     const i = gs.turn, p = pageOf(i);
-    gs.seats[i].items = ['fly']; gs.version++; room.changed = true; app.flush();
+    gs.seats[i].items = ['surge']; gs.version++; room.changed = true; app.flush();
     await p.waitForSelector('.mc .mc-ihead', { timeout: 6000 }).catch(() => {});
-    await invUse(p, 'fly');   /* 開著選格子的狀態直接重新整理 */
+    await invUse(p, 'surge');   /* 開著選格子的狀態直接重新整理 */
     await p.reload();
     await p.waitForFunction(() => window.Online && Online.board && Online.board.v3 && Online.room && Online.room.game, null, { timeout: 25000 }).catch(() => {});
     const back = await p.evaluate(() => !!(window.Online && Online.board && Online.room && Online.room.game));

@@ -12,7 +12,7 @@ for (let g = 0; g < 400; g++) {
     const id = st.seats[st.turn].id, o = R.options(st, id);
     const legal = ['roll', 'payJail', 'useCard', 'buy', 'decline', 'settle', 'bankrupt', 'endTurn'].filter(k => o[k]);
     ['build', 'sell', 'buyout'].forEach(k => o[k].forEach(t => legal.push(k + ':' + t)));
-    if (o.dice) legal.push('useItem:dice'); if (o.fly) legal.push('useItem:fly');
+    if (o.dice) legal.push('useItem:dice'); 
     const mainOk = o.roll || o.decline || o.buy || o.settle || o.bankrupt || o.endTurn;
     if (!mainOk) { bad++; console.log('✘ 卡死：局' + g + ' 階段 ' + st.phase + ' 輪到 ' + id + ' 沒有主要動作'); break; }
     /* 偏向推進主線，偶爾亂用管理／道具 */
@@ -22,7 +22,7 @@ for (let g = 0; g < 400; g++) {
     else if (main.length) pick = main[Math.floor(rand() * main.length)];
     else pick = 'bankrupt';
     let act;
-    if (pick.includes(':')) { const [t, x] = pick.split(':'); act = t === 'useItem' ? (x === 'dice' ? { type: 'useItem', item: 'dice', n: 1 + Math.floor(rand() * 6) } : { type: 'useItem', item: 'fly', tile: (st.seats[st.turn].pos + 1 + Math.floor(rand() * 38)) % 40 }) : { type: t, tile: Number(x) }; }
+    if (pick.includes(':')) { const [t, x] = pick.split(':'); act = t === 'useItem' ? (x === 'dice' ? { type: 'useItem', item: 'dice', n: 1 + Math.floor(rand() * 6) } : { type: 'useItem', item: 'dice', n: 1 + Math.floor(rand() * 12) }) : { type: t, tile: Number(x) }; }
     else act = { type: pick };
     const r = R.act(st, id, act, now);
     moves++;

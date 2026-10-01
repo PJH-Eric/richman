@@ -63,11 +63,11 @@ async function invUse(pg, item) {
         }
         await page.waitForTimeout(250);
       }
-      await page.evaluate(([idx]) => { const g = Solo._debug, st = g.state, me = st.seats[st.turn]; me.items = ['fly']; me.cash = 3000; me.pos = idx === 1 ? 2 : 1; me.jail = false; Solo.board.render(Rules.publicView(st, g.clock)); }, [idx]);
+      await page.evaluate(([idx]) => { const g = Solo._debug, st = g.state, me = st.seats[st.turn]; me.items = ['dice']; me.cash = 3000; me.pos = (idx - 1 + st.tiles.length) % st.tiles.length; me.jail = false; Solo.board.render(Rules.publicView(st, g.clock)); }, [idx]);
       await page.waitForSelector('.mc .mc-ihead', { timeout: 5000 }).catch(() => {});
-      await invUse(page, 'fly');
+      await invUse(page, 'dice');
       await page.waitForTimeout(400);
-      await page.evaluate(t => Solo.board.tileClick(t), idx);
+      await page.click('.mc [data-n="1"]', { timeout: 3000 }).catch(() => {});
       await page.waitForSelector('.mc [data-confirm]', { timeout: 3000 }).catch(() => {});
       await page.click('.mc [data-confirm]', { timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(600);
@@ -78,7 +78,7 @@ async function invUse(pg, item) {
         ph = s2.ph; if (!s2.me) { btn = 'next'; break; } if (!s2.busy && s2.btns.length) { btn = s2.btns.join(','); break; }
       }
       const at = await page.evaluate(() => { const g = Solo._debug.state; return g.seats[g.turn].id === 'me' ? g.seats[g.turn].pos : -1; });
-      ok(at === idx || at === -1 || btn === 'next' || k === 'chance' || k === 'chest' || k === 'jail', '機票真的飛到第 ' + idx + ' 格（現在在 ' + at + '）');
+      ok(at === idx || at === -1 || btn === 'next' || k === 'chance' || k === 'chest' || k === 'jail', '遙控骰真的走到第 ' + idx + ' 格（現在在 ' + at + '）');
       ok(!!btn, '飛到「' + k + '」格（第 ' + idx + ' 格）後可繼續：階段 ' + ph + '，按鈕 ' + btn);
       if (k === 'shop' && btn && btn !== 'next') {
         ok(ph === 'shop' && await page.isVisible('.shop-ov'), '停在道具商店：自動打開滿版商店疊層');
