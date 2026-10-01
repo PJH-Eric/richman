@@ -817,6 +817,18 @@
       }
     };
 
+    /* 選 1／2 顆：按下去就立刻記住並就地改樣式（不重畫），避免剛好遇到面板重畫、click 被吃掉而沒選到 */
+    function chooseDice(ev) {
+      const dnb = ev.target.closest && ev.target.closest('[data-dn]');
+      if (!dnb || dnb.disabled || B.sent) return false;
+      B.diceN = Number(dnb.dataset.dn) === 1 ? 1 : 2;
+      mc.querySelectorAll('[data-dn]').forEach(x => { const on = Number(x.dataset.dn) === B.diceN; x.classList.toggle('sel', on); x.setAttribute('aria-checked', on); });
+      const rb = mc.querySelector('[data-a="roll"]');
+      if (rb && !cur_isJail()) rb.lastChild.nodeType === 3 && (rb.lastChild.nodeValue = '擲 ' + B.diceN + ' 顆骰子');
+      return true;
+    }
+    function cur_isJail() { const v = B.shown; return !v || !!(v.seats[v.turn] && v.seats[v.turn].jail); }
+    boardEl.addEventListener('pointerdown', ev => { chooseDice(ev); });
     boardEl.addEventListener('click', ev => {
       const inv = ev.target.closest('[data-inv]');
       if (inv) { B.openInv(inv); return; }
