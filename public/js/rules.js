@@ -49,7 +49,7 @@
    * 只套用在有地圖倍率的格數（48～120 格）；經典 40 格維持原價 */
   function econOf(startCash, size) {
     if (CASH_MULT[Number(size)] == null) return 1;
-    return Math.round(Math.min(4, Math.max(0.5, Number(startCash) / START_CASH)) * 100) / 100;
+    return Math.round(Math.min(4, Math.max(1, Number(startCash) / START_CASH)) * 100) / 100;
   }
   /** 小額（卡片、神明、罰金…）依倍率換算：100 以上取 10 的倍數，其餘取 5 的倍數，至少 5 */
   function scaleMoney(x, e) {
@@ -60,7 +60,8 @@
   function goSalaryFor(size) { const m = CASH_MULT[Number(size)]; return m == null ? GO_SALARY : Math.round(500 * m); }
   /** 收入（起點薪水、收錢卡、財神）額外再乘 GAIN，讓賺錢的感覺跟得上花費 */
   const GAIN = 1.5;
-  function salaryOf(state) { const b = goSalaryFor(tl(state).length); return CASH_MULT[tl(state).length] == null ? b : Math.round(b * econ(state) * GAIN / 10) * 10; }
+  /** 起點薪水只看地圖大小，不乘資產倍率 */
+  function salaryOf(state) { return goSalaryFor(tl(state).length); }
   /** 偷錢卡上限：起點薪水的 2 倍（1200／1400／1600／1800／2000）；經典 40 格＝300 */
   function stealCap(state) { return CASH_MULT[tl(state).length] == null ? 300 : salaryOf(state) * 2; }
   const GO_SALARY = 200;

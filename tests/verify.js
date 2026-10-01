@@ -175,7 +175,7 @@ section('起始現金與起點薪水依地圖大小倍率');
     });
     eq(R.goSalaryFor(Number(n)), Math.round(500 * mult[n]), n + ' 格：起點薪水 ' + Math.round(500 * mult[n]));
     const st = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'g' + n, mapSize: Number(n) });
-    const sal = Math.round(Math.round(500 * mult[n]) * st.econ * 1.5 / 10) * 10;
+    const sal = Math.round(500 * mult[n]);
     eq(R.salaryOf(st), sal, n + ' 格：salaryOf');
     const me = st.seats[st.turn], c0 = me.cash; me.pos = Number(n) - 1; me.items = ['dice'];
     const r = R.act(st, me.id, { type: 'useItem', item: 'dice', n: 2 }, 0);
