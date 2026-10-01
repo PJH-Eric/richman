@@ -513,7 +513,7 @@
         const full = isP && ids.length === total;
         h += '<section class="mg-group" style="--gc:' + (isP ? R.GROUPS[g].color : '#8896A8') + '"><h4>' +
           (isP ? R.GROUPS[g].name + '色組' : g === 'station' ? '車站' : '公司') +
-          (isP ? '<i class="' + (full ? 'full' : '') + '">' + (full ? '整組到手，可以升到旅店' : '已有 ' + ids.length + '／' + total + ' 塊') + '</i>' : '') + '</h4>';
+          (isP ? '<i class="' + (full ? 'full' : '') + '">' + (full ? '整組到手' : '已有 ' + ids.length + '／' + total + ' 塊') + '</i>' : '') + '</h4>';
         for (const i of ids) {
           const t = T[i], p = v.props[i];
           const canB = o.build.includes(i), canS = o.sell.includes(i);

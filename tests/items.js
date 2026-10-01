@@ -322,12 +322,12 @@ section('加蓋券 upgrade');
   ok(use(st, 'upgrade', 1).ok && st.props[1].houses === 1 && !has(st, 0, 'upgrade'), 'upgrade：自己的地免費加蓋 1 間');
   const c = st.seats[0].cash; st.seats[0].items = ['upgrade']; use(st, 'upgrade', 1); eq(st.seats[0].cash, c, 'upgrade 不花現金');
   const s2 = mk(2); s2.seats[0].items = ['upgrade']; ok(!use(s2, 'upgrade', 1).ok, '不是自己的地不能加蓋');
-  const s3 = mk(2); own(s3, 0, 1, 2); s3.seats[0].items = ['upgrade']; ok(!use(s3, 'upgrade', 1).ok, '沒湊齊整組最多 2 級');
+  const s3 = mk(2); own(s3, 0, 1, 2); s3.seats[0].items = ['upgrade']; ok(use(s3, 'upgrade', 1).ok && s3.props[1].houses === 3, '沒湊齊整組也能繼續升級');
   const s4 = mk(2); own(s4, 0, 20, 0); s4.seats[0].items = ['upgrade']; ok(!use(s4, 'upgrade', 20).ok, '休息站不能加蓋');
   const s5 = mk(2); own(s5, 1, 1, 0); s5.seats[0].items = ['upgrade']; ok(!use(s5, 'upgrade', 1).ok, '對手的地不能加蓋');
   ok(R.itemTargets(st, 0, 'upgrade').includes(1) === !R.canUseItem(st, 0, 'upgrade', 1), 'itemTargets 與 canUseItem 一致');
   const s6 = mk(2); own(s6, 0, 1, 0); own(s6, 0, 3, 0); s6.seats[0].items = ['upgrade', 'upgrade', 'upgrade'];
-  ok(use(s6, 'upgrade', 1).ok && !use(s6, 'upgrade', 1).ok && use(s6, 'upgrade', 3).ok, '整組要平均升級');
+  ok(use(s6, 'upgrade', 1).ok && use(s6, 'upgrade', 1).ok && use(s6, 'upgrade', 3).ok, '不用平均，同一格可連續升級');
 }
 section('冰凍／加蓋等新道具的選項');
 {

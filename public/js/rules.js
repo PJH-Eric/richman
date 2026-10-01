@@ -16,7 +16,7 @@
  * 已確認的規則（簡易版；不做交易與拍賣）：
  *   - 40 格；起點領 200；起始現金＝回合上限×200×地圖倍率（不限回合當 100）；2～6 人；系統隨機決定座位順序。
  *   - 沒人買的地不拍賣，留在原地，下次有人停到還能買。
- *   - 同色整組都是自己的才能蓋房；每格最多 4 棟房，再升級成 1 間旅店；蓋房要平均。
+ *   - 每塊自己的地都能單獨升級：最多 4 棟房，再升級成 1 間旅店（不必湊齊同色整組、也不必平均）；湊齊整組仍有空地租金加倍與連棟加成。
  *   - 強制收購（簡易版取代交易）：自己的回合可以用 2 倍地價，向對手買下「一塊」能讓你湊齊整組的地
  *     （沒有房子才行，每回合一次）。
  *   - 每次擲骰前先選「1 顆」或「2 顆」骰子（沒有雙骰再擲的規則）。
@@ -35,7 +35,6 @@
 
   const MIN_PLAYERS = 2;
   const MAX_PLAYERS = 6;
-  const SOLO_MAX_LEVEL = 2;       /* 沒湊齊同色整組時，單格最高能升到幾級 */
   const START_CASH = 10000;        /* 不限回合的起始現金 */
   /* 起始現金＝回合上限（不限回合當 100）× 200 × 地圖大小倍率；起點薪水＝500 × 同一倍率。
    * 倍率：48／64／80／96／120 格＝1.2／1.4／1.6／1.8／2。其他格數（測試用經典 40 格）沿用舊制：回合×100（不限 10000）、薪水 200 */
@@ -49,7 +48,7 @@
    * 只套用在有地圖倍率的格數（48～120 格）；經典 40 格維持原價 */
   function econOf(startCash, size) {
     if (CASH_MULT[Number(size)] == null) return 1;
-    return Math.round(Math.min(4, Math.max(1, Number(startCash) / START_CASH)) * 100) / 100;
+    return Math.round(Math.min(4, Math.max(1, Number(startCash) / 5000)) * 100) / 100;
   }
   /** 小額（卡片、神明、罰金…）依倍率換算：100 以上取 10 的倍數，其餘取 5 的倍數，至少 5 */
   function scaleMoney(x, e) {
@@ -868,13 +867,6 @@
     if (p.owner !== si) return '這塊地不是你的';
     if (p.houses >= MAX_HOUSES) return '已經是旅店了';
     if (!free && state.seats[si].cash < t.house) return '現金不夠（要 ' + money(t.house) + '）';
-    if (!groupOwned(state, si, t.group)) {
-      /* 沒湊齊整組：每一格可以各自升級到 2 級；想更高要先買齊同色整組 */
-      if (p.houses >= SOLO_MAX_LEVEL) return '這格已升到 ' + SOLO_MAX_LEVEL + ' 級；買齊同色整組才能繼續升級';
-      return null;
-    }
-    const min = Math.min.apply(null, groupHouses(state, t.group));
-    if (p.houses > min) return '要平均升級：先把同組其他格升到一樣高';
     return null;
   }
 
@@ -884,10 +876,6 @@
     const p = state.props[ti];
     if (p.owner !== si) return '這塊地不是你的';
     if (p.houses <= 0) return '這格沒有房子';
-    if (groupOwned(state, si, t.group)) {
-      const max = Math.max.apply(null, groupHouses(state, t.group));
-      if (p.houses < max) return '要平均賣：先賣同組蓋比較多的那格';
-    }
     return null;
   }
 
@@ -1271,7 +1259,7 @@
   const inMap = fn => function (state) { if (state && state.map) useMap(state.map); return fn.apply(null, arguments); };
   useMap(Maps.DEFAULT);
   const api = {
-    MIN_PLAYERS, MAX_PLAYERS, START_CASH, CASH_MULT, startCashFor, econOf, scaleMoney, goSalaryFor, salaryOf: inMap(salaryOf), stealCap: inMap(stealCap), START_POINTS, startPointsFor, sellPrice, stockFor, SHOP_OFFER_MIN, SHOP_OFFER_MAX, GO_SALARY, JAIL_FINE, JAIL_FINE_MAX, jailFine, MAX_HOUSES, SOLO_MAX_LEVEL,
+    MIN_PLAYERS, MAX_PLAYERS, START_CASH, CASH_MULT, startCashFor, econOf, scaleMoney, goSalaryFor, salaryOf: inMap(salaryOf), stealCap: inMap(stealCap), START_POINTS, startPointsFor, sellPrice, stockFor, SHOP_OFFER_MIN, SHOP_OFFER_MAX, GO_SALARY, JAIL_FINE, JAIL_FINE_MAX, jailFine, MAX_HOUSES,
     DIFFICULTY_LIST, DIFFICULTIES, PACES, ROUND_LIMITS, PLAYER_COLORS,
     GODS, TILES, GROUPS, GROUP_TILES, OWNABLE, CHANCE, CHEST, ITEMS, ITEM_LIST, MAX_ITEMS,
     MAPS: Maps, useMap, tl, genTiles, applyTiles, create,
