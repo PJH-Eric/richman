@@ -80,7 +80,7 @@
     const canvas = document.createElement('canvas');
     canvas.className = 'b3d';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', '3D 棋盤，可以拖曳轉動視角，點格子看說明');
+    canvas.setAttribute('aria-label', '3D 棋盤，可以拖曳移動視角，點格子看說明');
     container.insertBefore(canvas, container.firstChild);
     let renderer;
     try {
@@ -376,7 +376,7 @@
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.07, 10, 36), new THREE.MeshBasicMaterial({ color: 0xFFD447 }));
     ring.rotation.x = Math.PI / 2; ring.visible = false; scene.add(ring);
     let activeSeat = -1;
-    function setActive(i) { if (activeSeat !== i) { activeSeat = i; dirty = true; } }
+    function setActive(i) { if (activeSeat !== i) { activeSeat = i; pan.x = 0; pan.z = 0; dirty = true; } }
     function seatShape(k, color) {
       const m = std(color, { roughness: 0.45 });
       let mesh;
@@ -565,7 +565,7 @@
     /* 相機是否已經滑到輪到的棋子身上（擲骰前要等它到位） */
     function camReady() {
       const ft = toks[activeSeat];
-      const gx = follow && ft ? ft.grp.position.x : 0, gz = follow && ft ? ft.grp.position.z : 0.4;
+      const gx = (follow && ft ? ft.grp.position.x : 0) + pan.x, gz = (follow && ft ? ft.grp.position.z : 0.4) + pan.z;
       return Math.abs(gx - cam.target.x) + Math.abs(gz - cam.target.z) < 0.6 && Math.abs(zoomGoal - cam.zoom) < 0.04 * zoomGoal;
     }
     function rollEnd(d0, d1) {
@@ -598,6 +598,15 @@
 
     /* ---------- 相機：拖曳轉動、滾輪／雙指縮放 ---------- */
     let follow = true, zoomGoal = FZ;
+    const pan = { x: 0, z: 0 };            /* 手動拖曳平移的偏移量（跟著棋子／看全圖時都疊加在目標上） */
+    function clampPan() { const m = 9 * SC; pan.x = Math.max(-m, Math.min(m, pan.x)); pan.z = Math.max(-m, Math.min(m, pan.z)); }
+    function panBy(dx, dy) {
+      const sc = 2 * cam.fit * cam.zoom * Math.tan(camera.fov * Math.PI / 360) / h;
+      const rx = Math.cos(cam.az), rz = -Math.sin(cam.az), fx = -Math.sin(cam.az), fz = -Math.cos(cam.az);
+      const k = sc / Math.max(0.5, Math.sin(cam.el));
+      pan.x += -rx * dx * sc + fx * dy * k; pan.z += -rz * dx * sc + fz * dy * k;
+      clampPan(); dirty = true;
+    }
     const cam = { az: 0, el: 1.02, zoom: FZ, fit: 20, target: new THREE.Vector3(0, 0, 0.4) };
     let w = 1, h = 1;
     function resize() {
@@ -620,44 +629,55 @@
       camera.lookAt(cam.target);
     }
     const ptrs = new Map();
-    let down = null, pinch = 0;
+    let down = null, pinch = 0, twist = 0, mid = null;
     canvas.style.touchAction = 'none';
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('pointerdown', e => {
       canvas.setPointerCapture(e.pointerId);
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
-      if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); down = null; }
+      if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, rot: e.button === 2 || e.shiftKey };
+      if (ptrs.size === 2) {
+        const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); twist = Math.atan2(b.y - a.y, b.x - a.x);
+        mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; down = null;
+      }
     });
+    /* 單指／左鍵拖曳＝平移視角；右鍵或 Shift＋拖曳＝旋轉；雙指＝縮放＋旋轉＋平移 */
     canvas.addEventListener('pointermove', e => {
       const p = ptrs.get(e.pointerId);
       if (!p) return;
       const dx = e.clientX - p.x, dy = e.clientY - p.y;
       p.x = e.clientX; p.y = e.clientY;
       if (ptrs.size === 2) {
-        const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+        const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y), ang = Math.atan2(b.y - a.y, b.x - a.x);
         if (pinch) { zoomGoal = Math.min(1.6, Math.max(0.32, zoomGoal * pinch / d)); dirty = true; }
-        pinch = d; return;
+        let da = ang - twist; if (da > Math.PI) da -= Math.PI * 2; if (da < -Math.PI) da += Math.PI * 2;
+        cam.az -= da; dirty = true;
+        const m2 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        if (mid) panBy(m2.x - mid.x, m2.y - mid.y);
+        mid = m2; pinch = d; twist = ang; return;
       }
       if (down) {
         down.moved += Math.abs(dx) + Math.abs(dy);
         if (down.moved > 6) {
           dirty = true;
-          cam.az -= dx * 0.008;
-          cam.el = Math.min(1.35, Math.max(0.5, cam.el + dy * 0.005));
+          if (down.rot) {
+            cam.az -= dx * 0.008;
+            cam.el = Math.min(1.35, Math.max(0.5, cam.el + dy * 0.005));
+          } else panBy(dx, dy);
         }
       }
     });
     function up(e) {
       const wasDown = down;
       ptrs.delete(e.pointerId);
-      if (ptrs.size < 2) pinch = 0;
+      if (ptrs.size < 2) { pinch = 0; mid = null; }
       if (e.type === 'pointerup' && wasDown && wasDown.moved <= 6 && performance.now() - wasDown.t < 500) pick(e);
       if (!ptrs.size) down = null;
     }
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', up);
     canvas.addEventListener('wheel', e => { e.preventDefault(); dirty = true; zoomGoal = Math.min(1.6, Math.max(0.32, zoomGoal * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
-    canvas.addEventListener('dblclick', () => { dirty = true; cam.az = 0; cam.el = 1.02; zoomGoal = follow ? FZ : 1; });
+    canvas.addEventListener('dblclick', () => { dirty = true; pan.x = 0; pan.z = 0; cam.az = 0; cam.el = 1.02; zoomGoal = follow ? FZ : 1; });
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
     function pick(e) {
       const r = canvas.getBoundingClientRect();
@@ -667,7 +687,7 @@
       if (hit && opt.onTile) opt.onTile(hit.object.userData.tile);
     }
     function setView(az) { cam.az = az; }
-    function setFollow(on) { follow = !!on; zoomGoal = follow ? FZ : 1; dirty = true; syncBtns(); }
+    function setFollow(on) { follow = !!on; pan.x = 0; pan.z = 0; zoomGoal = follow ? FZ : 1; dirty = true; syncBtns(); }
 
     /* 畫面左上角的視角按鈕：跟著棋子／看全圖／轉正 */
     const btns = document.createElement('div');
@@ -683,7 +703,7 @@
     btns.addEventListener('click', e => {
       const b = e.target.closest('[data-cam]');
       if (!b) return;
-      if (b.dataset.cam === 'reset') { cam.az = 0; cam.el = 1.02; dirty = true; }
+      if (b.dataset.cam === 'reset') { pan.x = 0; pan.z = 0; cam.az = 0; cam.el = 1.02; dirty = true; }
       else setFollow(b.dataset.cam === 'follow');
     });
     syncBtns();
@@ -727,7 +747,7 @@
       /* 相機：跟著輪到的棋子（或看全圖），慢慢滑過去 */
       const dtc = Math.min(0.1, (now - (frame.last || now)) / 1000); frame.last = now;
       const ft = toks[activeSeat];
-      const gx = follow && ft ? ft.grp.position.x : 0, gz = follow && ft ? ft.grp.position.z : 0.4;
+      const gx = (follow && ft ? ft.grp.position.x : 0) + pan.x, gz = (follow && ft ? ft.grp.position.z : 0.4) + pan.z;
       const kk = 1 - Math.exp(-dtc * 5);
       const ex = gx - cam.target.x, ez = gz - cam.target.z, ez2 = zoomGoal - cam.zoom;
       if (Math.abs(ex) + Math.abs(ez) + Math.abs(ez2) > 0.002) {
