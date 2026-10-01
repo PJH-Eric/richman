@@ -354,7 +354,7 @@
       const nb = shopEl.querySelector('.so-body'); if (nb) nb.scrollTop = top;
       if (wasHidden) { root.Sound.sfx('pickup'); const f = shopEl.querySelector('.so-item:not([disabled]), .so-tab'); if (f) f.focus({ preventScroll: true }); }
     }
-    shopEl.addEventListener('click', ev => {
+    shopEl.addEventListener('click', ev => { if (B.dead) return;
       const t = ev.target.closest('[data-stab]');
       if (t) { B.shopTab = t.dataset.stab; drawShop(B.shown); return; }
       const lv = ev.target.closest('[data-shopleave]');
@@ -461,14 +461,14 @@
       pane.scrollTop = tabChanged ? 0 : top;
       drawStrip(v, me);
     }
-    sumEl.addEventListener('click', ev => {
+    sumEl.addEventListener('click', ev => { if (B.dead) return;
       const t = ev.target.closest('[data-sumtab]');
       if (!t || !B.shown) return;
       B.sumTab = t.dataset.sumtab;
       drawSummary(B.shown);
       const nb = sumEl.querySelector('[data-sumtab="' + B.sumTab + '"]'); if (nb) nb.focus();
     });
-    sumEl.addEventListener('keydown', ev => {
+    sumEl.addEventListener('keydown', ev => { if (B.dead) return;
       if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && ev.target.closest('[data-sumtab]') && B.shown) {
         B.sumTab = B.sumTab === 'players' ? 'info' : 'players';
         drawSummary(B.shown);
@@ -828,8 +828,8 @@
       return true;
     }
     function cur_isJail() { const v = B.shown; return !v || !!(v.seats[v.turn] && v.seats[v.turn].jail); }
-    boardEl.addEventListener('pointerdown', ev => { chooseDice(ev); });
-    boardEl.addEventListener('click', ev => {
+    boardEl.addEventListener('pointerdown', ev => { if (!B.dead) chooseDice(ev); });
+    boardEl.addEventListener('click', ev => { if (B.dead) return;
       const inv = ev.target.closest('[data-inv]');
       if (inv) { B.openInv(inv); return; }
       const tg = ev.target.closest('[data-tgt]');
@@ -868,7 +868,7 @@
       }
     });
 
-    if (opt.manage) opt.manage.body.addEventListener('click', ev => {
+    if (opt.manage) opt.manage.body.addEventListener('click', ev => { if (B.dead) return;
       const b = ev.target.closest('[data-mg]');
       if (!b || b.disabled) return;
       send({ type: b.dataset.mg, tile: Number(b.dataset.tile) });
@@ -898,7 +898,7 @@
       opt.tile.title.textContent = '\uD83C\uDF92 道具庫';
       opt.tile.body.innerHTML = invHtml(B.shown);
     };
-    if (opt.tile) opt.tile.body.addEventListener('click', ev => {
+    if (opt.tile) opt.tile.body.addEventListener('click', ev => { if (B.dead) return;
       const b = ev.target.closest('[data-invuse]');
       if (!b || b.disabled) return;
       opt.tile.modal.close();
