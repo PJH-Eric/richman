@@ -138,7 +138,7 @@ async function solo(browser, base) {
   await page.click('#solo-start');
   await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 15000 });
   const st = await page.evaluate(() => ({ ai: Solo._debug.state.seats.filter(s => s.ai).map(s => s.id + ':' + s.ai).sort().join(','), lim: Solo._debug.state.opts.roundLimit }));
-  ok(st.ai === 'ai0:kid,ai1:normal,ai2:hard,ai3:normal,ai4:normal,ai5:normal,ai6:normal', '單機 8 人（1 真人＋7 電腦），每個電腦照各自選的難度（' + st.ai + '）');
+  ok(st.ai === 'ai0:kid,ai1:normal,ai2:hard,ai3:normal,ai4:normal', '單機 6 人（1 真人＋5 電腦），每個電腦照各自選的難度（' + st.ai + '）');
   ok(st.lim === 25, '回合上限設定生效（25）');
 
   /* 點 3D 棋盤上的格子 → 說明視窗 */

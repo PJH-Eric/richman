@@ -40,45 +40,54 @@
         <button class="icon-btn back-btn" type="button" data-back="home" aria-label="回首頁"></button>
         <h2>一個人玩</h2>
       </header>
-      <div class="panel-card setup">
-        <label class="field">
-          <span>你的暱稱</span>
-          <input id="solo-name" maxlength="10" autocomplete="off" placeholder="不填就幫你取一個">
-        </label>
-        <div class="field">
-          <span>選一隻小動物</span>
-          <div class="char-grid" id="solo-chars" role="radiogroup" aria-label="選擇角色"></div>
-        </div>
-        <div class="field row-field">
-          <span>電腦人數</span>
-          <div class="stepper" id="solo-ai">
-            <button class="btn3d mini" type="button" data-step="-1" aria-label="少一個電腦"></button>
-            <b id="solo-ai-n">3</b>
-            <button class="btn3d mini" type="button" data-step="1" aria-label="多一個電腦"></button>
+      <div class="setup-grid">
+        <div class="panel-card setup-me">
+          <h3 class="card-title"><span class="ct-ico" aria-hidden="true">🐾</span>我的角色</h3>
+          <label class="field">
+            <span>你的暱稱</span>
+            <input id="solo-name" maxlength="10" autocomplete="off" placeholder="不填就幫你取一個">
+          </label>
+          <div class="field">
+            <span>選一隻小動物</span>
+            <div class="char-grid" id="solo-chars" role="radiogroup" aria-label="選擇角色"></div>
           </div>
         </div>
-        <div class="field">
-          <span>電腦難度</span>
-          <div class="diff-all"><small>全部一起設</small>
-            <div class="seg small" id="solo-diff" role="radiogroup" aria-label="所有電腦的難度"></div></div>
-          <ul class="ai-diff-list" id="solo-ai-list" aria-label="每個電腦各自的難度"></ul>
-          <small class="hint" id="solo-diff-hint"></small>
-        </div>
-        <div class="field">
-          <span>地圖大小</span>
-          <div id="solo-map"></div>
-        </div>
-        <div class="field">
-          <span>回合上限</span>
-          <div class="seg" id="solo-limit" role="radiogroup" aria-label="回合上限">
-            <button type="button" role="radio" data-limit="25">25 回合</button>
-            <button type="button" role="radio" data-limit="40">40 回合</button>
-            <button type="button" role="radio" data-limit="50">50 回合</button>
-            <button type="button" role="radio" data-limit="0">不限</button>
+        <div class="panel-card setup-game">
+          <h3 class="card-title"><span class="ct-ico" aria-hidden="true">🎲</span>遊戲設定</h3>
+          <div class="field row-field">
+            <span>電腦人數</span>
+            <div class="stepper" id="solo-ai">
+              <button class="btn3d mini" type="button" data-step="-1" aria-label="少一個電腦"></button>
+              <b id="solo-ai-n">3</b>
+              <button class="btn3d mini" type="button" data-step="1" aria-label="多一個電腦"></button>
+            </div>
           </div>
-          <small class="hint" id="solo-limit-hint"></small>
+          <div class="field">
+            <span>電腦難度</span>
+            <div class="diff-all"><small>全部一起設</small>
+              <div class="seg small" id="solo-diff" role="radiogroup" aria-label="所有電腦的難度"></div></div>
+            <details class="ai-each" open>
+              <summary>每個電腦各自設定</summary>
+              <ul class="ai-diff-list" id="solo-ai-list" aria-label="每個電腦各自的難度"></ul>
+            </details>
+            <small class="hint" id="solo-diff-hint"></small>
+          </div>
+          <div class="field">
+            <span>地圖大小</span>
+            <div id="solo-map"></div>
+          </div>
+          <div class="field">
+            <span>回合上限</span>
+            <div class="seg" id="solo-limit" role="radiogroup" aria-label="回合上限">
+              <button type="button" role="radio" data-limit="25">25<small>回合</small></button>
+              <button type="button" role="radio" data-limit="40">40<small>回合</small></button>
+              <button type="button" role="radio" data-limit="50">50<small>回合</small></button>
+              <button type="button" role="radio" data-limit="0">不限</button>
+            </div>
+            <small class="hint" id="solo-limit-hint"></small>
+          </div>
         </div>
-        <button class="btn3d btn-big coral" id="solo-start" type="button">開始遊戲</button>
+        <div class="setup-start"><button class="btn3d btn-big coral" id="solo-start" type="button">開始遊戲</button></div>
       </div>
     </section>
 
@@ -98,7 +107,7 @@
         <h2>線上大廳</h2>
       </header>
       <div class="lobby-grid">
-        <div class="panel-card">
+        <div class="panel-card lobby-me">
           <div class="conn-line" id="lobby-conn" role="status"></div>
           <label class="field">
             <span>你的暱稱</span>
@@ -115,8 +124,8 @@
           <button class="btn3d sand small btn-wide" type="button" data-items-guide>🎒 道具說明</button>
           <p class="note">每一步都由伺服器裁判，不會有人作弊；玩到一半離開的人，會由電腦接手。</p>
         </div>
-        <div class="panel-card">
-          <h3 class="card-title">房間列表</h3>
+        <div class="panel-card lobby-rooms">
+          <div class="card-head"><h3 class="card-title"><span class="ct-ico" aria-hidden="true">🏠</span>房間列表</h3><span class="room-count" id="room-count"></span></div>
           <ul class="room-list" id="room-list" aria-live="polite"></ul>
         </div>
       </div>
@@ -129,16 +138,19 @@
         <h2 id="room-title">房間</h2>
       </header>
       <div class="room-grid">
-        <div class="panel-card room-main">
+        <div class="panel-card room-seats-card">
+          <div class="room-summary" id="room-summary"></div>
           <div class="role-line" id="room-role"></div>
           <ul class="seat-list" id="room-seats"></ul>
           <div class="room-actions" id="room-actions"></div>
+        </div>
+        <div class="panel-card room-side-card">
           <div class="host-box" id="room-host"></div>
           <div class="invite-box" id="room-invite"></div>
           <div class="spec-line" id="room-specs"></div>
         </div>
         <div class="panel-card room-chat-card">
-          <h3 class="card-title">聊天室</h3>
+          <h3 class="card-title"><span class="ct-ico" aria-hidden="true">💬</span>聊天室</h3>
           <div class="chat" data-chat="room"></div>
         </div>
       </div>

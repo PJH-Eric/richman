@@ -285,15 +285,15 @@ function hubTest() {
   ok(gs.round > 8 || !r2.game, '真人一直操作、其他座位由電腦接手，可以連續打很多回合');
   hub.leave(c);
 
-  /* 8 人房：上限、滿員、開局 */
-  const h1 = hub.identify('hhhhhhh81', '八人房主', 'otter');
-  const r8 = hub.createRoom(h1, { max: 8, pace: 'fast', roundLimit: 25 }).room;
-  ok(r8.max === 8, '房間人數上限可以到 8');
-  ok(hub.createRoom(hub.identify('hhhhhhh82', '過量', 'cat'), { max: 12 }).room.max === 8, '超過 8 人的設定會被壓回 8');
+  /* 6 人房：上限、滿員、開局 */
+  const h1 = hub.identify('hhhhhhh81', '六人房主', 'otter');
+  const r8 = hub.createRoom(h1, { max: 6, pace: 'fast', roundLimit: 25 }).room;
+  ok(r8.max === 6, '房間人數上限可以到 6');
+  ok(hub.createRoom(hub.identify('hhhhhhh82', '過量', 'cat'), { max: 12 }).room.max === 6, '超過 6 人的設定會被壓回 6');
   let added = 0;
   while (hub.addAI(h1, 'normal').ok) added++;
-  ok(added === 7 && r8.seats.length === 8, '加滿 7 個電腦＝8 人');
-  ok(hub.startGame(h1).ok && r8.game.state.seats.length === 8, '8 人開局');
+  ok(added === 5 && r8.seats.length === 6, '加滿 5 個電腦＝6 人');
+  ok(hub.startGame(h1).ok && r8.game.state.seats.length === 6, '6 人開局');
   let n8 = 0;
   const g8 = r8.game.state;
   while (g8.phase !== 'over' && n8++ < 200000) {
@@ -305,7 +305,7 @@ function hubTest() {
     }
     if (g8.round > 10) break;
   }
-  ok(g8.round > 10 || g8.phase === 'over', '8 人一起打得下去（' + g8.round + ' 回合）');
+  ok(g8.round > 10 || g8.phase === 'over', '6 人一起打得下去（' + g8.round + ' 回合）');
 
   /* 線上使用道具：item / tile / target 欄位要能通過伺服器過濾 */
   {

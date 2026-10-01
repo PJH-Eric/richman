@@ -91,7 +91,7 @@
     $('#solo-ai').addEventListener('click', e => {
       const b = e.target.closest('[data-step]');
       if (!b) return;
-      store.aiCount = Math.min(7, Math.max(1, store.aiCount + Number(b.dataset.step)));
+      store.aiCount = Math.min(5, Math.max(1, store.aiCount + Number(b.dataset.step)));
       root.Store.save(store);
       renderSoloSetup();
     });
@@ -235,7 +235,7 @@
     $('#solo-map').innerHTML = root.UI.mapCards(store.mapSize, '');
     $('#solo-ai-n').textContent = store.aiCount;
     $('#solo-ai [data-step="-1"]').disabled = store.aiCount <= 1;
-    $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 7;
+    $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 5;
     $$('#solo-diff [data-diff]').forEach(b => b.setAttribute('aria-checked', String(same && b.dataset.diff === diffs[0])));
     $$('#solo-limit [data-limit]').forEach(b => b.setAttribute('aria-checked', String(Number(b.dataset.limit) === Number(store.roundLimit))));
     $('#solo-limit-hint').textContent = LIMIT_HINT[store.roundLimit] || '';

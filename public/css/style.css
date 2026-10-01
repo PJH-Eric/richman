@@ -185,12 +185,7 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* ---------- 單機設定、說明 ---------- */
-.setup, .help { max-width: 620px; margin: 0 auto; }
-@media (min-width: 900px) and (orientation: landscape) {
-  .setup { max-width: 900px; display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
-  .setup .field:nth-child(2) { grid-row: span 4; }
-  .setup #solo-start { grid-column: 1 / -1; }
-}
+.help { max-width: 620px; margin: 0 auto; }
 .help-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
 .help-steps li { display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: center; background: #fff; border-radius: 18px; padding: 12px; border: 3px solid #F1E3C8; }
 .help-steps h3 { margin: 0 0 4px; font-size: 1.1rem; }
@@ -211,8 +206,6 @@ button:disabled { cursor: not-allowed; }
 .panel-card, .chat { min-width: 0; }
 @media (min-width: 900px) {
   .lobby-grid { grid-template-columns: 380px 1fr; align-items: start; }
-  .room-grid { grid-template-columns: 340px 1fr; align-items: start; }
-  .room-grid .room-chat-card { order: -1; position: sticky; top: 76px; }
 }
 .conn-line { display: flex; align-items: center; gap: 8px; font-weight: 800; margin-bottom: 12px; padding: 10px 12px; border-radius: 12px; background: #F4ECDC; line-height: 1.4; }
 .conn-line .dot { width: 12px; height: 12px; border-radius: 50%; background: #B8A58A; flex: none; }
@@ -925,3 +918,126 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
   .mc-items .it-chip { padding: 2px 8px 2px 3px; }
   .mc-items .it-chip .it-ico { width: 22px; height: 22px; }
 }
+
+/* ====================================================================
+ * 排版優化：單機設定、線上大廳、房間（手機／平板／桌機、直橫向）
+ * ==================================================================== */
+.card-title { display: flex; align-items: center; gap: 8px; }
+.ct-ico { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: #FFE9B8; font-size: 1.05rem; flex: none; box-shadow: inset 0 -2px 0 rgba(0,0,0,.08); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.card-head .card-title { margin: 0; }
+.chip { display: inline-flex; align-items: center; padding: 2px 10px; min-height: 24px; border-radius: 999px; background: #F4ECDC; color: var(--ink-soft); font-size: .8rem; font-weight: 800; white-space: nowrap; }
+.room-count { font-weight: 900; font-size: .85rem; color: var(--ink-soft); background: #F4ECDC; border-radius: 999px; padding: 2px 12px; }
+.room-count:empty { display: none; }
+
+/* ---------- 單機設定 ---------- */
+.setup-grid { max-width: 640px; margin: 0 auto; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); padding-bottom: calc(86px + var(--safe-b, 0px)); }
+.setup-grid .panel-card .field:last-child { margin-bottom: 0; }
+.setup-start {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 10px 16px calc(10px + var(--safe-b, 0px));
+  background: linear-gradient(180deg, rgba(255,249,238,0), rgba(255,249,238,.92) 38%);
+  display: flex; justify-content: center; pointer-events: none;
+}
+.setup-start .btn3d { width: min(640px, 100%); pointer-events: auto; }
+.setup-me .char-grid { grid-template-columns: repeat(4, 1fr); }
+.diff-all { display: flex; flex-direction: column; gap: 4px; }
+.diff-all small { color: var(--ink-soft); font-weight: 800; }
+.ai-diff-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+.ai-diff-list li { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); align-items: center; gap: 8px; background: #fff; border: 3px solid #F1E3C8; border-radius: 14px; padding: 4px 6px 4px 10px; }
+.ai-diff-list .ai-no { font-size: .88rem; font-weight: 900; color: var(--ink-soft); white-space: nowrap; }
+.ai-diff-list .seg { padding: 3px; border-radius: 12px; flex-wrap: nowrap; }
+.ai-diff-list .seg button { min-height: 38px; min-width: 0; padding: 0 4px; font-size: .84rem; }
+.seg button small { font-size: .7em; font-weight: 800; margin-left: 1px; }
+#solo-limit button { white-space: nowrap; padding: 0 6px; }
+#solo-map .map-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); }
+@media (min-width: 900px) {
+  .setup-grid { max-width: 1060px; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); align-items: start; }
+  .setup-me { position: sticky; top: 16px; }
+  .setup-start { grid-column: 1 / -1; }
+  .setup-grid .setup-game { grid-column: 2; grid-row: 1; }
+  .setup-grid .setup-me { grid-column: 1; grid-row: 1; }
+  .ai-diff-list { grid-template-columns: 1fr 1fr; }
+  .ai-diff-list li { grid-template-columns: 1fr; gap: 2px; padding: 6px 8px; }
+}
+@media (min-width: 900px) and (max-width: 1100px) { .ai-diff-list { grid-template-columns: 1fr; } .ai-diff-list li { grid-template-columns: 4.6em minmax(0, 1fr); } }
+@media (max-width: 480px) { .ai-diff-list li { grid-template-columns: 1fr; gap: 2px; padding: 6px 8px; } }
+.ai-diff-list .seg button { white-space: nowrap; }
+
+/* ---------- 線上大廳 ---------- */
+.lobby-me .lobby-actions { margin-top: 4px; }
+.lobby-me .lobby-actions + .btn3d { margin-top: 12px; }
+.lobby-me .note { margin-top: 12px; padding-top: 12px; border-top: 2px dashed #EBDDBF; }
+.room-list { max-height: none; }
+.room-row { align-items: center; flex-wrap: nowrap; transition: transform .12s, border-color .12s; }
+.room-row:hover { border-color: var(--wood-light); transform: translateY(-1px); }
+.room-row.playing { background: #FFF8F2; }
+.room-meta { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 10px; }
+.room-meta .room-name { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-info { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.seat-dots { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px 2px 8px; min-height: 24px; background: #F4ECDC; border-radius: 999px; }
+.seat-dots em { font-style: normal; font-size: .8rem; font-weight: 900; color: var(--ink-soft); margin-left: 3px; }
+.sdot { width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2px solid #D9C7A3; }
+.sdot.on { background: var(--coral); border-color: var(--coral-dark, #D9473A); }
+.room-row .room-btns { flex: none; flex-wrap: nowrap; }
+.room-list .empty { display: grid; justify-items: center; gap: 6px; padding: 28px 16px; border: 3px dashed #EBDDBF; border-radius: 16px; background: rgba(255,255,255,.55); }
+.room-list .empty .empty-ico { font-size: 2.4rem; line-height: 1; }
+.room-list .empty small { color: var(--ink-soft); font-weight: 700; line-height: 1.5; }
+@media (min-width: 900px) {
+  .lobby-grid { grid-template-columns: 360px minmax(0, 1fr); }
+  .lobby-me { position: sticky; top: 16px; }
+  .lobby-rooms .room-list { max-height: calc(100dvh - 190px); overflow-y: auto; padding: 2px 4px 6px 2px; }
+}
+@media (max-width: 560px) {
+  .room-row { flex-wrap: wrap; }
+  .room-row .room-btns { width: 100%; }
+  .room-row .room-btns .btn3d { flex: 1 1 0; }
+}
+@media (max-width: 899px) {
+  .lobby-grid { gap: 12px; }
+}
+
+/* ---------- 線上房間 ---------- */
+.room-grid { max-width: 1100px; }
+.room-summary { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; padding: 12px 14px; border-radius: 18px; background: linear-gradient(135deg, #FFF1C9, #FFE2B0); border: 3px solid #F2CD86; }
+.rs-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.rs-title b { font-size: 1.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rs-chips .chip { background: rgba(255,255,255,.7); color: var(--ink); }
+.seat-row { min-height: 66px; }
+.seat-no { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #F1E3C8; color: var(--ink-soft); font-style: normal; font-size: .78rem; font-weight: 900; }
+.seat-row.me .seat-no { background: var(--sea); color: #fff; }
+.seat-row .mini { width: 50px; height: 50px; }
+.seat-row.empty { background: repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 10px, rgba(255,255,255,.3) 10px 20px); }
+.seat-row.empty .nm { color: var(--ink-soft); font-weight: 700; }
+.room-actions { margin: 16px 0 0; }
+.room-seats-card .role-line { margin-bottom: 10px; }
+.room-side-card .host-box:empty, .room-side-card .invite-box:empty { display: none; }
+.room-side-card > :first-child h4 { margin-top: 0; }
+.room-side-card .invite-box, .room-side-card .spec-line { margin-top: 14px; padding-top: 4px; border-top: 2px dashed #EBDDBF; }
+.room-side-card .host-box + .invite-box { margin-top: 12px; }
+.room-grid .room-chat-card .card-title { margin-bottom: 8px; }
+@media (min-width: 900px) {
+  .room-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-areas: "seats side" "chat side"; align-items: start; }
+  .room-seats-card { grid-area: seats; }
+  .room-side-card { grid-area: side; }
+  .room-chat-card { grid-area: chat; }
+}
+@media (max-width: 899px) {
+  .room-grid { gap: 12px; }
+}
+@media (max-width: 420px) {
+  .seat-no { display: none; }
+  .rs-title b { font-size: 1.05rem; }
+}
+
+/* 單機：每個電腦各自設定（可收合，行距放寬） */
+.ai-each { margin-top: 6px; }
+.ai-each > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 12px; border-radius: 12px; background: #F4ECDC; color: var(--ink-soft); font-size: .9rem; font-weight: 900; }
+.ai-each > summary::-webkit-details-marker { display: none; }
+.ai-each > summary::after { content: ''; margin-left: auto; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid currentColor; transition: transform .15s; }
+.ai-each[open] > summary::after { transform: rotate(180deg); }
+.ai-each > summary:focus-visible { outline: 3px solid #3D5FC4; outline-offset: 2px; }
+.ai-each .ai-diff-list { margin-top: 10px; gap: 10px; }
+.ai-diff-list li { padding-top: 6px; padding-bottom: 6px; }
+.ai-diff-list .seg button { min-height: 42px; }
+@media (min-width: 900px) { .ai-each .ai-diff-list { gap: 12px; } }

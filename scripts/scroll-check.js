@@ -100,27 +100,26 @@ async function scrollProblems(page) {
     await page.click('#go-help'); await page.waitForSelector('#screen-help:not([hidden])'); await check('說明頁');
     await page.click('#help-go'); await page.waitForSelector('#screen-solo:not([hidden])');
     while (await page.isEnabled('#solo-ai [data-step="1"]')) await page.click('#solo-ai [data-step="1"]');
-    await check('單機設定（8 人）');
+    await check('單機設定（6 人）');
     await page.click('#btn-settings'); await page.waitForSelector('#settings-modal', { state: 'visible' }); await check('設定視窗'); await page.keyboard.press('Escape');
     await page.click('#solo-start');
     await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 20000 });
     await page.waitForTimeout(800);
-    await check('對局畫面（8 人）');
+    await check('對局畫面（6 人）');
     if (await page.isVisible('#side-open')) { await page.click('#side-open'); await page.waitForTimeout(400); await check('對局：資訊抽屜'); await page.click('#side-close'); await page.waitForTimeout(400); }
     await page.evaluate(() => { const g = Solo._debug; g.state.seats.find(s => s.id === 'me').items = ['dice', 'fly', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
     if (await page.isVisible('#menu-modal')) { await page.keyboard.press('Escape'); await page.waitForTimeout(300); }
     if (await page.isVisible('.mc .mc-props')) { await page.click('.mc .mc-props'); await page.waitForSelector('#manage-modal', { state: 'visible' }); await check('我的地產視窗'); await page.keyboard.press('Escape'); }
     await page.evaluate(() => Solo.fastForward(1200000, true));
     await page.waitForSelector('#result:not([hidden])', { timeout: 30000 }).catch(() => {});
-    if (await page.isVisible('#result')) { await check('結算畫面（8 人）'); await page.keyboard.press('Escape').catch(()=>{}); await page.click('#res-home'); await page.waitForSelector('#screen-home:not([hidden])'); await check('結算後回到首頁（不能還鎖著捲動）'); }
+    if (await page.isVisible('#result')) { await check('結算畫面（6 人）'); await page.keyboard.press('Escape').catch(()=>{}); await page.click('#res-home'); await page.waitForSelector('#screen-home:not([hidden])'); await check('結算後回到首頁（不能還鎖著捲動）'); }
     await page.click('#go-online'); await page.waitForFunction(() => Net.connected, null, { timeout: 10000 });
     await check('線上大廳');
     await page.click('#lobby-create'); await page.waitForSelector('#screen-room:not([hidden])');
-    await page.click('[data-set="max"][data-val="8"]').catch(() => {});
     await page.click('[data-set="roundLimit"][data-val="25"]').catch(() => {});
-    for (let i = 0; i < 7; i++) await page.click('[data-act="add-ai"]', { timeout: 1500 }).catch(() => {});
+    for (let i = 0; i < 5; i++) await page.click('[data-act="add-ai"]', { timeout: 1500 }).catch(() => {});
     await page.waitForTimeout(400);
-    await check('房間等待室（8 人）');
+    await check('房間等待室（6 人）');
     ok(!errs.length, '沒有 JS 錯誤' + (errs.length ? '：' + errs.join('；') : ''));
     await ctx.close();
   }

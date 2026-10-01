@@ -39,7 +39,7 @@
     root.Net.on('replaced', () => toast('你在別的分頁開了同一個身分，這個分頁先斷線', 'bad'));
 
     $('#lobby-quick').onclick = () => { saveProfile(); root.Net.send({ type: 'quick' }); };
-    $('#lobby-create').onclick = () => { saveProfile(); root.Net.send({ type: 'create', max: 4, pace: 'normal', roundLimit: 40, mapSize: root.App.store.mapSize }); };
+    $('#lobby-create').onclick = () => { saveProfile(); root.Net.send({ type: 'create', max: 6, pace: 'normal', roundLimit: 40, mapSize: root.App.store.mapSize }); };
     $('#room-leave').onclick = () => leaveRoom();
     $('#room-list').addEventListener('click', e => {
       const b = e.target.closest('[data-join]');
@@ -171,20 +171,24 @@
       }
     }
     if (!S.rooms.length) {
-      h += '<li class="empty">現在沒有房間。按「快速加入」會自動幫你開一間！</li>';
+      h += '<li class="empty"><span class="empty-ico" aria-hidden="true">🏝️</span><b>現在沒有房間</b><small>按「快速加入」會自動幫你開一間，或自己「建立房間」找朋友來玩！</small></li>';
     } else {
       h += S.rooms.map(r => {
         const full = r.players >= r.max;
-        return '<li class="room-row"><div class="room-meta"><b>' + esc(r.name) + '</b>' +
-          '<span class="code">' + r.id + '</span>' +
+        let dots = '';
+        for (let k = 0; k < r.max; k++) dots += '<i class="sdot' + (k < r.players ? ' on' : '') + '"></i>';
+        return '<li class="room-row' + (r.playing ? ' playing' : '') + '"><div class="room-meta"><b class="room-name">' + esc(r.name) + '</b>' +
           '<span class="pill ' + (r.playing ? 'playing' : 'waiting') + '">' + (r.playing ? '對局中' : '等待中') + '</span>' +
-          '<small>玩家 ' + r.players + '/' + r.max + '・觀戰 ' + r.specs + '・' + r.mapSize + ' 格・' + limitName(r.roundLimit) + '</small></div>' +
+          '<div class="room-info"><span class="seat-dots" role="img" aria-label="玩家 ' + r.players + '/' + r.max + '">' + dots + '<em>' + r.players + '/' + r.max + '</em></span>' +
+          '<span class="chip">' + r.mapSize + ' 格</span><span class="chip">' + limitName(r.roundLimit) + '</span>' +
+          (r.specs ? '<span class="chip">觀戰 ' + r.specs + '</span>' : '') + '<span class="code">' + r.id + '</span></div></div>' +
           '<div class="room-btns">' +
           '<button type="button" class="btn3d coral small" data-join="' + r.id + '" data-as="player"' + (r.playing || full ? ' disabled' : '') + '>' + (full ? '已滿' : '加入遊戲') + '</button>' +
           '<button type="button" class="btn3d sea small" data-join="' + r.id + '" data-as="spectator">觀戰</button></div></li>';
       }).join('');
     }
     ul.innerHTML = h;
+    const rc = $('#room-count'); if (rc) rc.textContent = S.rooms.length ? S.rooms.length + ' 間' : '';
   }
 
   /* ---------- 房間 ---------- */
@@ -244,6 +248,9 @@
     const me = room.you;
     const iPlayer = me.role === 'player';
     const seatsFree = room.max - room.seats.length;
+    $('#room-summary').innerHTML = '<div class="rs-title"><b>' + esc(room.name) + '</b><span class="code">' + room.id + '</span></div>' +
+      '<div class="rs-chips"><span class="chip">玩家 ' + room.seats.length + '/' + room.max + '</span><span class="chip">' + room.mapSize + ' 格</span><span class="chip">' + limitName(room.roundLimit) + '</span>' +
+      (room.specs.length ? '<span class="chip">觀戰 ' + room.specs.length + '</span>' : '') + '</div>';
     $('#room-role').innerHTML =
       '<span class="pill ' + (iPlayer ? 'waiting' : 'spec') + '">' + (iPlayer ? '你是玩家' : '你是觀戰者') + '</span>' +
       (me.host ? '<span class="pill host">' + Art.icon('crown') + '房主</span>' : '') +
@@ -251,7 +258,7 @@
         : (seatsFree > 0 ? '<button type="button" class="link-btn" data-act="to-player">上桌玩</button>' : '<small>座位已滿</small>'));
 
     let h = '';
-    room.seats.forEach(s => {
+    room.seats.forEach((s, si) => {
       const isMe = s.id === me.id;
       const tags = [];
       if (s.id === room.hostId) tags.push('<i class="tag host">房主</i>');
@@ -265,11 +272,11 @@
       let act = '';
       if (me.host && s.kind === 'ai') act = '<button type="button" class="icon-btn small" data-act="rm-ai" data-id="' + s.id + '" aria-label="移除' + esc(s.name) + '">' + Art.icon('close') + '</button>';
       else if (me.host && !isMe) act = '<button type="button" class="icon-btn small" data-act="kick" data-id="' + s.id + '" aria-label="請' + esc(s.name) + '離開">' + Art.icon('kick') + '</button>';
-      h += '<li class="seat-row' + (isMe ? ' me' : '') + '"><span class="mini">' + Art.animalSvg(s.char || 'otter') + '</span>' +
+      h += '<li class="seat-row' + (isMe ? ' me' : '') + '"><i class="seat-no">' + (si + 1) + '</i><span class="mini">' + Art.animalSvg(s.char || 'otter') + '</span>' +
         '<b class="nm">' + esc(s.name) + (isMe ? '（你）' : '') + '</b>' + tags.join('') + act + '</li>';
     });
     for (let i = 0; i < seatsFree; i++) {
-      h += '<li class="seat-row empty"><span class="mini ghost"></span><b class="nm">空位</b>' +
+      h += '<li class="seat-row empty"><i class="seat-no">' + (room.seats.length + i + 1) + '</i><span class="mini ghost"></span><b class="nm">空位</b>' +
         (me.host ? '<button type="button" class="btn3d sand small" data-act="add-ai">' + Art.icon('robot') + '加電腦</button>' : '') + '</li>';
     }
     $('#room-seats').innerHTML = h;
@@ -300,7 +307,7 @@
     const seg = (k, opts, cur) => '<div class="seg small" role="radiogroup">' + opts.map(o =>
       '<button type="button" role="radio" aria-checked="' + (String(o[0]) === String(cur)) + '" data-set="' + k + '" data-val="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>';
     $('#room-host').innerHTML = me.host
-      ? '<h4>房間設定（房主）</h4>' +
+      ? '<h4>' + Art.icon('crown') + '房間設定（房主）</h4>' +
         '<div class="set-line stack"><span>地圖大小</span>' + root.UI.mapCards(room.mapSize, 'data-set="mapSize"') + '</div>' +
         '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[25, '25'], [40, '40'], [50, '50'], [0, '不限']], room.roundLimit) + '</div>'
       : '<p class="host-info">地圖 ' + room.mapSize + ' 格（每局隨機生成）・' + limitName(room.roundLimit) + '（房主決定）</p>';

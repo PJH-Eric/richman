@@ -60,7 +60,7 @@ section('建立與亂數');
   for (let i = 0; i < 20; i++) orders.add(R.create(ps, { seed: 's' + i }).seats.map(s => s.id).join());
   ok(orders.size > 3, '不同 seed 座位順序會不一樣（系統隨機決定）');
   ok(c.seats.length === 4, '4 人');
-  eq(R.MAX_PLAYERS, 8, '人數上限 8 人');
+  eq(R.MAX_PLAYERS, 6, '人數上限 6 人');
   eq(R.PLAYER_COLORS.length, 8, '8 種玩家顏色');
   eq(new Set(R.PLAYER_COLORS).size, 8, '顏色互不相同');
   const j = JSON.stringify(R.publicView(a, 0));
