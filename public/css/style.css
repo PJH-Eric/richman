@@ -956,8 +956,7 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
   .setup-start { grid-column: 1 / -1; }
   .setup-grid .setup-game { grid-column: 2; grid-row: 1; }
   .setup-grid .setup-me { grid-column: 1; grid-row: 1; }
-  .ai-diff-list { grid-template-columns: 1fr 1fr; }
-  .ai-diff-list li { grid-template-columns: 1fr; gap: 2px; padding: 6px 8px; }
+  .ai-diff-list { grid-template-columns: 1fr; }
 }
 @media (min-width: 900px) and (max-width: 1100px) { .ai-diff-list { grid-template-columns: 1fr; } .ai-diff-list li { grid-template-columns: 4.6em minmax(0, 1fr); } }
 @media (max-width: 480px) { .ai-diff-list li { grid-template-columns: 1fr; gap: 2px; padding: 6px 8px; } }
@@ -1098,3 +1097,32 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 /* 開始遊戲：置中對齊 */
 .setup-start { display: grid; justify-items: center; justify-self: stretch; width: 100%; }
 .setup-start .btn3d { margin: 0 auto; }
+
+/* 單機開始鈕：不黏底，直接置於最下方，寬度與「遊戲設定」卡片一致 */
+.setup-grid .setup-start { position: static; bottom: auto; background: none; padding: 0; display: block; width: auto; pointer-events: auto; }
+.setup-grid .setup-start .btn3d { display: flex; align-items: center; justify-content: center; width: 100%; min-width: 0; margin: 0; min-height: 56px; font-size: 1.15rem; }
+.setup-grid { padding-bottom: calc(16px + var(--safe-b, 0px)); }
+@media (min-width: 900px) { .setup-grid .setup-start { grid-column: 2; grid-row: 2; } }
+
+/* 電腦難度：一個電腦一格、同一排（最多 5 格），每格是精簡下拉 */
+.ai-diff-list { grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)) !important; gap: 8px !important; }
+.ai-diff-list li { display: flex !important; flex-direction: column; align-items: stretch; gap: 4px !important; padding: 6px 6px 8px !important; text-align: center; }
+.ai-diff-list .ai-no { font-size: .8rem; text-align: center; }
+.cell-dd { min-height: 44px; padding: 4px 6px; gap: 4px; justify-content: center; border-radius: 12px; border-width: 2px; }
+.cell-dd b { font-size: .95rem; white-space: nowrap; }
+.cell-dd .dd-caret { border-left-width: 5px; border-right-width: 5px; border-top-width: 6px; margin: 0; }
+.cell-menu .dd-opt { display: flex; align-items: center; justify-content: space-between; min-height: 44px; white-space: nowrap; }
+@media (max-width: 480px) { .ai-diff-list { gap: 5px !important; } .ai-diff-list li { padding: 4px 3px 6px !important; } .ai-diff-list .ai-no { font-size: .7rem; } .cell-dd { padding: 4px 2px; gap: 2px; } .cell-dd b { font-size: .8rem; } .cell-dd .dd-caret { border-left-width: 3px; border-right-width: 3px; border-top-width: 4px; } }
+
+/* 窄螢幕防溢出：座位列、下拉文字 */
+.seat-list, .seat-list > li, .room-col, .room-grid > * { min-width: 0; }
+.map-dd .map-tx { min-width: 0; overflow: hidden; }
+.map-dd .map-tx b, .map-dd .map-tx small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 440px) {
+  .seat-row { flex-wrap: wrap !important; row-gap: 4px; }
+  .seat-row .nm { flex: 1 1 5.5em; min-width: 0; }
+  .seat-row .tag { margin-left: 0; }
+}
+@media (max-width: 340px) { .cell-dd b { font-size: .72rem; } .cell-dd { padding: 4px 1px; } .ai-diff-list .ai-no { font-size: .64rem; } }
+@media (max-width: 560px) { .dd-pair .map-tx small { display: none !important; } }
+@media (max-width: 360px) { .dd-pair .map-sw { width: 36px; height: 36px; } .dd-pair .map-sw b { font-size: .95rem; } .dd-pair .map-sw small { font-size: .52rem; } .dd-pair .map-dd { padding-left: 4px; gap: 5px; min-height: 48px; } .dd-pair .dd-caret { display: none; } .dd-pair .map-tx b { font-size: .9rem; } }

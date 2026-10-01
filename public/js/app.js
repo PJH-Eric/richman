@@ -95,11 +95,11 @@
       root.Store.save(store);
       renderSoloSetup();
     });
-    $('#solo-ai-list').addEventListener('click', e => {
-      const b = e.target.closest('[data-ai][data-diff]');
+    $('#solo-ai-list').addEventListener('ddselect', e => {
+      const b = e.target.closest('[data-ai]');
       if (!b) return;
       const d = aiDiffs();
-      d[Number(b.dataset.ai)] = b.dataset.diff;
+      d[Number(b.dataset.ai)] = DIFF_ORDER[Number(e.detail.val)];
       store.aiDiffs = d;
       root.Store.save(store);
       renderSoloSetup();
@@ -213,10 +213,9 @@
     const diffs = aiDiffs().slice(0, store.aiCount);
     const same = diffs.every(x => x === diffs[0]);
     const names = root.Rules.DIFFICULTIES;
+    $('#solo-ai-list').style.setProperty('--n', diffs.length);
     $('#solo-ai-list').innerHTML = diffs.map((d, i) =>
-      '<li><span class="ai-no">電腦 ' + (i + 1) + '</span><div class="seg small" role="radiogroup" aria-label="電腦 ' + (i + 1) + ' 的難度">' +
-      DIFF_ORDER.map(k => '<button type="button" role="radio" data-ai="' + i + '" data-diff="' + k + '" aria-checked="' + (k === d) + '">' + names[k].name + '</button>').join('') +
-      '</div></li>').join('');
+      '<li><span class="ai-no">電腦 ' + (i + 1) + '</span>' + root.UI.diffSelect(i, DIFF_ORDER.indexOf(d)) + '</li>').join('');
     if (!root.Rules.MAPS.validSize(store.mapSize)) store.mapSize = root.Rules.MAPS.DEFAULT_SIZE;
     $('#solo-map').innerHTML = root.UI.mapCards(store.mapSize, '');
     $('#solo-ai-n').textContent = store.aiCount;

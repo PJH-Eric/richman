@@ -212,13 +212,18 @@
     limit: { label: '回合上限', values: () => root.Rules.ROUND_LIMITS.filter(n => n).concat([0]), norm: n => root.Rules.ROUND_LIMITS.includes(Number(n)) ? Number(n) : 40,
       sw: n => '<span class="map-sw lim"><b>' + (n || '∞') + '</b><small>回合</small></span>', name: n => LIMIT_INFO[n][0], sub: n => LIMIT_INFO[n][1], aria: n => n ? n + ' 回合' : '不限回合' }
   };
+  /* 電腦難度：一格一個的精簡下拉，值是 0～3（幼幼班／簡單／普通／困難） */
+  DD.diff = { label: '電腦難度', compact: true, values: () => [0, 1, 2, 3], norm: n => [0, 1, 2, 3].includes(Number(n)) ? Number(n) : 2,
+    name: n => root.Rules.DIFFICULTIES[['kid', 'easy', 'normal', 'hard'][n]].name, aria: n => root.Rules.DIFFICULTIES[['kid', 'easy', 'normal', 'hard'][n]].name };
   function dropdown(kind, selected, attrs) {
     const d = DD[kind], n = d.norm(selected);
+    if (d.compact) return '<button type="button" class="map-dd cell-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + (attrs && attrs.label ? attrs.label : d.label) + '：' + d.aria(n) + '" ' + ((attrs && attrs.attrs) || '') + '><b>' + d.name(n) + '</b><i class="dd-caret" aria-hidden="true"></i></button>';
     return '<button type="button" class="map-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + d.label + '：' + d.aria(n) + '" ' + (attrs || '') + '>' +
       d.sw(n) + '<span class="map-tx"><b>' + d.name(n) + '</b><small>' + d.sub(n) + '</small></span><i class="dd-caret" aria-hidden="true"></i></button>';
   }
   const mapCards = (selected, attrs) => dropdown('map', selected, attrs);
   const limitSelect = (selected, attrs) => dropdown('limit', selected, attrs);
+  const diffSelect = (idx, selected) => dropdown('diff', selected, { label: '電腦 ' + (idx + 1) + ' 的難度', attrs: 'data-ai="' + idx + '"' });
   let mdMenu = null, mdBtn = null;
   function mapMenuClose(focus) {
     if (!mdMenu) return;
@@ -233,11 +238,12 @@
     const cur = Number(btn.dataset.val);
     const m = document.createElement('div');
     m.className = 'dd-menu map-menu'; m.setAttribute('role', 'listbox'); m.tabIndex = -1; m.setAttribute('aria-label', d.label);
-    m.innerHTML = d.values().map(n => '<button type="button" role="option" class="dd-opt map-opt" data-val="' + n + '" aria-selected="' + (n === cur) + '">' + d.sw(n) +
+    if (d.compact) m.classList.add('cell-menu');
+    m.innerHTML = d.compact ? d.values().map(n => '<button type="button" role="option" class="dd-opt" data-val="' + n + '" aria-selected="' + (n === cur) + '">' + d.name(n) + (n === cur ? '<i class="dd-check" aria-hidden="true"></i>' : '') + '</button>').join('') : d.values().map(n => '<button type="button" role="option" class="dd-opt map-opt" data-val="' + n + '" aria-selected="' + (n === cur) + '">' + d.sw(n) +
       '<span class="map-tx"><b>' + d.name(n) + '</b><small>' + d.sub(n) + '</small></span>' + (n === cur ? '<i class="dd-check" aria-hidden="true"></i>' : '') + '</button>').join('');
     document.body.appendChild(m); mdMenu = m;
     const r = btn.getBoundingClientRect(), mh = m.offsetHeight;
-    m.style.width = Math.min(window.innerWidth - 16, Math.max(r.width, 260)) + 'px';
+    m.style.width = Math.min(window.innerWidth - 16, Math.max(r.width, d.compact ? 132 : 260)) + 'px';
     m.style.left = Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.left)) + 'px';
     const below = window.innerHeight - r.bottom - 8 >= mh || r.top < mh + 8;
     m.style.top = Math.max(8, below ? r.bottom + 6 : r.top - mh - 6) + 'px';
@@ -264,5 +270,5 @@
   document.addEventListener('pointerdown', e => { if (mdMenu && !mdMenu.contains(e.target) && !e.target.closest('[data-ddk]')) mapMenuClose(); });
   window.addEventListener('resize', () => mapMenuClose());
 
-  root.UI = { $, $$, esc, show, mapCards, limitSelect, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
+  root.UI = { $, $$, esc, show, mapCards, limitSelect, diffSelect, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
 })(typeof self !== 'undefined' ? self : this);

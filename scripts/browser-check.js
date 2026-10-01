@@ -129,8 +129,8 @@ async function solo(browser, base) {
   ok((await page.textContent('#help-body')).includes('命運之神') && (await page.textContent('#help-body')).includes('擲骰子'), '說明頁有完整的文字教學');
   await page.click('#help-go');
   while (await page.isEnabled('#solo-ai [data-step="1"]')) await page.click('#solo-ai [data-step="1"]');
-  await page.click('#solo-ai-list [data-ai="0"][data-diff="kid"]');
-  await page.click('#solo-ai-list [data-ai="2"][data-diff="hard"]');
+  await page.click('#solo-ai-list [data-ai="0"]'); await page.click('.dd-menu .dd-opt[data-val="0"]');
+  await page.click('#solo-ai-list [data-ai="2"]'); await page.click('.dd-menu .dd-opt[data-val="3"]');
   ok(/混合難度/.test(await page.textContent('#solo-diff-hint')), '電腦難度不一樣時顯示「混合難度」');
   await page.click('#solo-limit .map-dd'); await page.click('.map-menu .map-opt[data-val="25"]');
   await page.evaluate(() => { App.store.testMap = 'classic40'; });   /* 前面按過「恢復預設」，測試用固定版面要再指定一次 */
