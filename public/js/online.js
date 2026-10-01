@@ -84,6 +84,7 @@
         else if (ev.key === 'Tab') { ev.preventDefault(); ddClose(true); }
       });
     };
+    $('#room-host').addEventListener('ddselect', e => { if (S.room) root.Net.send({ type: 'settings', [e.detail.kind === 'limit' ? 'roundLimit' : 'mapSize']: Number(e.detail.val) }); });
     $('#screen-room').addEventListener('click', e => {
       const b = e.target.closest('[data-dd]');
       if (b) { if (ddBtn === b) ddClose(); else ddOpen(b); }
@@ -308,8 +309,9 @@
       '<button type="button" role="radio" aria-checked="' + (String(o[0]) === String(cur)) + '" data-set="' + k + '" data-val="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>';
     $('#room-host').innerHTML = me.host
       ? '<h4>' + Art.icon('crown') + '房間設定（房主）</h4>' +
-        '<div class="set-line stack"><span>地圖大小</span>' + root.UI.mapCards(room.mapSize, 'data-set="mapSize"') + '</div>' +
-        '<div class="set-line"><span>回合上限</span>' + seg('roundLimit', [[25, '25'], [40, '40'], [50, '50'], [0, '不限']], room.roundLimit) + '</div>'
+        '<div class="dd-pair"><div class="field"><span>地圖大小</span>' + root.UI.mapCards(room.mapSize, '') + '</div>' +
+        '<div class="field"><span>回合上限</span>' + root.UI.limitSelect(room.roundLimit, '') + '</div></div>' +
+        '<small class="hint">每一局的主題、地名和格子位置都是隨機生成的</small>'
       : '<p class="host-info">地圖 ' + room.mapSize + ' 格（每局隨機生成）・' + limitName(room.roundLimit) + '（房主決定）</p>';
 
     /* 邀請連結 */

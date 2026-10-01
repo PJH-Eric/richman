@@ -129,11 +129,10 @@ async function solo(browser, base) {
   ok((await page.textContent('#help-body')).includes('命運之神') && (await page.textContent('#help-body')).includes('擲骰子'), '說明頁有完整的文字教學');
   await page.click('#help-go');
   while (await page.isEnabled('#solo-ai [data-step="1"]')) await page.click('#solo-ai [data-step="1"]');
-  await page.click('#solo-diff [data-diff="normal"]');
   await page.click('#solo-ai-list [data-ai="0"][data-diff="kid"]');
   await page.click('#solo-ai-list [data-ai="2"][data-diff="hard"]');
-  ok(!(await page.$('#solo-diff [aria-checked="true"]')) && /混合難度/.test(await page.textContent('#solo-diff-hint')), '電腦難度不一樣時顯示「混合難度」');
-  await page.click('#solo-limit [data-limit="25"]');
+  ok(/混合難度/.test(await page.textContent('#solo-diff-hint')), '電腦難度不一樣時顯示「混合難度」');
+  await page.click('#solo-limit .map-dd'); await page.click('.map-menu .map-opt[data-val="25"]');
   await page.evaluate(() => { App.store.testMap = 'classic40'; });   /* 前面按過「恢復預設」，測試用固定版面要再指定一次 */
   await page.click('#solo-start');
   await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 15000 });
@@ -168,7 +167,7 @@ async function solo(browser, base) {
   } else ok(false, '找不到「我的地產」按鈕');
   /* 道具：遙控骰選點數、機票點 3D 棋盤 */
   if (await mineTurn()) {
-    await page.evaluate(() => { const g = Solo._debug; g.state.seats[g.state.turn].items = ['dice', 'fly', 'cat']; Solo.board.render(Rules.publicView(g.state, g.clock)); });
+    await page.evaluate(() => { const g = Solo._debug; const me0 = g.state.seats[g.state.turn]; me0.items = ['dice', 'fly', 'cat']; me0.jail = false; me0.jailTurns = 0; Solo.board.render(Rules.publicView(g.state, g.clock)); });
     await page.waitForSelector('.mc-items .it-chip.ready', { timeout: 3000 }).catch(() => {});
     ok(await page.$$eval('.mc-items .it-chip', e => e.length) === 3, '道具列顯示 3 個道具');
     ok(await invUse(page, 'dice'), '道具庫裡按「使用」→ 接著在面板選遙控骰步數');
@@ -212,7 +211,7 @@ async function solo(browser, base) {
     }
     await page.evaluate(() => {
       const g = Solo._debug, me = g.state.seats.find(x => x.id === 'me');
-      me.items = ['steal', 'swap', 'bomb'];
+      me.items = ['steal', 'swap', 'bomb']; me.jail = false;
       g.state.seats.filter(x => x.id !== 'me').forEach((x, k) => { x.pos = 5 + k; x.cash = 1500; x.jail = false; });
       Solo.board.render(Rules.publicView(g.state, g.clock));
     });
@@ -336,7 +335,7 @@ async function online(browser, base) {
   await A.page.click('.dd-menu .dd-opt[data-val="hard"]');
   await A.page.waitForFunction(() => { const b = document.querySelector('.seat-row .ai-dd'); return b && b.dataset.val === 'hard'; }, null, { timeout: 5000 });
   ok(!(await A.page.$('.dd-menu')), '選完難度：選單收起，電腦難度改成困難');
-  await A.page.click('[data-set="roundLimit"][data-val="25"]');
+  await A.page.click('#room-host [data-ddk="limit"]'); await A.page.click('.map-menu .map-opt[data-val="25"]');
   await A.page.screenshot({ path: path.join(OUT, '平板橫向-房間.png') });
 
   /* 朋友用邀請連結：選觀戰 */

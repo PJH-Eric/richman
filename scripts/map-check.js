@@ -29,7 +29,9 @@ async function invUse(pg, item) {
     await ctx.addInitScript((mid) => localStorage.setItem('richman', JSON.stringify({ seenHelp: true, nickname: '測', char: 'otter', reduceMotion: true, fastAnim: true, bgm: false, aiCount: 2, roundLimit: 0, mapSize: mid })), m.size);
     const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
     await page.goto(base); await page.click('#go-solo');
-    ok(await page.isVisible('.map-card[data-size="' + m.size + '"][aria-checked="true"]'), '選地圖畫面：目前選的是「' + m.name + '」');
+    ok(await page.isVisible('#solo-map .map-dd[data-val="' + m.size + '"]'), '選地圖畫面：下拉選單目前選的是「' + m.name + '」');
+    await page.click('#solo-map .map-dd'); await page.waitForSelector('.map-menu .map-opt[aria-selected="true"][data-val="' + m.size + '"]');
+    ok((await page.$$eval('.map-menu .map-opt', e => e.length)) === 5, '下拉選單有 5 個地圖大小（自製選單，不是原生 select）'); await page.keyboard.press('Escape');
     await page.click('#solo-start');
     await page.waitForFunction(() => window.Solo && Solo.board && Solo.board.v3, null, { timeout: 40000 });
     const info = await page.evaluate(() => { const g = Solo._debug.state; return { map: g.map, n: g.tiles.length, tilesR: Rules.TILES.length, toks: Solo.board.v3._debug.toks.length }; });

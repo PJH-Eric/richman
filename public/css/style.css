@@ -1041,3 +1041,60 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 .ai-diff-list li { padding-top: 6px; padding-bottom: 6px; }
 .ai-diff-list .seg button { min-height: 42px; }
 @media (min-width: 900px) { .ai-each .ai-diff-list { gap: 12px; } }
+
+/* 地圖大小：自製下拉選單 */
+.map-select { width: 100%; }
+.map-dd { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 62px; padding: 6px 12px 6px 6px; text-align: left; font-family: inherit; color: var(--ink); background: #fff; border: 3px solid #E9C77B; border-radius: 16px; cursor: pointer; box-shadow: 0 3px 0 rgba(0,0,0,.1); }
+.map-dd:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,.1); }
+.map-dd[aria-expanded="true"] { border-color: var(--sea); background: #EAF8FA; }
+.map-dd:focus-visible { outline: 3px solid #3D5FC4; outline-offset: 2px; }
+.map-dd .map-tx { flex: 1; }
+.dd-caret { flex: none; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid var(--ink-soft); transition: transform .15s; margin-right: 4px; }
+.map-dd[aria-expanded="true"] .dd-caret { transform: rotate(180deg); }
+.map-menu { gap: 4px; max-height: calc(100dvh - 16px); overflow-y: auto; }
+.map-opt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 4px 10px 4px 4px; text-align: left; font-family: inherit; color: var(--ink); background: transparent; border: 3px solid transparent; border-radius: 14px; cursor: pointer; }
+.map-opt:hover, .map-opt:focus-visible { background: #FFF1D6; outline: none; }
+.map-opt[aria-selected="true"] { border-color: var(--coral); background: #FFF1E8; }
+.map-opt .map-tx { flex: 1; }
+.dd-check { flex: none; width: 10px; height: 18px; border-right: 4px solid var(--coral); border-bottom: 4px solid var(--coral); transform: rotate(45deg) translate(-2px, -3px); margin-right: 6px; }
+#solo-map .map-note, .host-box .map-note { margin: 6px 0 0; }
+
+.room-chat-card .chat-log { min-height: 200px; max-height: min(480px, calc(100dvh - 300px)); }
+@media (max-width: 899px) { .room-chat-card .chat-log { min-height: 140px; max-height: 240px; } }
+
+
+/* 單機：開始遊戲放在最下方（小顆、置中），捲動時貼在畫面底部 */
+.setup-start { position: sticky; bottom: calc(10px + var(--safe-b, 0px)); left: auto; right: auto; z-index: 20; padding: 0; background: none; pointer-events: none; display: flex; justify-content: center; }
+.setup-start .btn3d { width: auto; min-width: 220px; min-height: 52px; padding: 0 36px; font-size: 1.1rem; pointer-events: auto; }
+.setup-grid { padding-bottom: 8px; }
+@media (min-width: 900px) { .setup-start { grid-column: 1 / -1; } }
+
+/* 地圖大小＋回合上限：同一排兩個下拉 */
+.dd-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dd-pair .field { margin-bottom: 8px; min-width: 0; }
+.dd-pair .map-dd { min-height: 58px; }
+.dd-pair .map-tx { min-width: 0; }
+.dd-pair .map-tx b, .dd-pair .map-tx small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-sw.lim { background: linear-gradient(135deg, #FFE9B8 50%, #F5C26B 50%); }
+@media (max-width: 560px) { .dd-pair { gap: 8px; } .dd-pair .map-tx small { display: none; } .dd-pair .map-dd { gap: 8px; padding-right: 8px; } .dd-pair .dd-caret { margin-right: 0; } }
+
+/* 房間：兩欄（左：座位＋房間設定；右：聊天室＋邀請連結）；窄螢幕依序 座位 → 聊天室 → 設定 → 邀請 */
+.room-col { display: contents; }
+.room-seats-card { order: 1; } .room-chat-card { order: 2; } .room-side-card { order: 3; } .room-invite-card { order: 4; }
+.room-invite-card .invite-box h4 { margin-top: 0; }
+.room-invite-card .spec-line { margin-top: 14px; padding-top: 4px; border-top: 2px dashed #EBDDBF; }
+.room-side-card .host-box h4 { margin-top: 0; }
+@media (min-width: 900px) {
+  .room-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-areas: none; align-items: start; }
+  .room-col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+  .room-seats-card, .room-chat-card, .room-side-card, .room-invite-card { order: 0; grid-area: auto; position: static; }
+  .room-col-b { position: sticky; top: 16px; }
+}
+@media (max-width: 899px) {
+  .room-grid { grid-template-areas: none; }
+  .room-seats-card, .room-chat-card, .room-side-card, .room-invite-card { grid-area: auto; position: static; }
+}
+.setup-game > small.hint, .room-side-card small.hint { display: block; margin-top: 4px; }
+/* 開始遊戲：置中對齊 */
+.setup-start { display: grid; justify-items: center; justify-self: stretch; width: 100%; }
+.setup-start .btn3d { margin: 0 auto; }

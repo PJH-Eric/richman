@@ -95,16 +95,6 @@
       root.Store.save(store);
       renderSoloSetup();
     });
-    $('#solo-diff').innerHTML = root.Rules.DIFFICULTY_LIST.map(k =>
-      '<button type="button" role="radio" data-diff="' + k + '">' + root.Rules.DIFFICULTIES[k].name + '</button>').join('');
-    $('#solo-diff').addEventListener('click', e => {
-      const b = e.target.closest('[data-diff]');
-      if (!b) return;
-      store.difficulty = b.dataset.diff;
-      store.aiDiffs = new Array(7).fill(b.dataset.diff);     /* 全部一起設 */
-      root.Store.save(store);
-      renderSoloSetup();
-    });
     $('#solo-ai-list').addEventListener('click', e => {
       const b = e.target.closest('[data-ai][data-diff]');
       if (!b) return;
@@ -114,17 +104,13 @@
       root.Store.save(store);
       renderSoloSetup();
     });
-    $('#solo-limit').addEventListener('click', e => {
-      const b = e.target.closest('[data-limit]');
-      if (!b) return;
-      store.roundLimit = Number(b.dataset.limit);
+    $('#solo-limit').addEventListener('ddselect', e => {
+      store.roundLimit = Number(e.detail.val);
       root.Store.save(store);
       renderSoloSetup();
     });
-    $('#solo-map').addEventListener('click', e => {
-      const b = e.target.closest('[data-size]');
-      if (!b) return;
-      store.mapSize = Number(b.dataset.size);
+    $('#solo-map').addEventListener('ddselect', e => {
+      store.mapSize = Number(e.detail.val);
       root.Store.save(store);
       renderSoloSetup();
     });
@@ -236,8 +222,7 @@
     $('#solo-ai-n').textContent = store.aiCount;
     $('#solo-ai [data-step="-1"]').disabled = store.aiCount <= 1;
     $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 5;
-    $$('#solo-diff [data-diff]').forEach(b => b.setAttribute('aria-checked', String(same && b.dataset.diff === diffs[0])));
-    $$('#solo-limit [data-limit]').forEach(b => b.setAttribute('aria-checked', String(Number(b.dataset.limit) === Number(store.roundLimit))));
+    $('#solo-limit').innerHTML = root.UI.limitSelect(store.roundLimit, '');
     $('#solo-limit-hint').textContent = LIMIT_HINT[store.roundLimit] || '';
     const easiest = DIFF_ORDER.find(k => diffs.includes(k));
     $('#solo-diff-hint').textContent = same ? DIFF_HINT[diffs[0]] : '混合難度：動作節奏跟著最簡單的電腦（' + names[easiest].name + '）';

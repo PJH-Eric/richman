@@ -116,7 +116,7 @@ async function scrollProblems(page) {
     await page.click('#go-online'); await page.waitForFunction(() => Net.connected, null, { timeout: 10000 });
     await check('線上大廳');
     await page.click('#lobby-create'); await page.waitForSelector('#screen-room:not([hidden])');
-    await page.click('[data-set="roundLimit"][data-val="25"]').catch(() => {});
+    await page.click('#room-host [data-ddk="limit"]').catch(() => {}); await page.click('.map-menu .map-opt[data-val="25"]').catch(() => {});
     for (let i = 0; i < 5; i++) await page.click('[data-act="add-ai"]', { timeout: 1500 }).catch(() => {});
     await page.waitForTimeout(400);
     await check('房間等待室（6 人）');

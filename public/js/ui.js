@@ -203,13 +203,66 @@
 
   /** 地圖大小選擇卡片（單機開局與房主設定共用）。地圖每局隨機生成，只選格數。attrs：每張卡片加上的屬性，例如 'data-size' 或 'data-set="mapSize"' */
   const SIZE_INFO = { 48: ['小巧', '節奏快，約 10～15 分鐘'], 64: ['標準', '地產多一點，剛剛好'], 80: ['寬廣', '色組多、要走比較久'], 96: ['超大', '長線經營，適合久玩'], 120: ['巨大', '超大棋盤，玩很久也很豐富'] };
-  function mapCards(selected, attrs, label) {
-    return '<div class="map-list" role="radiogroup" aria-label="' + (label || '地圖大小') + '">' + root.Rules.MAPS.SIZES.map(n =>
-      '<button type="button" role="radio" class="map-card" aria-checked="' + (Number(selected) === n) + '" ' + attrs + ' data-val="' + n + '" data-size="' + n + '">' +
-      '<span class="map-sw"><b>' + n + '</b><small>格</small></span>' +
-      '<span class="map-tx"><b>' + SIZE_INFO[n][0] + '</b><small>' + SIZE_INFO[n][1] + '</small></span></button>').join('') +
-      '</div><p class="map-note">每一局的主題、地名和格子位置都是隨機生成的</p>';
+  /* 自製下拉選單（不用原生 <select>）：地圖大小、回合上限共用。按鈕顯示目前選的，點開跳出選項；
+   * 選了會在按鈕上送出 'ddselect' 事件（detail＝{ kind, val }，val 是數字） */
+  const LIMIT_INFO = { 25: ['短局', '25 回合到了比總資產'], 40: ['標準', '40 回合到了比總資產'], 50: ['長局', '50 回合到了比總資產'], 0: ['不限', '打到只剩一人沒破產'] };
+  const DD = {
+    map: { label: '地圖大小', values: () => root.Rules.MAPS.SIZES, norm: n => root.Rules.MAPS.SIZES.includes(Number(n)) ? Number(n) : root.Rules.MAPS.DEFAULT_SIZE,
+      sw: n => '<span class="map-sw"><b>' + n + '</b><small>格</small></span>', name: n => SIZE_INFO[n][0], sub: n => SIZE_INFO[n][1], aria: n => n + ' 格' + SIZE_INFO[n][0] },
+    limit: { label: '回合上限', values: () => root.Rules.ROUND_LIMITS.filter(n => n).concat([0]), norm: n => root.Rules.ROUND_LIMITS.includes(Number(n)) ? Number(n) : 40,
+      sw: n => '<span class="map-sw lim"><b>' + (n || '∞') + '</b><small>回合</small></span>', name: n => LIMIT_INFO[n][0], sub: n => LIMIT_INFO[n][1], aria: n => n ? n + ' 回合' : '不限回合' }
+  };
+  function dropdown(kind, selected, attrs) {
+    const d = DD[kind], n = d.norm(selected);
+    return '<button type="button" class="map-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + d.label + '：' + d.aria(n) + '" ' + (attrs || '') + '>' +
+      d.sw(n) + '<span class="map-tx"><b>' + d.name(n) + '</b><small>' + d.sub(n) + '</small></span><i class="dd-caret" aria-hidden="true"></i></button>';
   }
+  const mapCards = (selected, attrs) => dropdown('map', selected, attrs);
+  const limitSelect = (selected, attrs) => dropdown('limit', selected, attrs);
+  let mdMenu = null, mdBtn = null;
+  function mapMenuClose(focus) {
+    if (!mdMenu) return;
+    mdMenu.remove(); mdMenu = null;
+    if (mdBtn) { mdBtn.setAttribute('aria-expanded', 'false'); if (focus) mdBtn.focus(); }
+    mdBtn = null;
+  }
+  function mapMenuOpen(btn) {
+    mapMenuClose();
+    const kind = btn.dataset.ddk, d = DD[kind];
+    mdBtn = btn; btn.setAttribute('aria-expanded', 'true');
+    const cur = Number(btn.dataset.val);
+    const m = document.createElement('div');
+    m.className = 'dd-menu map-menu'; m.setAttribute('role', 'listbox'); m.tabIndex = -1; m.setAttribute('aria-label', d.label);
+    m.innerHTML = d.values().map(n => '<button type="button" role="option" class="dd-opt map-opt" data-val="' + n + '" aria-selected="' + (n === cur) + '">' + d.sw(n) +
+      '<span class="map-tx"><b>' + d.name(n) + '</b><small>' + d.sub(n) + '</small></span>' + (n === cur ? '<i class="dd-check" aria-hidden="true"></i>' : '') + '</button>').join('');
+    document.body.appendChild(m); mdMenu = m;
+    const r = btn.getBoundingClientRect(), mh = m.offsetHeight;
+    m.style.width = Math.min(window.innerWidth - 16, Math.max(r.width, 260)) + 'px';
+    m.style.left = Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.left)) + 'px';
+    const below = window.innerHeight - r.bottom - 8 >= mh || r.top < mh + 8;
+    m.style.top = Math.max(8, below ? r.bottom + 6 : r.top - mh - 6) + 'px';
+    const opts = [...m.querySelectorAll('.dd-opt')];
+    (opts.find(o => Number(o.dataset.val) === cur) || opts[0]).focus();
+    m.addEventListener('click', ev => {
+      const o = ev.target.closest('.dd-opt'); if (!o) return;
+      const b = mdBtn, v = Number(o.dataset.val);
+      mapMenuClose(true);
+      if (b && v !== cur) b.dispatchEvent(new CustomEvent('ddselect', { bubbles: true, detail: { kind, val: v } }));
+    });
+    m.addEventListener('keydown', ev => {
+      const i = opts.indexOf(document.activeElement);
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); opts[(i + 1) % opts.length].focus(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); opts[(i - 1 + opts.length) % opts.length].focus(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); mapMenuClose(true); }
+      else if (ev.key === 'Tab') { ev.preventDefault(); mapMenuClose(true); }
+    });
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-ddk]');
+    if (b) { if (mdBtn === b) mapMenuClose(); else mapMenuOpen(b); }
+  });
+  document.addEventListener('pointerdown', e => { if (mdMenu && !mdMenu.contains(e.target) && !e.target.closest('[data-ddk]')) mapMenuClose(); });
+  window.addEventListener('resize', () => mapMenuClose());
 
-  root.UI = { $, $$, esc, show, mapCards, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
+  root.UI = { $, $$, esc, show, mapCards, limitSelect, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
 })(typeof self !== 'undefined' ? self : this);
