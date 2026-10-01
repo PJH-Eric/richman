@@ -55,7 +55,7 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
       st.props[16].owner = st.seats.findIndex((x, k) => k !== i); st.props[16].houses = 2;
       Solo.board.render(Rules.publicView(st, g.clock));
     }, [item, arg, extra || null]);
-    await page.waitForSelector('.mc .it-chip.ready', { timeout: 4000 }).catch(() => {});
+    await page.waitForSelector('.mc .mc-ihead', { timeout: 4000 }).catch(() => {});
     if (!(await invUse(page, item))) { ok(false, label + '：道具庫裡的「使用」按鈕沒出現'); continue; }
     /* 點道具鈕之後要真的進入「選目標」狀態；剛好被重繪吃掉的話（彈窗、換階段）就關掉彈窗再點一次 */
     if (!(await page.waitForFunction(() => Solo.board._debug.pick, null, { timeout: 1500 }).catch(() => null))) {

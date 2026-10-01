@@ -1126,3 +1126,55 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 @media (max-width: 340px) { .cell-dd b { font-size: .72rem; } .cell-dd { padding: 4px 1px; } .ai-diff-list .ai-no { font-size: .64rem; } }
 @media (max-width: 560px) { .dd-pair .map-tx small { display: none !important; } }
 @media (max-width: 360px) { .dd-pair .map-sw { width: 36px; height: 36px; } .dd-pair .map-sw b { font-size: .95rem; } .dd-pair .map-sw small { font-size: .52rem; } .dd-pair .map-dd { padding-left: 4px; gap: 5px; min-height: 48px; } .dd-pair .dd-caret { display: none; } .dd-pair .map-tx b { font-size: .9rem; } }
+
+/* 對局左欄：只有「摘要」可以捲動（避免兩條卷軸）；聊天室展開時固定保留一段高度，縮小時摘要吃滿 */
+.side { overflow: hidden; }
+.side .summary { flex: 1 1 0; min-height: 90px; }
+.side-chatbox { flex: 0 0 clamp(150px, 38%, 320px); min-height: 0; }
+.side-chatbox.min { flex: 0 0 auto; }
+.side-chat { flex: 1 1 0; min-height: 0; }
+.side-chat .chat-log { min-height: 60px; }
+@media (max-height: 480px) { .side-chat .chat-quick { display: none; } .side-chatbox { flex-basis: clamp(120px, 42%, 320px); } .side .summary { min-height: 70px; } }
+
+/* 對局左欄聊天室：標題（展開／縮小）＋訊息＋輸入列包成同一個卡片 */
+.side-chatbox { padding: 4px 8px 8px; gap: 6px; background: #FFF6E2; border: 3px solid var(--wood-light); border-radius: 20px; box-shadow: 0 3px 0 rgba(122,78,42,.25); overflow: hidden; }
+.side-chatbox .chat-toggle { border: 0; background: transparent; box-shadow: none; min-height: 36px; padding: 2px 6px; }
+.side-chatbox.min { padding-bottom: 4px; }
+.side-chatbox .side-chat { gap: 6px; border-top: 2px dashed #E9D2A4; padding-top: 8px; }
+.side-chatbox .chat-log { border-width: 2px; border-radius: 12px; }
+.side-chatbox .chat-form input { min-height: 42px; border-width: 2px; border-radius: 12px; }
+.side-chatbox .chat-form .send { width: 44px; height: 44px; }
+
+/* 左欄聊天室固定在左下角（浮在摘要上），切換摘要／玩家分頁不會跳動；摘要吃滿整欄、只有它會捲動 */
+.side { position: fixed; }
+@media (min-width: 900px) and (min-height: 560px) { .side { position: relative; } }
+.side .summary { flex: 1 1 0; min-height: 0; padding-bottom: calc(var(--chat-h, 0px) + 10px); }
+.side-chatbox { position: absolute; left: calc(10px + var(--safe-l, 0px)); right: 10px; bottom: calc(10px + var(--safe-b, 0px)); z-index: 5; flex: none; height: clamp(150px, 38%, 320px); }
+.side-chatbox.min { height: auto; }
+@media (max-height: 480px) { .side-chatbox { height: clamp(112px, 36%, 320px); } .side-chatbox.min { height: auto; } }
+
+/* 使用道具（選目標）時：面板不整塊捲動，只有清單自己捲；提示、確認、取消固定在清單下面 */
+.mc:has(.mc-pick) { overflow: hidden; }
+.mc:has(.mc-pick) .mc-dice, .mc:has(.mc-pick) .mc-msg { display: none; }
+.mc:has(.mc-pick) > :first-child { margin-top: 0; }
+.mc-pick { width: 100%; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.mc-pick .pcards { flex: 1 1 auto; min-height: 84px; max-height: none; }
+.mc-pick .pick-n { flex: none; }
+.mc-pick .tile-mini, .mc-pick .mc-hint { flex: none; }
+.mc-pick .pick-12 .pick-btn { min-height: 48px; padding: 3px 2px; }
+.mc-pick .pick-12 .pick-btn small { font-size: .6rem; }
+.mc-pick .link-btn { flex: none; min-height: 36px; }
+@media (max-height: 520px) { .mc-pick .pick-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); } .mc-pick .pick-12 .pick-btn { min-height: 40px; } .mc-pick .pick-12 .pick-btn small { display: none; } }
+.mc:has(.mc-pick) .mc-turn { display: none; }
+.mc:has(.mc-pick) { gap: 6px; justify-content: flex-start; }
+.mc-pick .pcards { min-height: 120px; }
+@media (max-width: 520px) { .mc-pick .pcards { grid-template-columns: 1fr; } .mc-pick .pcard .pc-stats { display: flex; flex-wrap: wrap; gap: 2px 8px; } }
+.mc-pick .pcards { grid-auto-rows: max-content; }
+.mc-pick .pcards .pcard, .mc-pick .pcards .tchip { min-height: 48px; }
+@media (max-width: 520px), (max-height: 520px) {
+  .mc-pick .mc-prompt.dim { display: none; }
+  .mc-pick .mc-prompt.strong { font-size: .95em; }
+  .mc:has(.mc-pick) .mc-props { display: none; }
+  .mc-pick .fly-f { min-height: 28px; padding: 1px 8px; }
+  .mc-pick .pcards { min-height: 130px; }
+}

@@ -63,7 +63,7 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
     gs.props.forEach(pr => { if (pr.owner !== -1 && pr.owner !== other) { } });
     gs.props[6].owner = i; gs.props[6].houses = 0; gs.props[16].owner = other; gs.props[16].houses = 2; gs.props[8].owner = -1;
     gs.version++; room.changed = true; app.flush();
-    await p.waitForSelector('.mc .it-chip.ready', { timeout: 6000 }).catch(() => {});
+    await p.waitForSelector('.mc .mc-ihead', { timeout: 6000 }).catch(() => {});
     if (!(await invUse(p, item))) { ok(false, label + '：道具庫裡的「使用」按鈕沒出現'); continue; }
     if (item === 'fly') {
       await p.click('.mc [data-fsel="' + arg + '"]', { timeout: 4000 });
@@ -107,7 +107,7 @@ async function leaveShop(pg) { await pg.click('.shop-ov [data-shopleave="ask"]',
     await settle();
     const i = gs.turn, p = pageOf(i);
     gs.seats[i].items = ['fly']; gs.version++; room.changed = true; app.flush();
-    await p.waitForSelector('.mc .it-chip.ready', { timeout: 6000 }).catch(() => {});
+    await p.waitForSelector('.mc .mc-ihead', { timeout: 6000 }).catch(() => {});
     await invUse(p, 'fly');   /* 開著選格子的狀態直接重新整理 */
     await p.reload();
     await p.waitForFunction(() => window.Online && Online.board && Online.board.v3 && Online.room && Online.room.game, null, { timeout: 25000 }).catch(() => {});

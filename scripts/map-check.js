@@ -64,7 +64,7 @@ async function invUse(pg, item) {
         await page.waitForTimeout(250);
       }
       await page.evaluate(([idx]) => { const g = Solo._debug, st = g.state, me = st.seats[st.turn]; me.items = ['fly']; me.cash = 3000; me.pos = idx === 1 ? 2 : 1; me.jail = false; Solo.board.render(Rules.publicView(st, g.clock)); }, [idx]);
-      await page.waitForSelector('.mc .it-chip.ready', { timeout: 5000 }).catch(() => {});
+      await page.waitForSelector('.mc .mc-ihead', { timeout: 5000 }).catch(() => {});
       await invUse(page, 'fly');
       await page.waitForTimeout(400);
       await page.evaluate(t => Solo.board.tileClick(t), idx);

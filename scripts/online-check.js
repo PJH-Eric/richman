@@ -331,6 +331,12 @@ function hubTest() {
     me = fresh('dice');
     r = hub.gameAct(p1, { type: 'useItem', item: 'dice', n: 3 });
     ok(me.pos !== 3 && !me.items.includes('dice'), '線上：遙控骰欄位 n 有送到並生效');
+    me = fresh('fly'); me.items = [];
+    hub.gameAct(p1, { type: 'roll', dice: 1 });
+    ok(gs.dice[1] === 0 && gs.diceKind === 'one', '線上：選擲 1 顆骰子，伺服器真的只擲 1 顆（dice 欄位有送到）');
+    me = fresh('fly'); me.items = [];
+    hub.gameAct(p1, { type: 'roll', dice: 2 });
+    ok(gs.dice[1] > 0 && gs.diceKind === 'two', '線上：選擲 2 顆骰子則擲兩顆');
     me = fresh('steal'); const vic = gs.seats.findIndex((x, k) => k !== gs.turn), c0 = me.cash, v0 = gs.seats[vic].cash;
     r = hub.gameAct(p1, { type: 'useItem', item: 'steal', target: vic });
     ok(me.cash > c0 && gs.seats[vic].cash < v0, '線上：偷錢 target 有送到並生效');

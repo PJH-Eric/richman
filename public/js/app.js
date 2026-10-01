@@ -136,6 +136,10 @@
       applyChatMin();
     };
     chatMinState = () => chatMin;
+    /* 聊天室浮在左下角：把它的高度告訴摘要，摘要底部留白，才捲得到最後一行 */
+    if (window.ResizeObserver) new ResizeObserver(() => {
+      const bx = $('#side-chatbox'); $('#side').style.setProperty('--chat-h', (bx.hidden ? 0 : bx.offsetHeight) + 'px');
+    }).observe($('#side-chatbox'));
     applyChatMin();
     $('#chat-pop-close').onclick = () => setChatPop(false);
     root.UI.chat.mount();

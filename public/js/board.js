@@ -144,22 +144,10 @@
         '<button type="button" role="radio" class="dc-btn' + (n === k ? ' sel' : '') + '" data-dn="' + k + '" aria-checked="' + (n === k) + '"' + dis + '>' +
         '<span class="dc-dice">' + Art.dieSvg(k === 1 ? 5 : 3) + (k === 2 ? Art.dieSvg(4) : '') + '</span><b>' + k + ' 顆骰子</b><small>' + (k === 1 ? '走 1～6 步，穩穩來' : '走 2～12 步，衝快一點') + '</small></button>').join('') + '</div>';
     }
-    function itemChips(s, canUse, opts) {
+    /* 右下角面板只放「道具庫」入口與數量；有哪些道具、怎麼用，打開道具庫就看得到 */
+    function itemChips(s) {
       const n = (s.items || []).length;
-      let out = '<div class="mc-itemwrap"><button type="button" class="mc-ihead" data-inv="1" aria-label="打開道具庫"><b>\uD83C\uDF92 道具庫</b><small>' + n + '／' + R.MAX_ITEMS + '　查看全部 ›</small></button>';
-      if (!n) {
-        out += '<p class="mc-inone">還沒有道具：停在休息站、道具商店，或抽到道具卡就能拿到</p></div>';
-        return out;
-      }
-      out += '<div class="mc-items" role="group" aria-label="我的道具">' + s.items.map(id => {
-        const it = R.ITEMS[id];
-        const active = it.active && canUse && !!opts[id];
-        const inner = '<span class="it-ico">' + Art.glyph('i_' + id) + '</span><span class="it-tx"><b>' + it.name + '</b><small>' +
-          (it.active ? (active ? '可在道具庫使用' : '擲骰前可用') : '自動生效') + '</small></span>';
-        /* 使用道具統一在「道具庫」展開畫面裡按「使用」；這裡只是看一眼有什麼 */
-        return '<span class="it-chip' + (active ? ' ready' : '') + '" title="' + esc(it.desc) + '">' + inner + '</span>';
-      }).join('') + '</div>';
-      return out + '</div>';
+      return '<div class="mc-itemwrap"><button type="button" class="mc-ihead" data-inv="1" aria-label="打開道具庫，目前 ' + n + ' 個道具"><b>\uD83C\uDF92 道具庫</b><small>' + n + '／' + R.MAX_ITEMS + '　查看全部 ›</small></button></div>';
     }
 
     function centerHtml(v) {
@@ -180,7 +168,6 @@
       out += '<p class="mc-msg">' + esc(last ? last.text : '') + '</p>';
       const canItem = mine && v.phase === 'roll' && !cur.jail && !B.busy && !B.sent && opts;
       const chipsHtml = me >= 0 ? itemChips(v.seats[me], canItem, opts || {}) : '';
-      if (B.pick) out += chipsHtml;
       if (canItem && B.pick === 'dice') {
         const dn = B.sel;
         out += '<div class="mc-pick"><p class="mc-prompt strong">遙控骰：想走幾步？</p><div class="pick-n pick-12">' +

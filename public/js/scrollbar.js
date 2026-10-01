@@ -4,7 +4,7 @@
  * 套用對象：SEL 列出的容器＋整個頁面（非遊戲畫面時）。新容器出現會自動接上。 */
 (function (root) {
   'use strict';
-  const SEL = '.chat-log, .summary, .sum-pane, .pcards, .result-card, .modal-body, .mc, .side, [data-cs]';
+  const SEL = '.chat-log, .summary, .sum-pane, .pcards, .result-card, .modal-body, .mc, [data-cs]';
   const bars = new Map();
   let layer = null, raf = 0;
 
@@ -71,7 +71,10 @@
       if (el.scrollHeight <= el.clientHeight + 2) return hide(b);
       const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, innerHeight);
       if (bottom - top < 40) return hide(b);
-      x = r.right - (parseFloat(cs.borderRightWidth) || 0); y = top; h = bottom - top;
+      let bottom2 = bottom;
+      /* 對局左欄：聊天室浮在摘要上面，卷軸只畫在沒被蓋住的部分 */
+      if (el.id === 'summary') { const cb = document.getElementById('side-chatbox'); if (cb && !cb.hidden) { const cr = cb.getBoundingClientRect(); if (cr.top > top && cr.top < bottom2) bottom2 = cr.top - 6; } }
+      x = r.right - (parseFloat(cs.borderRightWidth) || 0); y = top; h = bottom2 - top;
       b.room = el.scrollHeight - el.clientHeight;
       /* 被別的東西蓋住（例如彈窗底下的面板）就不畫 */
       const hit = document.elementFromPoint(Math.min(innerWidth - 2, x - 8), Math.min(innerHeight - 2, y + h / 2));

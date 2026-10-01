@@ -168,8 +168,8 @@ async function solo(browser, base) {
   /* 道具：遙控骰選點數、機票點 3D 棋盤 */
   if (await mineTurn()) {
     await page.evaluate(() => { const g = Solo._debug; const me0 = g.state.seats[g.state.turn]; me0.items = ['dice', 'fly', 'cat']; me0.jail = false; me0.jailTurns = 0; Solo.board.render(Rules.publicView(g.state, g.clock)); });
-    await page.waitForSelector('.mc-items .it-chip.ready', { timeout: 3000 }).catch(() => {});
-    ok(await page.$$eval('.mc-items .it-chip', e => e.length) === 3, '道具列顯示 3 個道具');
+    await page.waitForSelector('.mc-ihead', { timeout: 3000 }).catch(() => {});
+    ok(/3／/.test(await page.$eval('.mc-ihead', e => e.textContent)), '右下角只顯示道具庫與數量（3 個道具）');
     ok(await invUse(page, 'dice'), '道具庫裡按「使用」→ 接著在面板選遙控骰步數');
     ok((await page.$$eval('.mc .pick-btn', e => e.length)) === 12, '遙控骰：出現 1～12 步選單');
     await page.click('.mc [data-n="3"]');
@@ -215,7 +215,7 @@ async function solo(browser, base) {
       g.state.seats.filter(x => x.id !== 'me').forEach((x, k) => { x.pos = 5 + k; x.cash = 1500; x.jail = false; });
       Solo.board.render(Rules.publicView(g.state, g.clock));
     });
-    await page.waitForSelector('.mc .it-chip.ready', { timeout: 4000 }).catch(() => {});
+    await page.waitForSelector('.mc .mc-ihead', { timeout: 4000 }).catch(() => {});
     ok(!(await page.$('.mc [data-item]')), '面板上的道具不能直接按（統一在道具庫使用）');
     ok(await invUse(page, 'steal'), '偷錢卡在道具庫按「使用」');
     ok((await page.$$eval('.mc .tgt-btn', e => e.length)) >= 1, '偷錢卡：出現選對手的按鈕');
