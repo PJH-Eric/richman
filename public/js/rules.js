@@ -46,7 +46,7 @@
    * 只套用在有地圖倍率的格數（48～120 格）；經典 40 格維持原價 */
   function econOf(startCash, size) {
     if (CASH_MULT[Number(size)] == null) return 1;
-    return Math.round(Math.min(5, Math.max(1, Number(startCash) / 6000)) * 100) / 100;
+    return Math.round(Math.min(4, Math.max(1, Number(startCash) / 6000)) * 100) / 100;
   }
   /** 小額（卡片、神明、罰金…）依倍率換算：100 以上取 10 的倍數，其餘取 5 的倍數，至少 5 */
   function scaleMoney(x, e) {
