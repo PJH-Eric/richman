@@ -238,24 +238,24 @@
     collect:{ name: '收租券', pts: 30, active: true, direct: true, desc: '擲骰前使用：向每位對手各收一筆錢（約起點薪水的 1/10，對方現金不夠就收他有的）' },
     chest:  { name: '福袋', pts: 20, active: true, direct: true, desc: '擲骰前使用：打開福袋，立刻隨機獲得 1 個其他道具' },
     gobonus:{ name: '起點加碼券', pts: 20, active: false, desc: '下一次經過起點時自動用掉，薪水加倍' },
-    cure:   { name: '驅神符', pts: 10, active: true, direct: true, desc: '擲骰前使用：送走身上的窮神或衰神（沒有壞神附身就用不了）' },
-    free:   { name: '免租券', pts: 30, active: false, desc: '下一次要付過路費時自動用掉，這次不用付' },
+    cure:   { name: '驅神符', pts: 10, active: true, direct: true, desc: '擲骰前使用：送走身上的窮神或衰神（需要有窮神或衰神附身）' },
+    free:   { name: '免租券', pts: 30, active: false, desc: '下一次要付過路費時自動用掉，這次免付' },
     cat:    { name: '招財貓', pts: 30, active: false, desc: '下一次有人付你過路費時，租金加倍（用掉）' },
     steal:  { name: '偷錢卡', pts: 30, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，偷走他 10% 的現金（有上限，依地圖大小與初始資產）' },
     coupon: { name: '購地免費券', pts: 40, active: false, desc: '下一次買無主的地時自動用掉，這塊地免費' },
     god:    { name: '求神符', pts: 30, active: true, direct: true, desc: '擲骰前使用：隨機請來福神或財神附身 4 個回合（身上已有神就用不了）' },
-    salary: { name: '領薪券', pts: 30, active: true, direct: true, desc: '擲骰前使用：立刻領一次起點薪水（依地圖大小與初始資產），不用走到起點' },
+    salary: { name: '領薪券', pts: 30, active: true, direct: true, desc: '擲骰前使用：立刻領一次起點薪水（依地圖大小），人在哪裡都能領' },
     surge:  { name: '漲價卡', pts: 30, active: true, target: 'tile', desc: '擲骰前使用：指定自己的一塊地，過路費 ×1.5，持續 3 個回合' },
     guard:  { name: '護身符', pts: 40, active: false, desc: '別人對你使用偷錢卡、搶奪卡、換位卡、冰凍卡、陷害卡或炸彈時自動擋下（用掉）' },
     bomb:   { name: '炸彈', pts: 40, active: true, target: 'tile', desc: '擲骰前使用：炸掉指定對手的一間房子（旅店降回 4 間房）' },
     freeze: { name: '冰凍卡', pts: 40, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，他的下一個回合直接跳過' },
-    grab:   { name: '搶奪卡', pts: 40, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，隨機搶走他的 1 個道具（對方沒有道具就不能用）' },
+    grab:   { name: '搶奪卡', pts: 40, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，隨機搶走他的 1 個道具（對方需要有道具）' },
     equal:  { name: '均富卡', pts: 100, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，你和他的現金加起來平分（護身符可以擋下）' },
     frame:  { name: '陷害卡', pts: 40, active: true, target: 'seat', desc: '擲骰前使用：指定一位對手，讓他直接去坐牢（保釋券、護身符可以擋下）' },
     again:  { name: '加骰券', pts: 40, active: true, direct: true, desc: '擲骰前使用：這回合走完後，可以再擲一次骰子' },
-    reflect:{ name: '反彈卡', pts: 50, active: false, desc: '下一次要付過路費時自動用掉：你不用付，屋主反而要付你一半的過路費' },
+    reflect:{ name: '反彈卡', pts: 50, active: false, desc: '下一次要付過路費時自動用掉：你免付，屋主反而要付你一半的過路費' },
     seize:  { name: '強制購地券', pts: 50, active: false, desc: '踩到別人的地、付完過路費後自動用掉：這塊地直接變成你的（房子一起過戶）' },
-    upgrade:{ name: '加蓋券', pts: 50, active: true, target: 'tile', desc: '擲骰前使用：免費幫自己的一塊地加蓋一間房子（照一般升級規則，不必站在那格）' }
+    upgrade:{ name: '加蓋券', pts: 50, active: true, target: 'tile', desc: '擲骰前使用：免費幫自己的一塊地加蓋一間房子（照一般升級規則，人在哪裡都能指定）' }
   };
   const STOCK_BASE = { 10: 10, 20: 8, 30: 6, 40: 4, 50: 3 };
   /** 單場遊戲某商品的庫存：越貴越少；人多時加倍（每 4 人一份） */
