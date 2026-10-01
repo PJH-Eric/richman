@@ -175,7 +175,7 @@ section('起始現金與起點薪水依地圖大小倍率');
     });
     eq(R.goSalaryFor(Number(n)), Math.round(500 * mult[n]), n + ' 格：起點薪水 ' + Math.round(500 * mult[n]));
     const st = R.create(['a', 'b'].map(x => ({ id: x, name: x, char: 'otter' })), { seed: 'g' + n, mapSize: Number(n) });
-    const sal = Math.round(Math.round(500 * mult[n]) * st.econ / 10) * 10;
+    const sal = Math.round(Math.round(500 * mult[n]) * st.econ * 1.5 / 10) * 10;
     eq(R.salaryOf(st), sal, n + ' 格：salaryOf');
     const me = st.seats[st.turn], c0 = me.cash; me.pos = Number(n) - 1; me.items = ['dice'];
     const r = R.act(st, me.id, { type: 'useItem', item: 'dice', n: 2 }, 0);
@@ -645,7 +645,8 @@ section('隨機地圖與道具商店');
     ok(Object.keys(m.groups).length === q.groups && Object.keys(m.groups).every(k => (g[k] || []).length >= 2 && g[k].length <= 6), tag + '：' + q.groups + ' 個色組，每組 2～6 塊地');
     const cnt = ty => t.filter(x => x.type === ty).length;
     ok(cnt('station') === q.station && cnt('utility') === q.utility && cnt('tax') === q.tax && cnt('shop') === q.shop && cnt('chance') === q.chance && cnt('chest') === q.chest && cnt('prop') === q.props, tag + '：各種格子數量符合配額');
-    ok(cnt('shop') >= 4, tag + '：至少 4 間道具商店');
+    { const per = n / 4, sd = [0, 0, 0, 0]; t.forEach((x, k) => { if (x.type === 'shop') sd[Math.floor(k / per)]++; }); ok(Math.max(...sd) <= 1 && cnt('shop') <= 4, tag + '：道具商店每一邊最多 1 間、全圖最多 4 間'); }
+    ok(cnt('shop') >= 2 && cnt('shop') <= Math.ceil(n / 24) + 1, tag + '：道具商店 2 間起、約每 24 格 1 間');
     const names = t.filter(x => x.type === 'prop').map(x => x.name);
     ok(new Set(names).size === names.length, tag + '：地產名稱不重複');
     const props = t.filter(x => x.type === 'prop');

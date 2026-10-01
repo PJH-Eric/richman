@@ -77,8 +77,8 @@
       x = r.right - (parseFloat(cs.borderRightWidth) || 0); y = top; h = bottom2 - top;
       b.room = el.scrollHeight - el.clientHeight;
       /* 被別的東西蓋住（例如彈窗底下的面板）就不畫 */
-      const hit = document.elementFromPoint(Math.min(innerWidth - 2, x - 8), Math.min(innerHeight - 2, y + h / 2));
-      if (!hit || !(el.contains(hit) || hit.closest('#cs-layer'))) return hide(b);
+      const hit = document.elementFromPoint(Math.max(2, Math.min(innerWidth - 2, x - 30)), Math.min(innerHeight - 2, y + h / 2));
+      if (!hit || !el.contains(hit)) return hide(b);
     }
     const th = h - 12;
     const view = b.page ? innerHeight : el.clientHeight;

@@ -49,7 +49,7 @@
    * 只套用在有地圖倍率的格數（48～120 格）；經典 40 格維持原價 */
   function econOf(startCash, size) {
     if (CASH_MULT[Number(size)] == null) return 1;
-    return Math.round(Math.min(2.2, Math.max(0.6, Math.sqrt(Number(startCash) / START_CASH))) * 100) / 100;
+    return Math.round(Math.min(4, Math.max(0.5, Number(startCash) / START_CASH)) * 100) / 100;
   }
   /** 小額（卡片、神明、罰金…）依倍率換算：100 以上取 10 的倍數，其餘取 5 的倍數，至少 5 */
   function scaleMoney(x, e) {
@@ -58,7 +58,9 @@
   }
   const econ = state => (state && state.econ) || 1;
   function goSalaryFor(size) { const m = CASH_MULT[Number(size)]; return m == null ? GO_SALARY : Math.round(500 * m); }
-  function salaryOf(state) { const b = goSalaryFor(tl(state).length); return econ(state) === 1 ? b : Math.round(b * econ(state) / 10) * 10; }
+  /** 收入（起點薪水、收錢卡、財神）額外再乘 GAIN，讓賺錢的感覺跟得上花費 */
+  const GAIN = 1.5;
+  function salaryOf(state) { const b = goSalaryFor(tl(state).length); return CASH_MULT[tl(state).length] == null ? b : Math.round(b * econ(state) * GAIN / 10) * 10; }
   /** 偷錢卡上限：起點薪水的 2 倍（1200／1400／1600／1800／2000）；經典 40 格＝300 */
   function stealCap(state) { return CASH_MULT[tl(state).length] == null ? 300 : salaryOf(state) * 2; }
   const GO_SALARY = 200;
@@ -693,16 +695,16 @@
   }
 
   /** 卡片上的金額也跟著初始資產倍率調整（文字一起改） */
-  function scaleCard(card, E) {
-    if (E === 1 || !/^(collect|pay|eachPay|eachCollect|repairs)$/.test(card.t)) return card;
+  function scaleCard(card, E, scaled) {
+    if ((E === 1 && !scaled) || !/^(collect|pay|eachPay|eachCollect|repairs)$/.test(card.t)) return card;
     const c = Object.assign({}, card), toks = [];
     let text = card.text;
-    const sub = v => {
-      const nv = scaleMoney(v, E), k = toks.push(nv) - 1;
+    const sub = (v, g) => {
+      const nv = scaleMoney(v, E * (g || 1)), k = toks.push(nv) - 1;
       text = text.replace(new RegExp('(^|[^0-9])' + v + ' 元'), (m, a) => a + '{' + k + '} 元');
       return nv;
     };
-    if (card.t === 'repairs') { c.house = sub(card.house); c.hotel = sub(card.hotel); } else c.n = sub(card.n);
+    if (card.t === 'repairs') { c.house = sub(card.house); c.hotel = sub(card.hotel); } else c.n = sub(card.n, scaled && /^(collect|eachCollect)$/.test(card.t) ? GAIN : 1);
     c.text = text.replace(/\{(\d)\} 元/g, (m, k) => toks[k] + ' 元');
     return c;
   }
@@ -711,7 +713,7 @@
     const list = deck === 'chance' ? CHANCE : CHEST;
     const order = state._decks[deck];
     const idx = order.shift();
-    const card = scaleCard(list[idx], econ(state));
+    const card = scaleCard(list[idx], econ(state), CASH_MULT[tl(state).length] != null);
     if (card.t !== 'getOut') order.push(idx);
     state.card = { n: ++state.cardSeq, deck, text: card.text, seat: si };
     const MOOD = { collect: 'good', points: 'good', getOut: 'good', item: 'good', eachCollect: 'good', pay: 'bad', jail: 'bad', moveBack: 'bad', repairs: 'bad', eachPay: 'bad' };
@@ -794,7 +796,7 @@
     const s = state.seats[si];
     if (!s.god) return;
     const k = s.god.k;
-    if (k === 'wealth') { const w = scaleMoney(120, econ(state)); s.cash += w; ev(state, { t: 'cash', seat: si, to: -2, amount: w, reason: 'god' }); say(state, '財神送錢：' + s.name + ' 領到 ' + w + ' 元'); }
+    if (k === 'wealth') { const w = scaleMoney(120, econ(state) * (CASH_MULT[tl(state).length] == null ? 1 : GAIN)); s.cash += w; ev(state, { t: 'cash', seat: si, to: -2, amount: w, reason: 'god' }); say(state, '財神送錢：' + s.name + ' 領到 ' + w + ' 元'); }
     else if (k === 'unlucky') {
       const n = Math.min(scaleMoney(80, econ(state)), s.cash);
       if (n > 0) { s.cash -= n; ev(state, { t: 'cash', seat: si, to: -1, amount: n, reason: 'godbad' }); say(state, '衰神作祟：' + s.name + ' 破財 ' + n + ' 元'); }

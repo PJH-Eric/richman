@@ -1178,3 +1178,16 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
   .mc-pick .fly-f { min-height: 28px; padding: 1px 8px; }
   .mc-pick .pcards { min-height: 130px; }
 }
+
+/* 道具庫：加寬、兩欄、按鈕不換行 */
+.modal-card.inv-wide { width: min(760px, 100%); }
+.modal-card.inv-wide .modal-body { padding-inline: 18px; }
+.inv-cap { font-size: 1rem; line-height: 1.5; }
+.inv-list { gap: 10px; }
+.inv-list li { padding: 10px 14px; gap: 14px; }
+.inv-list li .btn3d { white-space: nowrap; flex: none; min-width: 7.5em; }
+.inv-tx b { font-size: 1.05rem; }
+.inv-tx small { font-size: .88rem; line-height: 1.45; }
+.inv-list li.inv-empty { grid-column: 1 / -1; }
+@media (min-width: 700px) { .inv-list { display: grid; grid-template-columns: 1fr 1fr; } .inv-list li { align-items: center; } }
+@media (max-width: 520px) { .inv-list li { flex-wrap: wrap; } .inv-list li .btn3d { width: 100%; } }

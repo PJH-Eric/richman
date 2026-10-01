@@ -175,7 +175,7 @@
   /** 各格數的格子配額：特殊格（機會、命運、車站、公司、稅、商店）與地產數量 */
   function quotas(n) {
     const L = n - 4;
-    const shop = Math.round(L / 12), chance = Math.round(L / 10), chest = Math.round(L / 11);
+    const shop = Math.min(4, Math.max(2, Math.round(L / 24))), chance = Math.round(L / 14), chest = Math.round(L / 15);
     const station = Math.max(4, Math.round(n / 20)), utility = n >= 96 ? 3 : 2, tax = n >= 96 ? 4 : n >= 80 ? 3 : 2;
     const props = L - shop - chance - chest - station - utility - tax;
     const groups = Math.min(14, Math.max(8, Math.round(props / 4)));
@@ -217,6 +217,18 @@
     for (let k = 0; k < q.shop; k++) rest.push('$'); for (let k = 0; k < q.chance; k++) rest.push('C'); for (let k = 0; k < q.chest; k++) rest.push('H');
     rng.shuffle(rest);
     for (let k = 0; k < S; k++) if (!types[k]) types[k] = rest.pop();
+    /* 道具商店：每一邊（一排）最多一間——同一邊有兩間以上的，跟沒有商店的那一邊交換 */
+    const sideOf = k => Math.min(3, Math.floor(slots[k] / (q.L / 4)));
+    for (let guard = 0; guard < 20; guard++) {
+      const cnt = [0, 0, 0, 0]; types.forEach((t, k) => { if (t === '$') cnt[sideOf(k)]++; });
+      const dup = types.findIndex((t, k) => t === '$' && cnt[sideOf(k)] > 1);
+      const empty = cnt.map((c, i) => c === 0 ? i : -1).filter(i => i >= 0);
+      if (dup < 0 || !empty.length) break;
+      const cand = types.map((t, k) => k).filter(k => empty.includes(sideOf(k)) && types[k] !== 'S' && types[k] !== '$');
+      if (!cand.length) break;
+      const k2 = cand[Math.floor(rng.next() * cand.length)];
+      types[dup] = types[k2]; types[k2] = '$';
+    }
     const specialAt = {};
     slots.forEach((sl, k) => { specialAt[sl] = types[k]; });
     /* 依序鋪滿整圈 */

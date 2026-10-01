@@ -881,6 +881,7 @@
     B.openInv = function (from) {
       if (!opt.tile || !B.shown || meIndex(B.shown) < 0) return;
       B.tileOpen = -1;
+      { const mc = opt.tile.body.closest('.modal-card'); if (mc) { mc.classList.remove('narrow'); mc.classList.add('inv-wide'); } }
       opt.tile.modal.open(from);
       opt.tile.title.textContent = '\uD83C\uDF92 道具庫';
       opt.tile.body.innerHTML = invHtml(B.shown);
@@ -920,6 +921,7 @@
     };
     B.openTile = function (i, from) {
       if (!opt.tile || !B.shown) return;
+      { const mc = opt.tile.body.closest('.modal-card'); if (mc) { mc.classList.add('narrow'); mc.classList.remove('inv-wide'); } }
       B.tileOpen = i;
       opt.tile.modal.open(from);
       opt.tile.body.innerHTML = tileInfoHtml(B.shown, i);
