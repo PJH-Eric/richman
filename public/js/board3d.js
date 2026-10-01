@@ -322,7 +322,7 @@
           const os = v.seats && v.seats[p.owner];
           if (os) {
             const face = new THREE.Sprite(new THREE.SpriteMaterial({ map: faceTexture(os.char, col), transparent: true }));
-            face.scale.set(0.78, 0.78, 1); face.position.set(at(0.1, 0)[0], 0.62, at(0.1, 0)[1]); face.renderOrder = 5;
+            face.scale.set(0.56, 0.56, 1); face.position.set(at(0.1, 0)[0], 0.5, at(0.1, 0)[1]); face.renderOrder = 5;
             o.mark.add(face);
           }
         }

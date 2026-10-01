@@ -344,8 +344,9 @@ async function online(browser, base) {
 
   /* 開局 */
   await A.page.click('[data-act="start"]');
-  await A.page.waitForSelector('#screen-game:not([hidden])');
-  await B.page.waitForSelector('#screen-game:not([hidden])');
+  /* 測試機用軟體算圖，切到對局畫面偶爾要 10 秒左右 */
+  await A.page.waitForSelector('#screen-game:not([hidden])', { timeout: 30000 });
+  await B.page.waitForSelector('#screen-game:not([hidden])', { timeout: 30000 });
   await A.page.waitForFunction(() => Online.board && Online.board.v3, null, { timeout: 15000 });
   await B.page.waitForFunction(() => Online.board && Online.board.v3, null, { timeout: 15000 });
   ok(true, '開局後兩邊都看到 3D 棋盤');

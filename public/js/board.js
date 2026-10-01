@@ -37,12 +37,18 @@
   /* ---------- 建立 ---------- */
 
   function create(boardEl, sumEl, opt) {
+    /* 同一個棋盤元素上若還有沒收掉的舊局（單機↔線上切換、再來一局），先整個拆掉，舊局的按鍵才不會搶著送出 */
+    if (boardEl._rmBoard && !boardEl._rmBoard.dead) boardEl._rmBoard.destroy();
     R.useMap(opt.map);      /* 先切到這一局的地圖，3D 棋盤才知道要排幾格 */
     const B = {
       opt, myId: opt.myId || null, view: null, shown: null, latest: null, lastN: -1,
       queue: [], pumping: false, busy: false, dead: false, pos: [], first: true,
       lastTurn: -1, lastPhase: '', sent: false, deadlineAt: 0, cardResolve: null, confirmBankrupt: false
     };
+    boardEl._rmBoard = B;
+    /* 這一局掛上的所有事件監聽，銷毀時一次拔掉 */
+    const AC = new AbortController();
+    const LS = { signal: AC.signal };
     const st = () => (opt.settings ? opt.settings() : {});
     const reduce = () => !!st().reduceMotion;
 
@@ -280,6 +286,7 @@
 
     /** 送出操作：鎖住按鈕防連按；伺服器沒回應或被拒絕時 2.5 秒後自動解鎖，不會卡住 */
     function send(a) {
+      if (B.dead) return;
       B.sent = true;
       opt.onAct(a);
       clearTimeout(B.sentT);
@@ -361,12 +368,12 @@
       if (lv) { B.shopLeave = lv.dataset.shopleave === 'ask'; drawShop(B.shown); return; }
       const b = ev.target.closest('[data-a="decline"]');
       if (b && !b.disabled && !B.sent) { b.disabled = true; B.shopLeave = false; send({ type: 'decline' }); }
-    });
+    }, LS);
     const shopKey = ev => {
       if (B.dead || !shopEl.isConnected) { document.removeEventListener('keydown', shopKey, true); return; }
       if (ev.key === 'Escape' && !shopEl.hidden) { ev.stopPropagation(); ev.preventDefault(); B.shopLeave = !B.shopLeave; drawShop(B.shown); }
     };
-    document.addEventListener('keydown', shopKey, true);
+    document.addEventListener('keydown', shopKey, { capture: true, signal: AC.signal });
 
     function drawCenter(v) {
       /* 動畫播到一半不重畫骰子區，免得打斷 */
@@ -467,14 +474,14 @@
       B.sumTab = t.dataset.sumtab;
       drawSummary(B.shown);
       const nb = sumEl.querySelector('[data-sumtab="' + B.sumTab + '"]'); if (nb) nb.focus();
-    });
+    }, LS);
     sumEl.addEventListener('keydown', ev => { if (B.dead) return;
       if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') && ev.target.closest('[data-sumtab]') && B.shown) {
         B.sumTab = B.sumTab === 'players' ? 'info' : 'players';
         drawSummary(B.shown);
         const nb = sumEl.querySelector('[data-sumtab="' + B.sumTab + '"]'); if (nb) nb.focus();
       }
-    });
+    }, LS);
 
     /* 直向手機／平板：棋盤下面的空地放一排「每個人有多少錢」，不用打開資訊面板 */
     const strip = document.createElement('div');
@@ -827,8 +834,14 @@
       if (rb && !cur_isJail()) rb.lastChild.nodeType === 3 && (rb.lastChild.nodeValue = '擲 ' + B.diceN + ' 顆骰子');
       return true;
     }
+    /** 要擲幾顆：以畫面上目前亮著的選項為準（跟玩家看到的一致），沒有選項時才用記住的值 */
+    function rollCount() {
+      const sel = mc.querySelector('.dice-choose [data-dn].sel');
+      if (sel) B.diceN = Number(sel.dataset.dn) === 1 ? 1 : 2;
+      return B.diceN === 1 ? 1 : 2;
+    }
     function cur_isJail() { const v = B.shown; return !v || !!(v.seats[v.turn] && v.seats[v.turn].jail); }
-    boardEl.addEventListener('pointerdown', ev => { if (!B.dead) chooseDice(ev); });
+    boardEl.addEventListener('pointerdown', ev => { if (!B.dead) chooseDice(ev); }, LS);
     boardEl.addEventListener('click', ev => { if (B.dead) return;
       const inv = ev.target.closest('[data-inv]');
       if (inv) { B.openInv(inv); return; }
@@ -863,17 +876,17 @@
           B.confirmBankrupt = false;
         }
         b.disabled = true;
-        send(a === 'roll' ? { type: 'roll', dice: B.diceN === 1 ? 1 : 2 } : b.dataset.tile != null ? { type: a, tile: Number(b.dataset.tile) } : { type: a });
+        send(a === 'roll' ? { type: 'roll', dice: rollCount() } : b.dataset.tile != null ? { type: a, tile: Number(b.dataset.tile) } : { type: a });
         return;
       }
-    });
+    }, LS);
 
     if (opt.manage) opt.manage.body.addEventListener('click', ev => { if (B.dead) return;
       const b = ev.target.closest('[data-mg]');
       if (!b || b.disabled) return;
       send({ type: b.dataset.mg, tile: Number(b.dataset.tile) });
       if (opt.solo) { drawModals(); }
-    });
+    }, LS);
 
     function invHtml(v) {
       const me = meIndex(v);
@@ -905,7 +918,7 @@
       if ((R.ITEMS[b.dataset.invuse] && R.ITEMS[b.dataset.invuse].direct)) { B.pick = null; send({ type: 'useItem', item: b.dataset.invuse }); return; }
       B.pick = b.dataset.invuse; B.sel = null;
       drawCenter(B.shown);
-    });
+    }, LS);
 
     B.openManage = function (from) {
       if (!opt.manage || !B.shown) return;
@@ -949,7 +962,7 @@
       const o = R.options(v, B.myId);
       const a = o.roll ? 'roll' : o.buy ? 'buy' : o.settle ? 'settle' : o.endTurn ? 'endTurn' : null;
       if (!a) return false;
-      send(a === 'roll' ? { type: 'roll', dice: B.diceN === 1 ? 1 : 2 } : { type: a });
+      send(a === 'roll' ? { type: 'roll', dice: rollCount() } : { type: a });
       return true;
     };
 
@@ -968,7 +981,10 @@
     }, 500);
     B.destroy = function () {
       B.dead = true;
+      AC.abort();
+      clearTimeout(B.sentT);
       clearInterval(B.timer);
+      if (boardEl._rmBoard === B) boardEl._rmBoard = null;
       if (B.cardResolve) B.cardResolve();
       if (B.v3) B.v3.destroy();
       boardEl.classList.remove('is3d');

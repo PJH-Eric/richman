@@ -42,11 +42,14 @@
     if (m == null) return n > 0 ? n * 100 : START_CASH;
     return Math.round((n > 0 ? n : 100) * 200 * m);
   }
-  /* 金額隨初始資產調整：倍率＝√(初始現金÷10000)，限制在 0.6～2.2（初始越多，地價、房價、過路費、稅、卡片金額都稍微調高；越少則調低）。
-   * 只套用在有地圖倍率的格數（48～120 格）；經典 40 格維持原價 */
+  /* 金額隨初始資產調整：資產倍率＝初始現金÷6000，範圍 1～3.6（地價、房價、過路費、稅、卡片金額一起調整）。
+   * 套用在有地圖倍率的格數（48～120 格）；經典 40 格用原價 */
+  const ECON_MAX = 3.6;
+  /** 機會／命運卡的收付金額在資產倍率之外再乘 CARD_K，跟大地圖的地價、現金同一個量級 */
+  const CARD_K = 2;
   function econOf(startCash, size) {
     if (CASH_MULT[Number(size)] == null) return 1;
-    return Math.round(Math.min(4, Math.max(1, Number(startCash) / 6000)) * 100) / 100;
+    return Math.round(Math.min(ECON_MAX, Math.max(1, Number(startCash) / 6000)) * 100) / 100;
   }
   /** 小額（卡片、神明、罰金…）依倍率換算：100 以上取 10 的倍數，其餘取 5 的倍數，至少 5 */
   function scaleMoney(x, e) {
@@ -697,8 +700,9 @@
     if ((E === 1 && !scaled) || !/^(collect|pay|eachPay|eachCollect|repairs)$/.test(card.t)) return card;
     const c = Object.assign({}, card), toks = [];
     let text = card.text;
+    const k0 = scaled ? CARD_K : 1;
     const sub = (v, g) => {
-      const nv = scaleMoney(v, E * (g || 1)), k = toks.push(nv) - 1;
+      const nv = scaleMoney(v, E * k0 * (g || 1)), k = toks.push(nv) - 1;
       text = text.replace(new RegExp('(^|[^0-9])' + v + ' 元'), (m, a) => a + '{' + k + '} 元');
       return nv;
     };
@@ -1257,7 +1261,7 @@
   const inMap = fn => function (state) { if (state && state.map) useMap(state.map); return fn.apply(null, arguments); };
   useMap(Maps.DEFAULT);
   const api = {
-    MIN_PLAYERS, MAX_PLAYERS, START_CASH, CASH_MULT, startCashFor, econOf, scaleMoney, goSalaryFor, salaryOf: inMap(salaryOf), stealCap: inMap(stealCap), START_POINTS, startPointsFor, sellPrice, stockFor, SHOP_OFFER_MIN, SHOP_OFFER_MAX, GO_SALARY, JAIL_FINE, JAIL_FINE_MAX, jailFine, MAX_HOUSES,
+    MIN_PLAYERS, MAX_PLAYERS, START_CASH, CASH_MULT, ECON_MAX, CARD_K, scaleCard, startCashFor, econOf, scaleMoney, goSalaryFor, salaryOf: inMap(salaryOf), stealCap: inMap(stealCap), START_POINTS, startPointsFor, sellPrice, stockFor, SHOP_OFFER_MIN, SHOP_OFFER_MAX, GO_SALARY, JAIL_FINE, JAIL_FINE_MAX, jailFine, MAX_HOUSES,
     DIFFICULTY_LIST, DIFFICULTIES, PACES, ROUND_LIMITS, PLAYER_COLORS,
     GODS, TILES, GROUPS, GROUP_TILES, OWNABLE, CHANCE, CHEST, ITEMS, ITEM_LIST, MAX_ITEMS,
     MAPS: Maps, useMap, tl, genTiles, applyTiles, create,

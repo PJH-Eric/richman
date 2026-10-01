@@ -794,6 +794,20 @@ section('隨機地圖與道具商店');
   }
 }
 
+section('資產倍率與卡片金額');
+{
+  ok(R.econOf(1e7, 120) === 3.6 && R.econOf(1000, 120) === 1 && R.econOf(12000, 48) === 2, '資產倍率＝初始現金÷6000，範圍 1～3.6');
+  ok(R.econOf(1e7, 40) === 1, '經典 40 格倍率是 1');
+  const E = 3, pay = R.scaleCard({ t: 'pay', n: 50, text: '繳學費，付 50 元' }, E, true);
+  ok(pay.n === R.scaleMoney(50, E * R.CARD_K) && pay.text.includes(pay.n + ' 元'), '付錢卡：金額×倍率×' + R.CARD_K + '（' + pay.n + '），文字同步');
+  const col = R.scaleCard({ t: 'collect', n: 100, text: '保險到期，領 100 元' }, E, true);
+  ok(col.n === R.scaleMoney(100, E * R.CARD_K * 1.5), '收錢卡：金額×倍率×' + R.CARD_K + '×1.5（' + col.n + '）');
+  const rp = R.scaleCard({ t: 'repairs', house: 25, hotel: 100, text: '每棟房子付 25 元、每間旅店付 100 元' }, E, true);
+  ok(rp.house === R.scaleMoney(25, E * R.CARD_K) && rp.hotel === R.scaleMoney(100, E * R.CARD_K), '整修卡：房子／旅店金額都跟著倍率');
+  const cl = R.scaleCard({ t: 'pay', n: 50, text: '付 50 元' }, 1, false);
+  ok(cl.n === 50, '經典 40 格卡片維持原價');
+}
+
 section('亂數');
 {
   const a = RNG.create('z'), b = RNG.create('z');
