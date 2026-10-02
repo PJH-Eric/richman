@@ -403,9 +403,11 @@
       });
       S.boardRoomId = room.id;
     }
+    if (root.NetworkLatency) root.NetworkLatency.setActive(true);
     S.board.render(room.game);
   }
   function showResult(room) {
+    if (root.NetworkLatency) root.NetworkLatency.setActive(false);
     const v = room.lastGame;
     const myId = room.you.id;
     const mine = v.seats.findIndex(s => s.id === myId);
@@ -425,6 +427,7 @@
   }
 
   function endTable() {
+    if (root.NetworkLatency) root.NetworkLatency.setActive(false);
     if (S.board) { S.board.destroy(); S.board = null; S.boardRoomId = null; }
   }
 

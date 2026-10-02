@@ -74,6 +74,9 @@
     ws.onopen = () => {
       retry = 0;
       me.send(JSON.stringify({ type: 'hello', key: key(), name: hello.name, char: hello.char }));
+      if (root.NetworkLatency) root.NetworkLatency.setProbe(() => {
+        if (ws === me && me.readyState === WebSocket.OPEN) me.send(JSON.stringify({ type: 'ping', t: performance.now() }));
+      });
       setStatus('open');
     };
     ws.onmessage = e => {
@@ -81,12 +84,16 @@
       try { msg = JSON.parse(e.data); } catch (err) { return; }
       if (msg.type === 'welcome' && msg.key) { try { localStorage.setItem(KEY_STORE, msg.key); } catch (err) { /* 忽略 */ } }
       if (msg.type === 'replaced') { wantOpen = false; }
+      if (msg.type === 'pong' && typeof msg.t === 'number' && root.NetworkLatency) {
+        root.NetworkLatency.report(performance.now() - msg.t);
+      }
       (handlers[msg.type] || []).forEach(fn => fn(msg));
       (handlers['*'] || []).forEach(fn => fn(msg));
     };
     ws.onclose = () => {
       if (ws !== me) return;
       ws = null;
+      if (root.NetworkLatency) root.NetworkLatency.report(null);
       if (wantOpen) { setStatus('retrying'); scheduleRetry(); } else setStatus('idle');
     };
     ws.onerror = () => { /* onclose 會接手 */ };
