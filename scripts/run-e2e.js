@@ -1,7 +1,7 @@
 /* ===== scripts/run-e2e.js — 平行跑完整實機（Playwright）測試 =====
  * 用法：node scripts/run-e2e.js [--quick] [--jobs=N] [--only=名稱,名稱]
  *   --quick  只跑最重要的（瀏覽器主流程＋道具流程），跳過捲動、卡死掃描、地圖
- *   --jobs   同時跑幾個（預設＝CPU 核心數）
+ *   --jobs   同時跑幾個（預設最多 2 組，避免瀏覽器互搶資源）
  * 每個測試檔各開自己的伺服器（port 0），所以可以放心同時跑；輸出等該項跑完再一次印，不會交錯。
  * 3D 在自動化瀏覽器裡自動用低畫質（board3d.js 偵測 navigator.webdriver），版面不變、算圖快很多。 */
 'use strict';
@@ -12,7 +12,7 @@ const path = require('path');
 const args = process.argv.slice(2);
 const flag = n => (args.find(a => a.startsWith('--' + n + '=')) || '').split('=')[1];
 const quick = args.includes('--quick');
-const jobs = Math.max(1, Number(flag('jobs')) || os.cpus().length);
+const jobs = Math.max(1, Number(flag('jobs')) || Math.min(2, os.cpus().length));
 const only = (flag('only') || '').split(',').filter(Boolean);
 
 const ALL = [
