@@ -3,6 +3,8 @@
  */
 'use strict';
 
+require('./seo.js');
+
 const R = require('../public/js/rules.js');
 const AI = require('../public/js/ai.js');
 const RNG = require('../public/js/rng.js');

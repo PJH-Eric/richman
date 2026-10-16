@@ -87,6 +87,7 @@
       if (msg.type === 'pong' && typeof msg.t === 'number' && root.NetworkLatency) {
         root.NetworkLatency.report(performance.now() - msg.t);
       }
+      if (root.GameAnalytics) root.GameAnalytics.roomResponse(msg.type, !!msg.room);
       (handlers[msg.type] || []).forEach(fn => fn(msg));
       (handlers['*'] || []).forEach(fn => fn(msg));
     };
@@ -114,7 +115,11 @@
   }
 
   function send(msg) {
-    if (ws && ws.readyState === 1) { ws.send(JSON.stringify(msg)); return true; }
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify(msg));
+      if (root.GameAnalytics) root.GameAnalytics.roomRequest(msg);
+      return true;
+    }
     return false;
   }
 
