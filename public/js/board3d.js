@@ -80,7 +80,7 @@
     const canvas = document.createElement('canvas');
     canvas.className = 'b3d';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', '3D 棋盤，可以拖曳移動視角，點格子看說明');
+    canvas.setAttribute('aria-label', root.I18N.t("board.296"));
     container.insertBefore(canvas, container.firstChild);
     let renderer;
     try {
@@ -109,7 +109,7 @@
     base.position.y = (TILE_H - 0.02) / 2; scene.add(base);
 
     const cc = document.createElement('canvas'); cc.width = cc.height = 512;
-    (function () {
+    function paintCenter() {
       const g = cc.getContext('2d');
       g.fillStyle = '#FFF1CF'; g.fillRect(0, 0, 512, 512);
       g.strokeStyle = '#E2B47A'; g.lineWidth = 6; g.setLineDash([16, 12]); g.strokeRect(12, 12, 488, 488);
@@ -118,8 +118,9 @@
       for (let k = 0; k < 4; k++) { g.beginPath(); g.moveTo(20, 400 + k * 22); for (let x = 20; x <= 492; x += 24) g.quadraticCurveTo(x + 6, 388 + k * 22, x + 12, 400 + k * 22); g.lineTo(492, 512); g.lineTo(20, 512); g.closePath(); g.globalAlpha = 0.16; g.fill(); }
       g.globalAlpha = 1;
       g.fillStyle = theme.titleColor; g.font = '900 78px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(theme.title[0], 256, 150); g.fillText(theme.title[1], 256, 250);
-    })();
+      g.fillText(root.GT.themeTitle(theme)[0], 256, 150); g.fillText(root.GT.themeTitle(theme)[1], 256, 250);
+    }
+    paintCenter();
     const ctex = new THREE.CanvasTexture(cc); ctex.colorSpace = THREE.SRGBColorSpace;
     const inlay = new THREE.Mesh(new THREE.PlaneGeometry(TOTAL - CW * 2, TOTAL - CW * 2), new THREE.MeshStandardMaterial({ map: ctex, roughness: 0.9 }));
     inlay.rotation.x = -Math.PI / 2; inlay.position.y = TILE_H - 0.01; scene.add(inlay);
@@ -234,8 +235,8 @@
         let fs = corner ? 68 : 62;
         c.font = nameFont(fs);
         const areaW = landscape ? cw * 0.6 : cw - 8;
-        let lines = wrapText(c, t.name, areaW);
-        while (fs > 30 && lines.some(l => c.measureText(l).width > areaW)) { fs -= 3; c.font = nameFont(fs); lines = wrapText(c, t.name, areaW); }
+        let lines = wrapText(c, root.GT.place(t.name), areaW);
+        while (fs > 30 && lines.some(l => c.measureText(l).width > areaW)) { fs -= 3; c.font = nameFont(fs); lines = wrapText(c, root.GT.place(t.name), areaW); }
         const pillH = price ? 58 : 0;
         if (!landscape) {
           const gs = Math.min(cw * (corner ? 0.6 : 0.5), ch * (corner ? 0.46 : 0.3));
@@ -337,12 +338,12 @@
     function paintLabel(i) {
       const t = T[i], c = labelCv.getContext('2d');
       c.clearRect(0, 0, 512, 128);
-      const price = t.price ? '  ' + t.price : t.tax ? '  稅 ' + t.tax : '';
+      const price = t.price ? '  ' + t.price : t.tax ? root.I18N.t("board.297") + t.tax : '';
       c.font = '900 56px ' + FONT;
-      const w = Math.min(500, c.measureText(t.name + price).width + 60);
+      const w = Math.min(500, c.measureText(root.GT.place(t.name) + price).width + 60);
       pill(c, (512 - w) / 2, 24, w, 80, '#FFFBEF', '#7A4E2A');
       c.fillStyle = '#2E1F14'; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(t.name + price, 256, 66, 460);
+      c.fillText(root.GT.place(t.name) + price, 256, 66, 460);
       labelTex.needsUpdate = true;
     }
     /* 選道具目標時，可選的格子用淡綠色發亮 */
@@ -692,9 +693,9 @@
     /* 畫面左上角的視角按鈕：跟著棋子／看全圖／轉正 */
     const btns = document.createElement('div');
     btns.className = 'cam-btns';
-    btns.innerHTML = '<button type="button" class="btn3d sand small" data-cam="follow">跟著棋子</button>' +
-      '<button type="button" class="btn3d sand small" data-cam="all">看全圖</button>' +
-      '<button type="button" class="btn3d sand small" data-cam="reset" aria-label="轉回正面">轉正</button>';
+    btns.innerHTML = root.I18N.t("board.298") +
+      root.I18N.t("board.299") +
+      root.I18N.t("board.300");
     container.appendChild(btns);
     function syncBtns() {
       btns.querySelector('[data-cam="follow"]').setAttribute('aria-pressed', String(follow));
@@ -762,7 +763,7 @@
     raf = requestAnimationFrame(frame);
 
     return {
-      refreshPrices() { tileObjs.forEach(o => o.repaint && o.repaint()); dirty = true; },
+      refreshPrices() { paintCenter(); ctex.needsUpdate = true; tileObjs.forEach(o => o.repaint && o.repaint()); dirty = true; },
       setTiles, highlight, pop, setSeats, setActive, setFollow, setTok, hideTok, setTargets, rollBegin, rollEnd, camReady, showDice, setView,
       get rolling() { return rolling; },
       /** 格子在畫面上的位置（給飄字用），單位 px，相對於棋盤容器左上角 */

@@ -22,14 +22,14 @@
   /* ---------- 八隻海島動物（頭像＋花襯衫肩膀，漸層做立體） ---------- */
 
   const ANIMALS = [
-    { id: 'otter',    name: '水獺', base: '#9A7358', dark: '#6B4A34', light: '#F3E2CC', shirt: '#4FB3E8', ears: 'low',    muzzle: 'wide', whisker: true },
-    { id: 'bunny',    name: '兔兔', base: '#FBF3EF', dark: '#E2CFC8', light: '#FFFFFF', shirt: '#F58FB0', ears: 'long',   muzzle: 'small', flower: true },
-    { id: 'capybara', name: '水豚', base: '#C0915E', dark: '#936639', light: '#D9B386', shirt: '#7BCB6E', ears: 'tiny',   muzzle: 'capy', leaf: true },
-    { id: 'penguin',  name: '企鵝', base: '#334262', dark: '#1F2A42', light: '#FFFFFF', shirt: '#FFB547', ears: 'none',   muzzle: 'beak', hat: true },
-    { id: 'shiba',    name: '柴柴', base: '#EE9F4E', dark: '#C9772B', light: '#FFF6EA', shirt: '#6FC9C4', ears: 'point',  muzzle: 'dog' },
-    { id: 'turtle',   name: '海龜', base: '#83C986', dark: '#4F9A5A', light: '#D8F1CF', shirt: '#F77F6B', ears: 'none',   muzzle: 'small', spots: true, glasses: true },
-    { id: 'koala',    name: '無尾熊', base: '#A9B2BF', dark: '#7F8896', light: '#F1F3F6', shirt: '#B48CF0', ears: 'fluffy', muzzle: 'koala' },
-    { id: 'cat',      name: '貓咪', base: '#F4D59C', dark: '#E0A456', light: '#FFF8EA', shirt: '#5C8FE8', ears: 'point',  muzzle: 'small', stripes: true }
+    { id: 'otter',    get name() { return root.I18N.t("board.301"); }, base: '#9A7358', dark: '#6B4A34', light: '#F3E2CC', shirt: '#4FB3E8', ears: 'low',    muzzle: 'wide', whisker: true },
+    { id: 'bunny',    get name() { return root.I18N.t("board.302"); }, base: '#FBF3EF', dark: '#E2CFC8', light: '#FFFFFF', shirt: '#F58FB0', ears: 'long',   muzzle: 'small', flower: true },
+    { id: 'capybara', get name() { return root.I18N.t("board.303"); }, base: '#C0915E', dark: '#936639', light: '#D9B386', shirt: '#7BCB6E', ears: 'tiny',   muzzle: 'capy', leaf: true },
+    { id: 'penguin',  get name() { return root.I18N.t("board.304"); }, base: '#334262', dark: '#1F2A42', light: '#FFFFFF', shirt: '#FFB547', ears: 'none',   muzzle: 'beak', hat: true },
+    { id: 'shiba',    get name() { return root.I18N.t("board.305"); }, base: '#EE9F4E', dark: '#C9772B', light: '#FFF6EA', shirt: '#6FC9C4', ears: 'point',  muzzle: 'dog' },
+    { id: 'turtle',   get name() { return root.I18N.t("board.306"); }, base: '#83C986', dark: '#4F9A5A', light: '#D8F1CF', shirt: '#F77F6B', ears: 'none',   muzzle: 'small', spots: true, glasses: true },
+    { id: 'koala',    get name() { return root.I18N.t("board.307"); }, base: '#A9B2BF', dark: '#7F8896', light: '#F1F3F6', shirt: '#B48CF0', ears: 'fluffy', muzzle: 'koala' },
+    { id: 'cat',      get name() { return root.I18N.t("board.308"); }, base: '#F4D59C', dark: '#E0A456', light: '#FFF8EA', shirt: '#5C8FE8', ears: 'point',  muzzle: 'small', stripes: true }
   ];
   const ANIMAL_MAP = {};
   ANIMALS.forEach(a => { ANIMAL_MAP[a.id] = a; });
@@ -286,7 +286,7 @@
   /** 骰子點數 1～6；0＝還沒擲（顯示問號） */
   function dieSvg(n, cls) {
     const pips = (PIPS[n] || []).map(p => '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="2.3" fill="' + (n === 1 ? '#E0483E' : '#2B2A3A') + '"/>').join('');
-    return '<svg viewBox="0 0 24 24" class="die ' + (cls || '') + '" role="img" aria-label="骰子 ' + (n || '未擲') + '">' +
+    return '<svg viewBox="0 0 24 24" class="die ' + (cls || '') + root.I18N.t("board.309") + (n || root.I18N.t("board.310")) + '">' +
       '<rect x="1.5" y="1.5" width="21" height="21" rx="5" fill="#FFFDF7" stroke="#B9824D" stroke-width="1.6"/>' +
       '<rect x="3" y="3" width="18" height="6" rx="3" fill="#fff" opacity=".7"/>' +
       (n ? pips : '<text x="12" y="16.5" text-anchor="middle" font-size="12" font-weight="900" fill="#B9824D">?</text>') + '</svg>';
@@ -312,7 +312,7 @@
       tiles += '<rect x="14" y="' + (58 + i * 30) + '" width="28" height="26" rx="3" fill="' + cols[(i + 5) % 8] + '"/>';
       tiles += '<rect x="318" y="' + (58 + i * 30) + '" width="28" height="26" rx="3" fill="' + cols[(i + 1) % 8] + '"/>';
     }
-    return '<svg viewBox="0 0 360 220" class="hero-svg" aria-label="寶島大富翁：棋盤、台北101、骰子與三隻小動物">' +
+    return root.I18N.t("board.311") +
       '<rect x="8" y="22" width="344" height="158" rx="18" fill="#FFF3D6" stroke="#B9824D" stroke-width="8"/>' + tiles +
       '<rect x="50" y="60" width="260" height="84" rx="10" fill="#D8F1E0"/>' +
       nest(glyph('tower101'), 158, 62, 44, 80) + nest(glyph('lake'), 78, 74, 46, 46) + nest(glyph('mountain'), 236, 74, 46, 46) +

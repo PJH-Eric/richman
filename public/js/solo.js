@@ -67,7 +67,7 @@
   function act(a) {
     if (!game || game.paused || game.ended) { if (game) game.board.render(root.Rules.publicView(game.state, game.clock)); return; }
     const r = root.Rules.act(game.state, 'me', a, game.clock);
-    if (!r.ok && r.text) root.UI.toast(r.text, 'bad');
+    if (!r.ok && r.text) root.UI.toast(root.GT.tr(r.text), 'bad');
     draw(true);
   }
 
@@ -95,17 +95,28 @@
     const win = v.winner === game.board.mySeat;
     root.Store.record(root.App.store, game.cfg.kind, win);
     root.Sound.sfx(win ? 'win' : 'lose');
+    renderResult(v);
+    $('#res-again').focus({ preventScroll: true });
+  }
+  /** 畫出結算內容（切換語言時也會重畫，所以跟戰績記錄分開） */
+  function renderResult(v) {
+    const t = root.I18N.t;
     const st = root.App.store.stats[game.cfg.kind] || { play: 0, win: 0 };
-    const diffName = game.cfg.kind === 'mixed' ? '混合難度' : root.Rules.DIFFICULTIES[game.cfg.kind].name;
+    const diffName = game.cfg.kind === 'mixed' ? t('diff.mixedName') : t('diff.' + game.cfg.kind);
     const box = $('#result');
-    box.innerHTML = root.Board.resultHtml(v, 'me', '一共玩了 ' + v.round + ' 回合｜' + diffName + '：玩了 ' + st.play + ' 局、贏 ' + st.win + ' 局');
+    box.innerHTML = root.Board.resultHtml(v, 'me', t('result.subSolo', { n: v.round, d: diffName, play: st.play, win: st.win }));
     $('#result-actions').innerHTML =
-      '<button type="button" class="btn3d coral" id="res-again">再來一局</button>' +
-      '<button type="button" class="btn3d sand" id="res-home">回首頁</button>';
+      '<button type="button" class="btn3d coral" id="res-again">' + t('result.again') + '</button>' +
+      '<button type="button" class="btn3d sand" id="res-home">' + t('menu.home') + '</button>';
     box.hidden = false;
     $('#res-again').onclick = () => { box.hidden = true; start(game.cfg); };
     $('#res-home').onclick = () => { box.hidden = true; stop(); root.UI.show('home'); };
-    $('#res-again').focus({ preventScroll: true });
+  }
+  /** 切換語言：棋盤與結算畫面重畫 */
+  function relang() {
+    if (!game) return;
+    game.board.relang();
+    if (game.ended && !$('#result').hidden) renderResult(root.Rules.publicView(game.state, game.clock));
   }
 
   /** silent：只停時鐘不開選單（例如打開設定彈窗時） */
@@ -165,7 +176,7 @@
     return g.state.seats[g.state.turn].id === 'me' && g.state.phase === 'roll';
   }
   root.Solo = {
-    fastForward, skipToMyRoll, start, stop, pause, resume,
+    fastForward, skipToMyRoll, start, stop, pause, resume, relang,
     primary() { return game && !game.paused ? game.board.primary() : false; },
     get active() { return !!game; },
     get paused() { return !!(game && game.paused); },

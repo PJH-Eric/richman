@@ -2,6 +2,7 @@
 (function (root) {
   'use strict';
 
+  const t = (k, p) => root.I18N.t(k, p);
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => [...(el || document).querySelectorAll(sel)];
 
@@ -93,10 +94,10 @@
 
   /* ---------- 隨機可愛暱稱（形容詞＋小動物） ---------- */
 
-  const ADJ = ['開心', '快手', '小小', '圓滾滾', '愛笑', '勇敢', '軟綿綿', '機靈', '陽光', '悠哉', '閃亮', '好奇'];
-  const NOUN = ['水獺', '兔兔', '水豚', '企鵝', '柴柴', '海龜', '無尾熊', '貓咪', '海豹', '螃蟹', '椰子', '小魚'];
+  /* 詞庫放在字典裡（用 | 分隔），英文版是「Cozy Otter」這種短組合，總長不超過暱稱上限 10 字 */
   function randomName() {
-    return ADJ[Math.floor(Math.random() * ADJ.length)] + NOUN[Math.floor(Math.random() * NOUN.length)];
+    const adj = t('nick.adj').split('|'), noun = t('nick.noun').split('|');
+    return adj[Math.floor(Math.random() * adj.length)] + t('nick.join') + noun[Math.floor(Math.random() * noun.length)];
   }
 
   /* ---------- 角色選擇 ---------- */
@@ -104,7 +105,7 @@
   function charPicker(el, selected, onPick) {
     el.innerHTML = root.Art.ANIMALS.map(a =>
       '<button type="button" class="char-opt" role="radio" data-char="' + a.id + '" aria-checked="' + (a.id === selected) +
-      '" aria-label="' + a.name + '">' + root.Art.animalSvg(a.id) + '<span>' + a.name + '</span></button>').join('');
+      '" aria-label="' + root.GT.animal(a.id) + '">' + root.Art.animalSvg(a.id) + '<span>' + root.GT.animal(a.id) + '</span></button>').join('');
     el.addEventListener('click', e => {
       const b = e.target.closest('.char-opt');
       if (!b) return;
@@ -128,16 +129,16 @@
       '<label class="set-row vol"><span class="set-text"><b>' + label + '</b></span>' +
       '<input type="range" min="0" max="1" step="0.05" data-key="' + key + '" value="' + store[key] + '" aria-label="' + label + '"></label>';
     body.innerHTML =
-      '<h3 class="set-group">聲音</h3>' +
-      sw('bgm', '背景音樂', 'music') + vol('bgmVol', '音樂音量') +
-      sw('sfx', '音效', 'sound') + vol('sfxVol', '音效音量') +
-      '<h3 class="set-group">手感與畫面</h3>' +
-      sw('vibrate', '震動', 'feel', '被關進監獄、破產時震一下（支援的手機／平板）') +
-      sw('reduceMotion', '減少動態', 'see', '關掉骰子、棋子移動與飄字動畫') +
-      sw('fastAnim', '動畫加快', 'feel', '棋子走快一點，骰子少轉一下') +
-      sw('bigText', '中央文字放大', 'see', '棋盤中央的提示與按鈕字更大') +
-      '<div class="set-actions"><button type="button" class="btn3d sand" id="set-reset">恢復預設</button>' +
-      '<button type="button" class="btn3d sea" data-close>完成</button></div>';
+      '<h3 class="set-group">' + t('settings.sound') + '</h3>' +
+      sw('bgm', t('settings.bgm'), 'music') + vol('bgmVol', t('settings.bgmVol')) +
+      sw('sfx', t('settings.sfx'), 'sound') + vol('sfxVol', t('settings.sfxVol')) +
+      '<h3 class="set-group">' + t('settings.feel') + '</h3>' +
+      sw('vibrate', t('settings.vibrate'), 'feel', t('settings.vibrateSub')) +
+      sw('reduceMotion', t('settings.reduceMotion'), 'see', t('settings.reduceMotionSub')) +
+      sw('fastAnim', t('settings.fastAnim'), 'feel', t('settings.fastAnimSub')) +
+      sw('bigText', t('settings.bigText'), 'see', t('settings.bigTextSub')) +
+      '<div class="set-actions"><button type="button" class="btn3d sand" id="set-reset">' + t('settings.reset') + '</button>' +
+      '<button type="button" class="btn3d sea" data-close>' + t('settings.done') + '</button></div>';
 
     body.oninput = e => {
       const k = e.target.dataset.key;
@@ -149,7 +150,7 @@
       root.Store.resetSettings(store);
       buildSettings(store, onChange);
       onChange(store);
-      toast('設定已恢復預設');
+      toast(t('settings.resetDone'));
       const first = $('#settings-body .switch');
       if (first) first.focus();
     };
@@ -157,7 +158,7 @@
 
   /* ---------- 聊天室（房間、對局左欄、窄版彈層共用同一份訊息） ---------- */
 
-  const QUICK = ['加油！', '好緊張～', '手好快！', '再來一局', '哈哈哈', '等我一下'];
+  const quick = () => t('chat.quick').split('|');   /* 快捷短語放字典（用 | 分隔）；點了送出的是當下語言的句子，聊天內容本身不翻譯 */
   const chat = {
     messages: [],
     enabled: false,
@@ -171,9 +172,9 @@
       $$('.chat').forEach(box => {
         box.innerHTML =
           '<ol class="chat-log" aria-live="polite"></ol>' +
-          '<div class="chat-quick">' + QUICK.map(q => '<button type="button" class="chip" data-q="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
-          '<form class="chat-form"><input maxlength="60" placeholder="輸入訊息…" aria-label="聊天訊息" autocomplete="off">' +
-          '<button class="icon-btn send" type="submit" aria-label="送出">' + root.Art.icon('send') + '</button></form>';
+          '<div class="chat-quick">' + quick().map(q => '<button type="button" class="chip" data-q="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
+          '<form class="chat-form"><input maxlength="60" placeholder="' + esc(t('chat.placeholder')) + '" aria-label="' + esc(t('chat.inputAria')) + '" autocomplete="off">' +
+          '<button class="icon-btn send" type="submit" aria-label="' + esc(t('chat.send')) + '">' + root.Art.icon('send') + '</button></form>';
         box.addEventListener('click', e => {
           const q = e.target.closest('[data-q]');
           if (q && this.onSend) this.onSend(q.dataset.q);
@@ -187,14 +188,24 @@
         });
       });
     },
+    /** 切換語言：只換快捷短語、輸入框提示等固定文字，不動已輸入的內容 */
+    relang() {
+      $$('.chat').forEach(box => {
+        const q = $('.chat-quick', box), inp = $('input', box), send = $('.send', box);
+        if (q) q.innerHTML = quick().map(x => '<button type="button" class="chip" data-q="' + esc(x) + '">' + esc(x) + '</button>').join('');
+        if (inp) { inp.placeholder = t('chat.placeholder'); inp.setAttribute('aria-label', t('chat.inputAria')); }
+        if (send) send.setAttribute('aria-label', t('chat.send'));
+      });
+      this.render();
+    },
     render() {
       const html = this.messages.map(m => m.system
-        ? '<li class="sys">' + esc(m.text) + '</li>'
+        ? '<li class="sys">' + esc(root.GT.tr(m.text)) + '</li>'
         : '<li><span class="who">' + (m.char ? root.Art.animalSvg(m.char) : '') + '<b>' + esc(m.name) +
-          (m.spec ? '<i>觀戰</i>' : '') + '</b></span><span class="msg">' + esc(m.text) + '</span></li>').join('');
+          (m.spec ? '<i>' + t('chat.spec') + '</i>' : '') + '</b></span><span class="msg">' + esc(m.text) + '</span></li>').join('');
       $$('.chat-log').forEach(ol => {
         const nearBottom = ol.scrollHeight - ol.scrollTop - ol.clientHeight < 40;
-        ol.innerHTML = html || '<li class="sys">還沒有訊息，打聲招呼吧！</li>';
+        ol.innerHTML = html || '<li class="sys">' + t('chat.empty') + '</li>';
         if (nearBottom || true) ol.scrollTop = ol.scrollHeight;
       });
       $$('.chat-form input, .chat-form button, .chat-quick button').forEach(n => { n.disabled = !this.canSend; });
@@ -202,28 +213,26 @@
   };
 
   /** 地圖大小選擇卡片（單機開局與房主設定共用）。地圖每局隨機生成，只選格數。attrs：每張卡片加上的屬性，例如 'data-size' 或 'data-set="mapSize"' */
-  const SIZE_INFO = { 48: ['小巧', '節奏快，約 10～15 分鐘'], 64: ['標準', '地產多一點，剛剛好'], 80: ['寬廣', '色組多、要走比較久'], 96: ['超大', '長線經營，適合久玩'], 120: ['巨大', '超大棋盤，玩很久也很豐富'] };
   /* 自製下拉選單（不用原生 <select>）：地圖大小、回合上限共用。按鈕顯示目前選的，點開跳出選項；
    * 選了會在按鈕上送出 'ddselect' 事件（detail＝{ kind, val }，val 是數字） */
-  const LIMIT_INFO = { 25: ['短局', '25 回合到了比總資產'], 40: ['標準', '40 回合到了比總資產'], 50: ['長局', '50 回合到了比總資產'], 0: ['不限', '打到只剩一人沒破產'] };
   const DD = {
-    map: { label: '地圖大小', values: () => root.Rules.MAPS.SIZES, norm: n => root.Rules.MAPS.SIZES.includes(Number(n)) ? Number(n) : root.Rules.MAPS.DEFAULT_SIZE,
-      sw: n => '<span class="map-sw"><b>' + n + '</b><small>格</small></span>', name: n => SIZE_INFO[n][0], sub: n => SIZE_INFO[n][1], aria: n => n + ' 格' + SIZE_INFO[n][0] },
-    limit: { label: '回合上限', values: () => root.Rules.ROUND_LIMITS.filter(n => n).concat([0]), norm: n => root.Rules.ROUND_LIMITS.includes(Number(n)) ? Number(n) : 40,
-      sw: n => '<span class="map-sw lim"><b>' + (n || '∞') + '</b><small>回合</small></span>', name: n => LIMIT_INFO[n][0], sub: n => LIMIT_INFO[n][1], aria: n => n ? n + ' 回合' : '不限回合' }
+    map: { label: () => t('map.label'), values: () => root.Rules.MAPS.SIZES, norm: n => root.Rules.MAPS.SIZES.includes(Number(n)) ? Number(n) : root.Rules.MAPS.DEFAULT_SIZE,
+      sw: n => '<span class="map-sw"><b>' + n + '</b><small>' + t('u.tiles') + '</small></span>', name: n => t('map.size.' + n + '.name'), sub: n => t('map.size.' + n + '.sub'), aria: n => t('map.aria', { n: n, name: t('map.size.' + n + '.name') }) },
+    limit: { label: () => t('limit.label'), values: () => root.Rules.ROUND_LIMITS.filter(n => n).concat([0]), norm: n => root.Rules.ROUND_LIMITS.includes(Number(n)) ? Number(n) : 40,
+      sw: n => '<span class="map-sw lim"><b>' + (n || '∞') + '</b><small>' + t('u.rounds') + '</small></span>', name: n => t('limit.name.' + n), sub: n => t('limit.sub.' + n), aria: n => n ? t('limit.aria', { n: n }) : t('limit.none') }
   };
   /* 電腦難度：一格一個的精簡下拉，值是 0～3（幼幼班／簡單／普通／困難） */
-  DD.diff = { label: '電腦難度', compact: true, values: () => [0, 1, 2, 3], norm: n => [0, 1, 2, 3].includes(Number(n)) ? Number(n) : 2,
-    name: n => root.Rules.DIFFICULTIES[['kid', 'easy', 'normal', 'hard'][n]].name, aria: n => root.Rules.DIFFICULTIES[['kid', 'easy', 'normal', 'hard'][n]].name };
+  DD.diff = { label: () => t('solo.diff'), compact: true, values: () => [0, 1, 2, 3], norm: n => [0, 1, 2, 3].includes(Number(n)) ? Number(n) : 2,
+    name: n => t('diff.' + ['kid', 'easy', 'normal', 'hard'][n]), aria: n => t('diff.' + ['kid', 'easy', 'normal', 'hard'][n]) };
   function dropdown(kind, selected, attrs) {
     const d = DD[kind], n = d.norm(selected);
-    if (d.compact) return '<button type="button" class="map-dd cell-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + (attrs && attrs.label ? attrs.label : d.label) + '：' + d.aria(n) + '" ' + ((attrs && attrs.attrs) || '') + '><b>' + d.name(n) + '</b><i class="dd-caret" aria-hidden="true"></i></button>';
-    return '<button type="button" class="map-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + d.label + '：' + d.aria(n) + '" ' + (attrs || '') + '>' +
+    if (d.compact) return '<button type="button" class="map-dd cell-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + (attrs && attrs.label ? attrs.label : d.label()) + '：' + d.aria(n) + '" ' + ((attrs && attrs.attrs) || '') + '><b>' + d.name(n) + '</b><i class="dd-caret" aria-hidden="true"></i></button>';
+    return '<button type="button" class="map-dd" data-ddk="' + kind + '" data-val="' + n + '" aria-haspopup="listbox" aria-expanded="false" aria-label="' + d.label() + '：' + d.aria(n) + '" ' + (attrs || '') + '>' +
       d.sw(n) + '<span class="map-tx"><b>' + d.name(n) + '</b><small>' + d.sub(n) + '</small></span><i class="dd-caret" aria-hidden="true"></i></button>';
   }
   const mapCards = (selected, attrs) => dropdown('map', selected, attrs);
   const limitSelect = (selected, attrs) => dropdown('limit', selected, attrs);
-  const diffSelect = (idx, selected) => dropdown('diff', selected, { label: '電腦 ' + (idx + 1) + ' 的難度', attrs: 'data-ai="' + idx + '"' });
+  const diffSelect = (idx, selected) => dropdown('diff', selected, { label: t('solo.botDiffAria', { n: idx + 1 }), attrs: 'data-ai="' + idx + '"' });
   let mdMenu = null, mdBtn = null;
   function mapMenuClose(focus) {
     if (!mdMenu) return;
@@ -237,7 +246,7 @@
     mdBtn = btn; btn.setAttribute('aria-expanded', 'true');
     const cur = Number(btn.dataset.val);
     const m = document.createElement('div');
-    m.className = 'dd-menu map-menu'; m.setAttribute('role', 'listbox'); m.tabIndex = -1; m.setAttribute('aria-label', d.label);
+    m.className = 'dd-menu map-menu'; m.setAttribute('role', 'listbox'); m.tabIndex = -1; m.setAttribute('aria-label', d.label());
     if (d.compact) m.classList.add('cell-menu');
     m.innerHTML = d.compact ? d.values().map(n => '<button type="button" role="option" class="dd-opt" data-val="' + n + '" aria-selected="' + (n === cur) + '">' + d.name(n) + (n === cur ? '<i class="dd-check" aria-hidden="true"></i>' : '') + '</button>').join('') : d.values().map(n => '<button type="button" role="option" class="dd-opt map-opt" data-val="' + n + '" aria-selected="' + (n === cur) + '">' + d.sw(n) +
       '<span class="map-tx"><b>' + d.name(n) + '</b><small>' + d.sub(n) + '</small></span>' + (n === cur ? '<i class="dd-check" aria-hidden="true"></i>' : '') + '</button>').join('');
@@ -270,5 +279,8 @@
   document.addEventListener('pointerdown', e => { if (mdMenu && !mdMenu.contains(e.target) && !e.target.closest('[data-ddk]')) mapMenuClose(); });
   window.addEventListener('resize', () => mapMenuClose());
 
-  root.UI = { $, $$, esc, show, mapCards, limitSelect, diffSelect, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
+  /** 切換語言：把開著的下拉選單收起來（按鈕文字由各畫面重畫） */
+  function relang() { mapMenuClose(); chat.relang(); }
+
+  root.UI = { relang, $, $$, esc, show, mapCards, limitSelect, diffSelect, onShow, get current() { return current; }, modal, anyModalOpen, toast, vibrate, randomName, charPicker, setChar, buildSettings, chat };
 })(typeof self !== 'undefined' ? self : this);

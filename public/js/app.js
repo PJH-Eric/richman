@@ -8,18 +8,9 @@
   let chatPopOpen = false, unread = 0, sideUnread = 0, chatMinState = () => false;
   const modals = {};
 
-  const DIFF_HINT = {
-    kid: '電腦會亂買、不蓋房，適合 3～5 歲小朋友一起玩',
-    easy: '電腦會買地，但比較大方、不太會蓋房',
-    normal: '電腦會算現金、湊整組、蓋房，跟一般玩家差不多',
-    hard: '電腦會留現金防身、搶整組，很會理財'
-  };
-  const LIMIT_HINT = {
-    25: '25 回合到了還沒分出勝負，就比總資產（現金＋地產＋房子），最多的人獲勝',
-    40: '40 回合到了還沒分出勝負，就比總資產，最多的人獲勝',
-    50: '50 回合到了還沒分出勝負，就比總資產，最多的人獲勝',
-    0: '不限回合，打到只剩一個人沒破產。可能會打很久，中途可以隨時離開'
-  };
+  const t = (k, p) => root.I18N.t(k, p);
+  const DIFF_HINT = k => t('diff.' + k + '.hint');
+  const LIMIT_HINT = n => ({ 25: 1, 40: 1, 50: 1, 0: 1 })[n] ? t('limit.hint.' + n) : '';
 
   function boot() {
     /* 圖示 */
@@ -37,6 +28,10 @@
     $('#solo-ai [data-step="1"]').innerHTML = Art.icon('plus');
     root.Sound.apply(store);
     applyVisual();
+    /* 語言切換鈕：放在設定鈕旁邊；「回遊戲大廳」連結帶上 ?lang= */
+    root.I18N.mountToggle({ after: $('#btn-settings') });
+    const syncLobbyLink = () => { const a = $('#lobby-home-link'); if (a) a.href = root.I18N.withLang('https://pjh-eric.github.io/game-lobby/'); };
+    syncLobbyLink();
     /* 第一次點擊才能出聲（瀏覽器規定） */
     const unlock = () => { root.Sound.unlock(); document.removeEventListener('pointerdown', unlock, true); document.removeEventListener('keydown', unlock, true); };
     document.addEventListener('pointerdown', unlock, true);
@@ -82,12 +77,8 @@
     }));
 
     /* 單機設定 */
-    root.UI.charPicker($('#solo-chars'), store.char, id => { store.char = id; root.Store.save(store); root.UI.setChar($('#lobby-chars'), id); });
-    root.UI.charPicker($('#lobby-chars'), store.char, id => {
-      store.char = id; root.Store.save(store); root.UI.setChar($('#solo-chars'), id);
-      root.Net.setProfile({ name: store.nickname, char: id });
-      if (root.Net.connected) root.Net.send({ type: 'profile', char: id });
-    });
+    root.UI.charPicker($('#solo-chars'), store.char, charPicked);
+    root.UI.charPicker($('#lobby-chars'), store.char, lobbyCharPicked);
     $('#solo-ai').addEventListener('click', e => {
       const b = e.target.closest('[data-step]');
       if (!b) return;
@@ -127,7 +118,7 @@
       const box = $('#side-chatbox'), t = $('#chat-toggle');
       box.classList.toggle('min', chatMin);
       t.setAttribute('aria-expanded', String(!chatMin));
-      t.setAttribute('aria-label', chatMin ? '展開聊天室' : '縮小聊天室');
+      t.setAttribute('aria-label', chatMin ? root.I18N.t('chat.expand') : root.I18N.t('chat.collapse'));
       if (!chatMin) { sideUnread = 0; renderSideUnread(); root.UI.chat.render(); }
     };
     $('#chat-toggle').onclick = () => {
@@ -154,8 +145,30 @@
     });
     window.addEventListener('resize', () => gameLayout());
     renderStats();
+    /* 切換語言：重畫目前看得到的所有動態內容（靜態 HTML 由 I18N 自己更新） */
+    root.I18N.onChange(() => {
+      syncLobbyLink();
+      applyChatMin();
+      root.UI.relang();
+      root.UI.buildSettings(store, s => { root.Store.save(s); root.Sound.apply(s); applyVisual(); });
+      renderStats();
+      if (root.UI.current === 'solo') { root.UI.charPicker($('#solo-chars'), store.char, charPicked); renderSoloSetup(); }
+      if (root.UI.current === 'lobby') root.UI.charPicker($('#lobby-chars'), store.char, lobbyCharPicked);
+      if (root.UI.current === 'help') renderHelp();
+      if (itemsModal && itemsModal.isOpen) $('#items-body').innerHTML = itemsGuideHtml();
+      if (menuModal && menuModal.isOpen) openMenu(false);
+      root.Online.relang();
+      root.Solo.relang();
+    });
     if (root.Online.hasInvite || root.Online.wasOnline()) root.Online.enterLobby();
     else show('home');
+  }
+
+  function charPicked(id) { store.char = id; root.Store.save(store); root.UI.setChar($('#lobby-chars'), id); }
+  function lobbyCharPicked(id) {
+    store.char = id; root.Store.save(store); root.UI.setChar($('#solo-chars'), id);
+    root.Net.setProfile({ name: store.nickname, char: id });
+    if (root.Net.connected) root.Net.send({ type: 'profile', char: id });
   }
 
   function soloHold(on) {
@@ -196,7 +209,7 @@
   function renderStats() {
     let play = 0, win = 0;
     for (const k in store.stats) { play += store.stats[k].play; win += store.stats[k].win; }
-    $('#home-stats').textContent = play ? '這台裝置上玩過 ' + play + ' 局，贏了 ' + win + ' 局' : '';
+    $('#home-stats').textContent = play ? t('home.stats', { play, win }) : '';
   }
 
   /* ---------- 單機 ---------- */
@@ -216,19 +229,18 @@
   function renderSoloSetup() {
     const diffs = aiDiffs().slice(0, store.aiCount);
     const same = diffs.every(x => x === diffs[0]);
-    const names = root.Rules.DIFFICULTIES;
     $('#solo-ai-list').style.setProperty('--n', diffs.length);
     $('#solo-ai-list').innerHTML = diffs.map((d, i) =>
-      '<li><span class="ai-no">電腦 ' + (i + 1) + '</span>' + root.UI.diffSelect(i, DIFF_ORDER.indexOf(d)) + '</li>').join('');
+      '<li><span class="ai-no">' + t('solo.botN', { n: i + 1 }) + '</span>' + root.UI.diffSelect(i, DIFF_ORDER.indexOf(d)) + '</li>').join('');
     if (!root.Rules.MAPS.validSize(store.mapSize)) store.mapSize = root.Rules.MAPS.DEFAULT_SIZE;
     $('#solo-map').innerHTML = root.UI.mapCards(store.mapSize, '');
     $('#solo-ai-n').textContent = store.aiCount;
     $('#solo-ai [data-step="-1"]').disabled = store.aiCount <= 1;
     $('#solo-ai [data-step="1"]').disabled = store.aiCount >= 5;
     $('#solo-limit').innerHTML = root.UI.limitSelect(store.roundLimit, '');
-    $('#solo-limit-hint').textContent = LIMIT_HINT[store.roundLimit] || '';
+    $('#solo-limit-hint').textContent = LIMIT_HINT(store.roundLimit);
     const easiest = DIFF_ORDER.find(k => diffs.includes(k));
-    $('#solo-diff-hint').textContent = same ? DIFF_HINT[diffs[0]] : '混合難度：動作節奏跟著最簡單的電腦（' + names[easiest].name + '）';
+    $('#solo-diff-hint').textContent = same ? DIFF_HINT(diffs[0]) : t('diff.mixed', { d: t('diff.' + easiest) });
   }
   function startSolo() {
     const nm = $('#solo-name').value.trim().slice(0, 10) || store.nickname || root.UI.randomName();
@@ -241,7 +253,7 @@
     if (!store.seenHelp) {
       store.seenHelp = true;
       root.Store.save(store);
-      toast('輪到你就按「擲骰子」（空白鍵也可以）！點棋盤上的格子可以看說明。');
+      toast(t('solo.firstTip'));
     }
   }
 
@@ -292,23 +304,23 @@
     if (!from) from = isWide() ? $('#btn-menu') : $('#btn-menu-fab');
     const body = $('#menu-body');
     if (root.Solo.active) {
-      $('#menu-title').textContent = auto ? '遊戲暫停了' : '暫停';
-      body.innerHTML = (auto ? '<p class="hint">剛剛離開畫面，先幫你暫停</p>' : '') +
-        '<button type="button" class="btn3d coral btn-wide" id="m-resume">繼續</button>' +
-        '<button type="button" class="btn3d sand btn-wide" id="m-restart">重新開始</button>' +
-        '<button type="button" class="btn3d sea btn-wide" id="m-home">回首頁</button>';
+      $('#menu-title').textContent = auto ? t('menu.autoTitle') : t('menu.pause');
+      body.innerHTML = (auto ? '<p class="hint">' + t('menu.auto') + '</p>' : '') +
+        '<button type="button" class="btn3d coral btn-wide" id="m-resume">' + t('menu.resume') + '</button>' +
+        '<button type="button" class="btn3d sand btn-wide" id="m-restart">' + t('menu.restart') + '</button>' +
+        '<button type="button" class="btn3d sea btn-wide" id="m-home">' + t('menu.home') + '</button>';
       $('#m-resume').onclick = () => menuModal.close();
       $('#m-restart').onclick = () => { menuModal.close(); $('#result').hidden = true; root.Solo.restart(); };
       $('#m-home').onclick = () => { root.Solo.stop(); menuModal.close(); show('home'); renderStats(); };
     } else {
       const room = root.Online.room;
       const isPlayer = room && room.you.role === 'player';
-      $('#menu-title').textContent = '選單';
-      body.innerHTML = '<p class="hint">線上對局不會暫停，其他人會繼續玩。</p>' +
-        '<button type="button" class="btn3d coral btn-wide" id="m-resume">回到棋盤</button>' +
-        (room && room.invite.active ? '<button type="button" class="btn3d sea btn-wide" id="m-copy">複製邀請連結</button>' : '') +
-        '<button type="button" class="btn3d sand btn-wide" id="m-leave">離開房間</button>' +
-        (isPlayer ? '<small class="hint">對局中離開，你的角色會交給電腦代打</small>' : '');
+      $('#menu-title').textContent = t('menu.title');
+      body.innerHTML = '<p class="hint">' + t('menu.onlineNote') + '</p>' +
+        '<button type="button" class="btn3d coral btn-wide" id="m-resume">' + t('menu.back') + '</button>' +
+        (room && room.invite.active ? '<button type="button" class="btn3d sea btn-wide" id="m-copy">' + t('menu.copyInvite') + '</button>' : '') +
+        '<button type="button" class="btn3d sand btn-wide" id="m-leave">' + t('menu.leave') + '</button>' +
+        (isPlayer ? '<small class="hint">' + t('menu.leaveNote') + '</small>' : '');
       $('#m-resume').onclick = () => menuModal.close();
       const cp = $('#m-copy');
       if (cp) cp.onclick = () => {
@@ -326,14 +338,11 @@
   /** 道具說明：全部道具的圖示、點數、庫存、效果與取得方式 */
   function itemsGuideHtml() {
     const R = root.Rules;
-    const src = it => it.pts ? '' : '';
-    let h = '<p class="ig-rule"><b>道具點數</b>：開局有「回合上限 × 10」點（不限回合 500 點），只能在道具商店花。' +
-      '每次停到商店會隨機上架 3～6 樣，同一次只能各買 1 件；庫存整場全房共用，越貴越少。道具也能在商店半價賣回去。' +
-      '機會／命運卡有時會送點數。每人最多帶 ' + R.MAX_ITEMS + ' 個道具。停在溫泉休息站、抽到道具箱會拿到隨機道具。</p><ul class="ig-list">';
+    let h = '<p class="ig-rule">' + t('items.rule', { max: R.MAX_ITEMS }) + '</p><ul class="ig-list">';
     R.ITEM_LIST.forEach(id => {
       const it = R.ITEMS[id];
-      h += '<li><span class="it-ico">' + root.Art.glyph('i_' + id) + '</span><span class="ig-tx"><b>' + esc(it.name) + '</b><small>' + esc(it.desc) + '</small></span>' +
-        '<span class="ig-meta"><b>' + it.pts + ' 點</b><br>庫存 ' + R.stockFor(id, 4) + '／賣 ' + R.sellPrice(id) + ' 點' + src(it) + '</span></li>';
+      h += '<li><span class="it-ico">' + root.Art.glyph('i_' + id) + '</span><span class="ig-tx"><b>' + esc(root.GT.item(id)) + '</b><small>' + esc(root.GT.itemDesc(id)) + '</small></span>' +
+        '<span class="ig-meta"><b>' + t('u.pts', { n: it.pts }) + '</b><br>' + t('items.stock', { stock: R.stockFor(id, 4), sell: R.sellPrice(id) }) + '</span></li>';
     });
     return h + '</ul>';
   }
@@ -341,26 +350,16 @@
   /* ---------- 怎麼玩（靜態圖文） ---------- */
   function renderHelp() {
     const G = Art.glyph;
-    const step = (pic, h, p) => '<li><div class="help-pic">' + pic + '</div><div><h3>' + h + '</h3><p>' + p + '</p></div></li>';
+    const step = (pic, n) => '<li><div class="help-pic">' + pic + '</div><div><h3>' + t('help.s' + n + '.h') + '</h3><p>' + t('help.s' + n + '.p') + '</p></div></li>';
     $('#help-body').innerHTML =
       '<ol class="help-steps">' +
-      step(Art.dieSvg(4) + Art.dieSvg(3), '1. 擲骰子走路', '輪到你，先選「1 顆」還是「2 顆」骰子再按擲骰（1 顆走 1～6 步、2 顆走 2～12 步），棋子在棋盤上順時針走。每局地圖都是隨機產生的，開局前可以選地圖大小：48／64／80／96／120 格。起始現金＝回合數（不限回合算 100）×200×地圖倍率（48／64／80／96／120 格＝1.2／1.4／1.6／1.8／2 倍），經過起點的薪水＝500×同樣倍率。所有花費與收益（地價、房價、過路費、稅金、卡片金額）還會依起始現金調整：起始現金越多，物價越高（倍率＝起始現金÷6000，最低 1、最高 3.6；機會／命運卡的收付金額再 ×2）。') +
-      step(G('gem'), '2. 買地', '停在無主的地上，可以花錢買下來。錢不夠或想跳過，按面板上的「不買」鈕。別人停在你的地上，要付你過路費。') +
-      step(Art.houseSvg() + Art.hotelSvg(), '3. 走到自己的地才能蓋房', '走到自己的地時，面板會詢問是否加蓋房子（花的錢是那塊地的房價）。每塊地都可以單獨一路升到 4 棟、再升成旅店，租金最高，每塊地獨立升級。整組都是你的，空地租金還會加倍。')+
-      step(G('chance'), '4. 機會與命運', '停在「機會」或「命運」會抽一張卡，可能領獎金、被罰錢、被送去別的地方。') +
-      step(G('jail'), '5. 監獄', '被抓進監獄後，可以繳罰款、用出獄許可證離開，或待在牢裡等；想提早出去要繳罰款，罰款依你的總資產決定（10%，最少 50、最多 500 元）；在牢裡只能待著或繳罰款；待滿整整 3 個回合免罰金出獄，第 4 回合起才擲骰。路過監獄只是探監，安全通過。') +
-      step(G('coin'), '6. 錢不夠就賣房', '要付錢卻不夠時，可以到「我的地產」賣房子換現金。實在湊不出來就破產，淘汰出局。') +
-      step(G('god_fortune'), '7. 命運之神', '抽到好的機會／命運可能被福神（別人付你的過路費加倍）或財神（每回合領一筆錢）附身；壞運氣會遇到窮神（你付雙倍過路費）或衰神（每回合被扣一筆錢）。神明會陪你 4 個自己的回合。') +
-      step(G('i_dice'), '8. 道具與攻擊', '停在休息站、抽到道具卡會獲得道具；停在「道具商店」用道具點數買道具（每次上架 3～6 樣、庫存全房共用），也能把道具半價賣回去；機會／命運卡有時會送點數。每人最多帶 10 個，大廳和面板上的「道具說明」／「道具庫」可以看全部道具。擲骰前可以主動用：遙控骰（選走 1～12 步）、偷錢卡（偷 10% 現金）、搶奪卡（隨機搶 1 個道具）、換位卡、冰凍卡、陷害卡（讓對手坐牢）、均富卡（和對手現金平分）、炸彈、加蓋券、漲價卡（自己的地租金 ×1.5 持續 3 回合）、收租券、加骰券（走完可再擲一次）、福袋、領薪券、求神符、驅神符；免租券、反彈卡、強制購地券（付完過路費後這塊地變你的）、購地免費券、招財貓、起點加碼券、保釋券、護身符會在對的時候自動生效。') +
+      step(Art.dieSvg(4) + Art.dieSvg(3), 1) + step(G('gem'), 2) + step(Art.houseSvg() + Art.hotelSvg(), 3) + step(G('chance'), 4) +
+      step(G('jail'), 5) + step(G('coin'), 6) + step(G('god_fortune'), 7) + step(G('i_dice'), 8) +
       '</ol>' +
-      '<div class="help-tips"><h3>怎麼贏</h3><ul>' +
-      '<li>其他人都破產，剩下的最後一個人獲勝。</li>' +
-      '<li>如果設了回合上限，時間到就比總資產（現金＋地價＋房子），最多的人獲勝。</li>' +
-      '<li>電腦有四種難度：幼幼班、簡單、普通、困難。</li>' +
-      '<li>棋盤上每個玩家有不同顏色和形狀（圓、方、三角、菱形），看形狀就知道地是誰的。</li>' +
-      '<li>空白鍵或 Enter 可以快速做「擲骰／買地／結束回合」。右上角齒輪可以調音樂、音效、動畫。</li>' +
+      '<div class="help-tips"><h3>' + t('help.tipsTitle') + '</h3><ul>' +
+      [1, 2, 3, 4, 5].map(n => '<li>' + t('help.tip' + n) + '</li>').join('') +
       '</ul></div>' +
-      '<button type="button" class="btn3d coral btn-wide" id="help-go">我懂了，開始玩！</button>';
+      '<button type="button" class="btn3d coral btn-wide" id="help-go">' + t('help.go') + '</button>';
     $('#help-go').onclick = () => openSolo();
   }
 

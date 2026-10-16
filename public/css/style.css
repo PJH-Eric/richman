@@ -1191,3 +1191,23 @@ html.cs-page::-webkit-scrollbar { display: none; width: 0; }
 .inv-list li.inv-empty { grid-column: 1 / -1; }
 @media (min-width: 700px) { .inv-list { display: grid; grid-template-columns: 1fr 1fr; } .inv-list li { align-items: center; } }
 @media (max-width: 520px) { .inv-list li { flex-wrap: wrap; } .inv-list li .btn3d { width: 100%; } }
+
+/* Keep the language switch beside settings, including narrow English layouts. */
+.lang-toggle { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(70px + env(safe-area-inset-right)); min-width: 48px; min-height: 48px; padding: 8px; border: 2px solid #4a3b55; border-radius: 14px; background: #fff0de; color: #4a3b55; font: 800 16px/1.2 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 0 #cfb99f; z-index: 1001; }
+.lang-toggle:focus-visible { outline: 3px solid #287dac; outline-offset: 3px; }
+#btn-settings { min-width: 48px; min-height: 48px; }
+.panel-head h2, .setrow label, .rule-field, .modal-head h2 { min-width: 0; overflow-wrap: anywhere; }
+html[lang="en"] .home-btns .btn3d, html[lang="en"] .btn-wide { white-space: normal; overflow-wrap: anywhere; }
+
+/* Character names may be longer in English. */
+.char-grid, .setup-me .char-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.char-opt { min-width: 0; overflow-wrap: anywhere; }
+@media(max-width: 360px) { .char-grid, .setup-me .char-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* Narrow portrait screens keep balances and English player names readable. */
+@media (max-width: 600px) and (orientation: portrait) {
+  .mb-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mb-strip .ms { grid-template-columns: auto minmax(0, 1fr); }
+  .mb-strip b, .mb-strip small { white-space: normal; overflow-wrap: anywhere; }
+  .mb-strip small { overflow: visible; line-height: 1.2; }
+}
