@@ -79,11 +79,6 @@ function createServer(opt) {
       return json(res, 200, { ok: true, game: GAME_ID, rooms: hub.rooms.size, players: c.players, spectators: c.spectators,
         online: sockets.size, difficulties: Rules.DIFFICULTY_LIST, time: Date.now() });
     }
-    if (url === '/api/presence') {
-      const c = counts();
-      return json(res, 200, { gameId: GAME_ID, online: sockets.size, players: c.players, spectators: c.spectators,
-        lobby: lobby.size, rooms: hub.rooms.size, updatedAt: new Date().toISOString() });
-    }
     if (url === '/api/rooms') return json(res, 200, { rooms: hub.listRooms() });
 
     if (url === '/') url = '/index.html';

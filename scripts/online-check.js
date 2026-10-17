@@ -50,9 +50,6 @@ async function liveTest() {
 
   const health = await (await fetch('http://127.0.0.1:' + port + '/health')).json();
   ok(health.ok && health.game === 'richman', '/health 回報正常');
-  const pres = await (await fetch('http://127.0.0.1:' + port + '/api/presence')).json();
-  ok(pres.gameId === 'richman', '/api/presence 可給遊戲大廳查人數');
-
   const host = await client(port, 'key-host-123', '房主', 'otter');
   const bob = await client(port, 'key-bob-4567', '小明', 'bunny');
   const spec = await client(port, 'key-spec-890', '路人', 'cat');

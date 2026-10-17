@@ -89,7 +89,7 @@ npm run test:browser   # Playwright：5 種視窗尺寸、設定彈窗、3D 棋�
 ## 目錄
 
 ```
-server.js            HTTP 靜態檔 + /health + /api/presence + /api/rooms + WebSocket
+server.js            HTTP 靜態檔 + /health + /api/rooms + WebSocket
 lib/                 ws.js（WebSocket）、rooms.js（房間、邀請 token、觀戰、斷線代打）
 public/js/rules.js   規則核心（伺服器為準）、maps.js 地圖資料、ai.js 電腦、rng.js 種子亂數
 public/js/board3d.js three.js 3D 棋盤；board.js 棋盤操作面板與動畫；solo.js 單機；online.js 線上
