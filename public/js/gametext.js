@@ -41,6 +41,7 @@
 
   function lang() { return I18N.lang; }
   function isZh() { return I18N.lang === 'zh-Hant'; }
+  function isHans() { return I18N.lang === 'zh-Hans'; }
   function t(key, params) { return I18N.t(key, params); }
 
   function parse(text, rules) {
@@ -60,6 +61,12 @@
   /** 地名、格子名、色組名、主題名（地圖每局隨機生成，名字來自 maps.js） */
   function place(name) {
     if (isZh() || !name) return name;
+    if (isHans() && Msgs.PLACES_HANS) {
+      if (Msgs.PLACES_HANS[name]) return Msgs.PLACES_HANS[name];
+      var hansPrefix = /^([新小大])(.+)$/.exec(name);
+      if (hansPrefix && Msgs.PLACES_HANS[hansPrefix[2]]) return hansPrefix[1] + Msgs.PLACES_HANS[hansPrefix[2]];
+      return name;
+    }
     if (PLACES[name]) return PLACES[name];
     var m = /^([新小大])(.+)$/.exec(name);
     if (m && PLACES[m[2]]) return PREFIX[m[1]] + PLACES[m[2]];
