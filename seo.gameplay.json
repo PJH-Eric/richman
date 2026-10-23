@@ -1,0 +1,35 @@
+{
+  "zh-Hant": {
+    "name": "寶島大富翁",
+    "summary": "3D 台灣風景棋盤，買地蓋房、用道具收過路費，最後存活的人獲勝。",
+    "modes": [
+      "單機練習",
+      "四段 AI",
+      "線上房間",
+      "觀戰"
+    ],
+    "controls": "點擊按鈕擲骰、買地；點棋盤格子看說明；空白鍵快速操作"
+  },
+  "zh-Hans": {
+    "name": "宝岛大富翁",
+    "summary": "3D 台湾风景棋盘，买地盖房、用道具收过路费，最后存活的人获胜。",
+    "modes": [
+      "单机练习",
+      "四段 AI",
+      "线上房间",
+      "观战"
+    ],
+    "controls": "点击按钮掷骰、买地；点棋盘格子看说明；空白键快速操作"
+  },
+  "en": {
+    "name": "Treasure Island Tycoon",
+    "summary": "A 3D Taiwan-scenery board: buy land, build houses, use items to collect rent, and be the last player standing.",
+    "modes": [
+      "Solo Practice",
+      "Four AI Levels",
+      "Online Room",
+      "Spectate"
+    ],
+    "controls": "Tap buttons to roll and buy; tap a board tile for info; space bar for quick actions"
+  }
+}
