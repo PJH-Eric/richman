@@ -113,3 +113,11 @@ MIT。three.js 為 MIT 授權（Copyright © 2010-2026 three.js authors）。
 - `node tests/verify.js`、`node tests/items.js`、`node scripts/online-check.js`、`node scripts/flow-fuzz.js`、`node scripts/deep-fuzz.js`：純規則測試，幾十秒跑完。
 - `node scripts/run-e2e.js`：瀏覽器實機檢查（browser、shop、items、online-items、scroll、stall、maps 平行跑），約 8～9 分鐘；`--quick` 只跑主要三項。單項：`npm run test:shop` 等。
 - 測試腳本共用 `scripts/_fast.js`（動作逾時 8 秒）和 `Solo.skipToMyRoll()`（快轉到輪到自己擲骰、不播中間動畫），避免卡在逾時與電腦回合上。
+
+## 維護與驗證產物
+
+介面支援繁體中文、簡體中文與英文；從右上角語言選單切換，新增說明文字時須同步維護三種語系。遊戲人數、操作與勝負條件以本文件的玩法說明及規則核心為準。
+
+以 `package.json` 的 scripts 為可執行指令來源；`npm test` 執行基本驗證，`npm run verify` 執行該專案列出的整合驗證。需要 Playwright、瀏覽器或網路的檢查，依各測試章節的前置條件執行。
+
+截圖、測試報告、記錄檔及快取為可重新產生的驗證產物，不屬於正式遊戲資產，也不提交版本控制。測試完成後可清除 `screenshots/`、`shots/`、`.shots/`、`test-results/`、`playwright-report/`、`coverage/`、`.cache/`、`tmp/`、`temp/` 與 `*.log`。保留正式圖片、圖示、音訊、字型、原始碼、測試案例、鎖定檔及 `.env.example`；`node_modules/` 是相依套件目錄，不能當成圖片或暫存檔一起刪除。
