@@ -24,6 +24,7 @@
 
   function setStatus(s, detail) {
     status = s;
+    if (root.ServerOutage) root.ServerOutage.state(s);
     statusListeners.forEach(fn => fn(s, detail));
   }
 
@@ -45,6 +46,7 @@
         clearTimeout(t);
         if (r.ok) return true;
       } catch (e) { /* 還在睡 */ }
+      if (!wantOpen) return false;
       if (Date.now() - started > 90000) return false;
       setStatus('waking', Math.round((Date.now() - started) / 1000));
       await new Promise(res => setTimeout(res, 2500));
